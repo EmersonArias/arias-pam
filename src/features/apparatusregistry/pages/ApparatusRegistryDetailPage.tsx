@@ -2,17 +2,17 @@ import { useEffect, useRef, useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
-  ArrowLeft,
   Camera,
-  FileText,
   ImagePlus,
   Maximize2,
   Minimize2,
-  Save,
-  Trash2,
   X,
 } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
+import FormActions, { type FormMode } from '../../../shared/components/forms/FormActions'
+import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
+import UnsavedChangesDialog from '../../../shared/components/navigation/UnsavedChangesDialog'
+import { useGuardedNavigation } from '../../../shared/hooks/useGuardedNavigation'
 import {
   createEmptyApparatus,
   fromDatabase,
@@ -83,9 +83,9 @@ export default function ApparatusRegistryDetailPage() {
   const { id } = useParams<{ id: string }>()
   const isNew = !id || id === 'new'
 
-  const [item, setItem] = useState<ApparatusRegistry>(() =>
-    createEmptyApparatus(),
-  )
+  const [item, setItem] = useState<ApparatusRegistry>(() => createEmptyApparatus())
+  const [baseline, setBaseline] = useState<ApparatusRegistry>(() => createEmptyApparatus())
+  const [mode, setMode] = useState<FormMode>(isNew ? 'create' : 'view')
   const [loading, setLoading] = useState(!isNew)
   const [saving, setSaving] = useState(false)
   const [generatingCode, setGeneratingCode] = useState(false)
@@ -99,7 +99,15 @@ export default function ApparatusRegistryDetailPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    if (isNew || !id) return
+    if (isNew) {
+      const empty = createEmptyApparatus()
+      setItem(empty)
+      setBaseline(empty)
+      setMode('create')
+      return
+    }
+
+    if (!id) return
 
     async function loadRecord() {
       setLoading(true)
@@ -117,7 +125,10 @@ export default function ApparatusRegistryDetailPage() {
         return
       }
 
-      setItem(fromDatabase(data as DatabaseApparatusRegistry))
+      const loaded = fromDatabase(data as DatabaseApparatusRegistry)
+      setItem(loaded)
+      setBaseline(loaded)
+      setMode('view')
       setLoading(false)
     }
 
@@ -177,58 +188,91 @@ export default function ApparatusRegistryDetailPage() {
     }
   }
 
-  async function handleSave(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
+  async function saveRecord(navigateAfterCreate = true): Promise<boolean> {
+    if (mode === 'view') return true
 
     if (!item.code.trim() || !item.name.trim()) {
       setErrorMessage('Código y denominación son obligatorios.')
-      return
+      return false
     }
 
     setSaving(true)
     setMessage('')
     setErrorMessage('')
 
-    const payload = toDatabase(item)
+    try {
+      const payload = toDatabase(item)
 
-    if (isNew) {
+      if (isNew) {
+        const { data, error } = await supabase
+          .from('apparatus_registry')
+          .insert(payload)
+          .select('*')
+          .single()
+
+        if (error) {
+          setErrorMessage(`Error guardando registro: ${error.message}`)
+          return false
+        }
+
+        const saved = fromDatabase(data as DatabaseApparatusRegistry)
+        setItem(saved)
+        setBaseline(saved)
+        setMode('view')
+        setMessage('Registro guardado correctamente.')
+
+        if (navigateAfterCreate) {
+          navigate(`/apparatusregistry/${saved.id}`, { replace: true })
+        }
+
+        return true
+      }
+
       const { data, error } = await supabase
         .from('apparatus_registry')
-        .insert(payload)
+        .update(payload)
+        .eq('id', item.id)
         .select('*')
         .single()
 
       if (error) {
-        setErrorMessage(`Error guardando registro: ${error.message}`)
-        setSaving(false)
-        return
+        setErrorMessage(`Error actualizando registro: ${error.message}`)
+        return false
       }
 
       const saved = fromDatabase(data as DatabaseApparatusRegistry)
       setItem(saved)
-      setMessage('Registro guardado correctamente.')
+      setBaseline(saved)
+      setMode('view')
+      setMessage('Registro actualizado correctamente.')
+      return true
+    } finally {
       setSaving(false)
-      navigate(`/apparatusregistry/${saved.id}`, { replace: true })
-      return
     }
-
-    const { data, error } = await supabase
-      .from('apparatus_registry')
-      .update(payload)
-      .eq('id', item.id)
-      .select('*')
-      .single()
-
-    if (error) {
-      setErrorMessage(`Error actualizando registro: ${error.message}`)
-      setSaving(false)
-      return
-    }
-
-    setItem(fromDatabase(data as DatabaseApparatusRegistry))
-    setMessage('Registro actualizado correctamente.')
-    setSaving(false)
   }
+
+  async function handleSave(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    await saveRecord()
+  }
+
+  const onSaveAvailable = mode === 'view' ? undefined : saveAndNavigate
+
+  const isDirty =
+    mode !== 'view' && JSON.stringify(item) !== JSON.stringify(baseline)
+
+  const {
+    requestNavigation,
+    cancelNavigation,
+    discardNavigation,
+    saveAndNavigate,
+    dialogOpen,
+    saving: navigatingAndSaving,
+  } = useGuardedNavigation({
+    dirty: isDirty,
+    onNavigate: navigate,
+    onSave: () => saveRecord(false),
+  })
 
   async function handlePhotoFiles(event: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files ?? [])
@@ -309,7 +353,7 @@ const path = `${item.id}/${generateId()}.${extension}`
   }
 
   async function handleDeletePhoto(url: string) {
-    if (!item.id) return
+    if (!item.id || mode === 'view') return
 
     const confirmed = window.confirm('¿Eliminar esta fotografía?')
     if (!confirmed) return
@@ -358,7 +402,7 @@ const path = `${item.id}/${generateId()}.${extension}`
   }
 
   async function handleDelete() {
-    if (isNew || !item.id) return
+    if (isNew || !item.id || mode !== 'view') return
 
     const confirmed = window.confirm(
       `¿Eliminar el registro ${item.code}? Esta acción no se puede deshacer.`,
@@ -411,7 +455,7 @@ const path = `${item.id}/${generateId()}.${extension}`
             <div className="flex items-center gap-3">
               <img
                 src="/logo.png"
-                alt="Arias PAM"
+                alt="Arias Suite"
                 className="h-11 w-auto object-contain sm:h-13"
               />
               <div>
@@ -424,42 +468,18 @@ const path = `${item.id}/${generateId()}.${extension}`
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="submit"
-                form="apparatus-detail-form"
-                disabled={saving || generatingCode || uploadingPhotos}
-                className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-3 py-2 font-semibold text-white shadow hover:bg-green-700 disabled:opacity-50"
-              >
-                <Save size={17} />
-                Guardar
-              </button>
-              <button
-                type="button"
-                onClick={handleDelete}
-                disabled={isNew || saving || uploadingPhotos}
-                className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-3 py-2 font-semibold text-white shadow hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                <Trash2 size={17} />
-                Eliminar
-              </button>
-              <button
-                type="button"
-                onClick={openReport}
-                disabled={!item.id}
-                className="inline-flex items-center gap-2 rounded-lg bg-slate-700 px-3 py-2 font-semibold text-white shadow hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                <FileText size={17} />
-                PDF
-              </button>
-              <button
-                type="button"
-                onClick={() => navigate('/apparatusregistry')}
-                className="inline-flex items-center gap-2 rounded-lg bg-white px-3 py-2 font-semibold text-slate-700 shadow ring-1 ring-slate-200 hover:bg-slate-50"
-              >
-                <ArrowLeft size={17} />
-                Salir
-              </button>
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <BackButton onBack={() => requestNavigation('/apparatusregistry')} disabled={saving || generatingCode || uploadingPhotos} />
+              <HomeButton onHome={() => requestNavigation('/')} disabled={saving || generatingCode || uploadingPhotos} />
+              <FormActions
+                mode={mode}
+                onSave={() => void saveRecord()}
+                onCancel={() => requestNavigation('/apparatusregistry')}
+                onEdit={() => setMode('edit')}
+                onDelete={() => void handleDelete()}
+                onReport={openReport}
+                saving={saving || generatingCode || uploadingPhotos}
+              />
             </div>
           </div>
         </div>
@@ -506,6 +526,7 @@ const path = `${item.id}/${generateId()}.${extension}`
               <input
                 value={item.name}
                 onChange={(event) => updateField('name', event.target.value)}
+                disabled={mode === 'view'}
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-blue-500"
                 required
               />
@@ -518,6 +539,7 @@ const path = `${item.id}/${generateId()}.${extension}`
               <input
                 value={item.plant}
                 onChange={(event) => updateField('plant', event.target.value)}
+                disabled={mode === 'view'}
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-blue-500"
               />
             </label>
@@ -529,6 +551,7 @@ const path = `${item.id}/${generateId()}.${extension}`
               <input
                 value={item.location}
                 onChange={(event) => updateField('location', event.target.value)}
+                disabled={mode === 'view'}
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-blue-500"
               />
             </label>
@@ -542,6 +565,7 @@ const path = `${item.id}/${generateId()}.${extension}`
                 onChange={(event) =>
                   updateField('maintenance', event.target.value)
                 }
+                disabled={mode === 'view'}
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-blue-500"
               />
             </label>
@@ -563,6 +587,7 @@ const path = `${item.id}/${generateId()}.${extension}`
                 onChange={(event) =>
                   void updateClassification('familyCode', event.target.value)
                 }
+                disabled={mode === 'view'}
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 font-semibold uppercase outline-none focus:border-blue-500"
                 placeholder="Ej. ACC"
               />
@@ -580,6 +605,7 @@ const path = `${item.id}/${generateId()}.${extension}`
                     event.target.value,
                   )
                 }
+                disabled={mode === 'view'}
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 font-semibold uppercase outline-none focus:border-blue-500"
                 placeholder="Ej. AUT"
               />
@@ -607,7 +633,7 @@ const path = `${item.id}/${generateId()}.${extension}`
                 type="file"
                 accept="image/*"
                 capture="environment"
-                disabled={!item.id || uploadingPhotos}
+                disabled={!item.id || mode === 'view' || uploadingPhotos}
                 onChange={handlePhotoFiles}
                 className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
               />
@@ -669,7 +695,7 @@ const path = `${item.id}/${generateId()}.${extension}`
                   <button
                     type="button"
                     onClick={() => void handleDeletePhoto(photo)}
-                    disabled={uploadingPhotos}
+                    disabled={mode === 'view' || uploadingPhotos}
                     aria-label="Eliminar fotografía"
                     title="Eliminar fotografía"
                     className="absolute right-2 top-2 inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/95 text-red-600 shadow hover:bg-white disabled:opacity-50"
@@ -688,6 +714,7 @@ const path = `${item.id}/${generateId()}.${extension}`
               type="checkbox"
               checked={item.active}
               onChange={(event) => updateField('active', event.target.checked)}
+              disabled={mode === 'view'}
               className="h-5 w-5 rounded border-slate-300"
             />
             Registro activo
@@ -698,6 +725,13 @@ const path = `${item.id}/${generateId()}.${extension}`
           Arias_PAM / Emerson Arias
         </div>
 
+        <UnsavedChangesDialog
+          open={dialogOpen}
+          onCancel={cancelNavigation}
+          onDiscard={discardNavigation}
+          onSaveAndContinue={onSaveAvailable}
+          saving={navigatingAndSaving}
+        />
         {viewerPhoto && (
           <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"

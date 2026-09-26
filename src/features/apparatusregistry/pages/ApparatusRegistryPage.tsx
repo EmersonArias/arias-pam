@@ -299,20 +299,32 @@ export default function ApparatusRegistryPage() {
                       className={`cursor-pointer border-b transition ${
                         isSelected
                           ? 'bg-blue-50'
-                          : 'hover:bg-slate-50'
+                          : item.active
+                            ? 'hover:bg-slate-50'
+                            : 'bg-slate-100 hover:bg-slate-200/70'
                       }`}
                     >
-                      <td className="whitespace-nowrap px-4 py-3 font-semibold text-slate-900">
+                      <td className={`whitespace-nowrap px-4 py-3 font-semibold ${
+                        item.active ? 'text-slate-900' : 'text-slate-500'
+                      }`}>
                         {item.code}
                       </td>
-                      <td className="px-4 py-3 text-slate-800">{item.name}</td>
-                      <td className="whitespace-nowrap px-4 py-3 text-slate-700">
+                      <td className={`px-4 py-3 ${
+                        item.active ? 'text-slate-800' : 'text-slate-500'
+                      }`}>{item.name}</td>
+                      <td className={`whitespace-nowrap px-4 py-3 ${
+                        item.active ? 'text-slate-700' : 'text-slate-500'
+                      }`}>
                         {item.plant || '—'}
                       </td>
-                      <td className="px-4 py-3 text-slate-700">
+                      <td className={`px-4 py-3 ${
+                        item.active ? 'text-slate-700' : 'text-slate-500'
+                      }`}>
                         {item.location || '—'}
                       </td>
-                      <td className="px-4 py-3 text-slate-700">
+                      <td className={`px-4 py-3 ${
+                        item.active ? 'text-slate-700' : 'text-slate-500'
+                      }`}>
                         {item.maintenance || '—'}
                       </td>
                                             <td className="whitespace-nowrap px-4 py-3">

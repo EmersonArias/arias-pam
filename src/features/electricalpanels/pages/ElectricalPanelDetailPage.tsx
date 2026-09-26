@@ -6,7 +6,7 @@ import { clonePanel, createEmptyPanel, CURRENT_TECHNICIAN, fromDatabase, getNext
 
 export default function ElectricalPanelDetailPage() {
   const navigate = useNavigate()
-  const { confirm, alert: showAlert } = useSystemDialog()
+  const { confirm } = useSystemDialog()
   const location = useLocation()
   const { id } = useParams<{ id: string }>()
   const isNew = location.pathname === '/electricalpanels/new'

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../../../lib/supabase'
 import BrandLogo from '../../../shared/components/branding/BrandLogo'
+import PrintReportFooter from '../../../shared/components/reports/PrintReportFooter'
 import {
   formatDate,
   fromDatabase,
@@ -134,7 +135,7 @@ export default function ElectricalPanelsReportPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 p-3 sm:p-5 print:bg-white print:p-0">
+    <div className="arias-report-page min-h-screen bg-slate-100 p-3 sm:p-5 print:bg-white print:p-0">
         <style>{`
           @page {
             size: A4 landscape;
@@ -145,19 +146,6 @@ export default function ElectricalPanelsReportPage() {
             body {
               -webkit-print-color-adjust: exact;
               print-color-adjust: exact;
-            }
-
-            .arias-report-footer {
-              position: fixed;
-              left: 0;
-              right: 0;
-              bottom: 0;
-              padding-top: 3mm;
-              border-top: 0.3mm solid #cbd5e1;
-              background: #ffffff;
-              font-size: 8px;
-              color: #475569;
-              text-align: center;
             }
           }
         `}</style>
@@ -389,9 +377,7 @@ export default function ElectricalPanelsReportPage() {
             </div>
           </div>
         )}
-        <div className="arias-report-footer">
-          Arias_PAM / Emerson Arias
-        </div>
+        <PrintReportFooter />
       </div>
     </div>
   )

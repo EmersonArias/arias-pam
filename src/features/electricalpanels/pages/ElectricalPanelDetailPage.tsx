@@ -70,7 +70,7 @@ export default function ElectricalPanelDetailPage() {
   } = useGuardedNavigation({
     dirty: isDirty,
     onNavigate: navigate,
-    onSave: save,
+    onSave: () => save(false),
   })
 
   const toggleReview = (reviewId: string) => setPanel((current) => ({ ...current, reviews: current.reviews.map((review) => review.id === reviewId ? { ...review, checked: !review.checked } : review), inspectionDate: todayInputValue() }))
@@ -114,7 +114,7 @@ export default function ElectricalPanelDetailPage() {
     updated_at: new Date().toISOString(),
   })
 
-  const save = async (): Promise<boolean> => {
+  const save = async (navigateAfterSave = true): Promise<boolean> => {
     setErrorMessage('')
     if (!validate()) return false
     setSaving(true)
@@ -142,7 +142,7 @@ ${duplicate.code} — ${duplicate.name ?? 'Sin identificar'} — ${duplicate.loc
         const saved = clonePanel(fromDatabase(data as never))
         setPanel(saved)
         setBaseline(clonePanel(saved))
-        navigate('/electricalpanels')
+        if (navigateAfterSave) navigate('/electricalpanels')
         return true
       }
       if (!panel.id) throw new Error('Registro no válido.')
@@ -151,7 +151,7 @@ ${duplicate.code} — ${duplicate.name ?? 'Sin identificar'} — ${duplicate.loc
       const saved = clonePanel(fromDatabase(data as never))
       setPanel(saved)
       setBaseline(clonePanel(saved))
-      navigate('/electricalpanels')
+      if (navigateAfterSave) navigate('/electricalpanels')
       return true
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'No se pudieron guardar los cambios.')

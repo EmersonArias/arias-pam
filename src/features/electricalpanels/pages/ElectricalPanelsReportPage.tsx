@@ -139,7 +139,7 @@ export default function ElectricalPanelsReportPage() {
         <style>{`
           @page {
             size: A4 landscape;
-            margin: 14mm 10mm 22mm 10mm;
+            margin: 14mm 10mm 8mm 10mm;
           }
 
           @media print {

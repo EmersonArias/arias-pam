@@ -13,6 +13,8 @@ import FormActions, { type FormMode } from '../../../shared/components/forms/For
 import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
 import UnsavedChangesDialog from '../../../shared/components/navigation/UnsavedChangesDialog'
 import { useGuardedNavigation } from '../../../shared/hooks/useGuardedNavigation'
+import BrandLogo from '../../../shared/components/branding/BrandLogo'
+import { useEscapeAsCancel } from '../../../shared/hooks/useEscapeAsCancel'
 import {
   createEmptyApparatus,
   fromDatabase,
@@ -249,6 +251,18 @@ export default function ApparatusRegistryDetailPage() {
 
   const onSaveAvailable = mode === 'view' ? undefined : saveAndNavigate
 
+  useEscapeAsCancel({
+    enabled: mode !== 'view' || dialogOpen,
+    onCancel: () => {
+      if (dialogOpen) {
+        cancelNavigation()
+        return
+      }
+
+      requestNavigation('/apparatusregistry')
+    },
+  })
+
   async function handlePhotoFiles(event: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files ?? [])
     event.target.value = ''
@@ -428,9 +442,8 @@ const path = `${item.id}/${generateId()}.${extension}`
         <div className="mb-4 rounded-2xl bg-white p-3 shadow-lg sm:p-4">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
-              <img
-                src="/logo.png"
-                alt="Arias Suite"
+              <BrandLogo
+                onActivate={() => requestNavigation('/')}
                 className="h-11 w-auto object-contain sm:h-13"
               />
               <div>

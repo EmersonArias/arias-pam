@@ -103,7 +103,7 @@ export default function ApparatusRegistryReportPage() {
   return (
     <div className="min-h-screen bg-white text-slate-900 print:bg-white">
       <div className="mx-auto max-w-6xl p-4 sm:p-6 print:max-w-none print:p-0">
-        <div className="mb-5 flex items-start justify-between border-b pb-4 print:mb-4">
+        <div className="mb-3 flex items-start justify-between border-b pb-2 print:mb-2">
           <div className="flex items-center gap-3">
             <BrandLogo
               onActivate={() => navigate('/')}
@@ -137,10 +137,10 @@ export default function ApparatusRegistryReportPage() {
           </div>
         ) : (
           <>
-            <div className="mb-3 grid gap-2 text-sm sm:grid-cols-2">
-              <div className="rounded-lg bg-slate-50 px-3 py-2">
-                <div className="text-[11px] uppercase tracking-wide text-slate-500">Ámbito</div>
-                <div className="font-semibold">
+            <div className="-mt-1 mb-2 grid gap-2 text-xs leading-tight sm:grid-cols-2">
+              <div className="rounded-lg bg-slate-50 px-3 py-1.5">
+                <div className="text-[10px] uppercase tracking-wide text-slate-500">Ámbito</div>
+                <div className="font-semibold leading-tight">
                   {scope === 'SELECTED'
                     ? 'Registro seleccionado'
                     : scope === 'FILTERED'
@@ -148,9 +148,9 @@ export default function ApparatusRegistryReportPage() {
                       : 'Todos los registros'}
                 </div>
               </div>
-              <div className="rounded-lg bg-slate-50 px-3 py-2">
-                <div className="text-[11px] uppercase tracking-wide text-slate-500">Registros</div>
-                <div className="font-semibold">{reportRecords.length}</div>
+              <div className="rounded-lg bg-slate-50 px-3 py-1.5">
+                <div className="text-[10px] uppercase tracking-wide text-slate-500">Registros</div>
+                <div className="font-semibold leading-tight">{reportRecords.length}</div>
               </div>
             </div>
 

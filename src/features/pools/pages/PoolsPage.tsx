@@ -1,7 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { useRef, useState } from 'react'
 import { useSystemDialog } from '../../../shared/components/dialogs/SystemDialogProvider'
-import { useSystemDialog } from '../../../shared/components/dialogs/SystemDialogProvider'
 
 interface PoolRecord {
   id: string

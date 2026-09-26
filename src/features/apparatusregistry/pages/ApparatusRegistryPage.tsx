@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, FileText, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react'
+import { FileText, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react'
+import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
+import GridToolbar from '../../../shared/components/grid/GridToolbar'
 import { supabase } from '../../../lib/supabase'
 import {
   fromDatabase,
@@ -163,7 +165,7 @@ export default function ApparatusRegistryPage() {
             <div className="flex min-w-0 items-center gap-3">
               <img
                 src="/logo.png"
-                alt="Arias PAM"
+                alt="Arias Suite"
                 className="h-11 w-auto shrink-0 object-contain sm:h-13"
               />
               <div className="min-w-0">
@@ -176,47 +178,17 @@ export default function ApparatusRegistryPage() {
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={openNew}
-                className="inline-flex items-center gap-2 rounded-lg bg-blue-700 px-3 py-2 font-semibold text-white shadow hover:bg-blue-800"
-              >
-                <Plus size={17} />
-                Nuevo
-              </button>
-              <button
-                type="button"
-                onClick={openModify}
-                className="inline-flex items-center gap-2 rounded-lg bg-amber-500 px-3 py-2 font-semibold text-white shadow hover:bg-amber-600"
-              >
-                <Pencil size={17} />
-                Modificar
-              </button>
-              <button
-                type="button"
-                onClick={handleDelete}
-                className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-3 py-2 font-semibold text-white shadow hover:bg-red-700"
-              >
-                <Trash2 size={17} />
-                Eliminar
-              </button>
-              <button
-                type="button"
-                onClick={openReport}
-                className="inline-flex items-center gap-2 rounded-lg bg-slate-700 px-3 py-2 font-semibold text-white shadow hover:bg-slate-800"
-              >
-                <FileText size={17} />
-                PDF
-              </button>
-              <button
-                type="button"
-                onClick={() => navigate('/')}
-                className="inline-flex items-center gap-2 rounded-lg bg-white px-3 py-2 font-semibold text-slate-700 shadow ring-1 ring-slate-200 hover:bg-slate-50"
-              >
-                <ArrowLeft size={17} />
-                Salir
-              </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <BackButton onBack={() => navigate('/')} />
+              <HomeButton onHome={() => navigate('/')} />
+              <GridToolbar
+                actions={[
+                  { key: 'new', label: 'Nuevo', icon: Plus, tone: 'primary', onClick: openNew },
+                  { key: 'modify', label: 'Modificar', icon: Pencil, tone: 'warning', onClick: openModify, disabled: !selected },
+                  { key: 'delete', label: 'Eliminar', icon: Trash2, tone: 'danger', onClick: () => void handleDelete(), disabled: !selected },
+                  { key: 'report', label: 'PDF', icon: FileText, tone: 'dark', onClick: openReport },
+                ]}
+              />
             </div>
           </div>
         </div>
@@ -328,7 +300,7 @@ export default function ApparatusRegistryPage() {
               Registros: {filteredRecords.length} / {records.length}
             </div>
             <div className="text-xs text-slate-500">
-              Arias_PAM / Emerson Arias
+              Arias Suite
             </div>
           </div>
 

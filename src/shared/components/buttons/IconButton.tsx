@@ -13,20 +13,11 @@ interface IconButtonProps {
   className?: string
 }
 
-const toneClasses: Record<IconButtonTone, string> = {
-  default: 'bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50',
-  primary: 'bg-blue-600 text-white hover:bg-blue-700',
-  success: 'bg-emerald-600 text-white hover:bg-emerald-700',
-  warning: 'bg-amber-500 text-white hover:bg-amber-600',
-  danger: 'bg-red-600 text-white hover:bg-red-700',
-}
-
 export default function IconButton({
   icon: Icon,
   label,
   onClick,
   type = 'button',
-  tone = 'default',
   disabled = false,
   title,
   className = '',
@@ -39,10 +30,11 @@ export default function IconButton({
       aria-label={label}
       title={title ?? label}
       className={[
-        'inline-flex h-10 w-10 items-center justify-center rounded-full shadow-sm transition duration-150',
-        'hover:-translate-y-0.5 hover:shadow-md active:translate-y-0',
+        'inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white',
+        'text-slate-700 shadow-[0_2px_5px_rgba(15,23,42,0.10)] transition-all duration-150',
+        'hover:-translate-y-1 hover:border-slate-300 hover:bg-slate-50 hover:shadow-[0_8px_16px_rgba(15,23,42,0.16)]',
+        'active:translate-y-0 active:shadow-[inset_0_2px_4px_rgba(15,23,42,0.12)]',
         'disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:translate-y-0',
-        toneClasses[tone],
         className,
       ].join(' ')}
     >

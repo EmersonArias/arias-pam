@@ -9,7 +9,6 @@ import {
   useCallback,
   useContext,
   useEffect,
-  useRef,
   useState,
   type ReactNode,
 } from 'react'
@@ -55,7 +54,6 @@ const variantIconClass: Record<DialogVariant, string> = {
 
 export function SystemDialogProvider({ children }: { children: ReactNode }) {
   const [queue, setQueue] = useState<DialogRequest[]>([])
-  const confirmButtonRef = useRef<HTMLButtonElement>(null)
 
   const current = queue[0]
 
@@ -107,12 +105,6 @@ export function SystemDialogProvider({ children }: { children: ReactNode }) {
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [current, close])
-
-  useEffect(() => {
-    if (!current) return
-    const timer = window.setTimeout(() => confirmButtonRef.current?.focus(), 30)
-    return () => window.clearTimeout(timer)
-  }, [current])
 
   const value: SystemDialogContextValue = { confirm, alert }
 
@@ -176,22 +168,10 @@ export function SystemDialogProvider({ children }: { children: ReactNode }) {
                     />
                   )}
 
-                  <button
-                    ref={confirmButtonRef}
-                    type="button"
+                  <ActionButton
+                    label={current.kind === 'alert' ? 'Aceptar' : current.confirmLabel ?? 'Confirmar'}
                     onClick={() => close(true)}
-                    className={[
-                      'inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold',
-                      'border border-blue-100 bg-gradient-to-b from-blue-50 via-blue-50 to-blue-100/80',
-                      'text-slate-700 shadow-[0_2px_5px_rgba(37,99,235,0.12)]',
-                      'transition-all duration-150',
-                      'hover:-translate-y-1 hover:border-blue-200 hover:from-blue-50 hover:via-blue-100 hover:to-blue-200/80 hover:shadow-[0_8px_16px_rgba(37,99,235,0.18)]',
-                      'active:translate-y-0 active:shadow-[inset_0_2px_4px_rgba(37,99,235,0.14)]',
-                      'focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300',
-                    ].join(' ')}
-                  >
-                    {current.kind === 'alert' ? 'Aceptar' : current.confirmLabel ?? 'Confirmar'}
-                  </button>
+                  />
                 </div>
               </div>
             </div>

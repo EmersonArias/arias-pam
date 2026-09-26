@@ -270,7 +270,7 @@ export default function ApparatusRegistryPage() {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[980px] border-collapse text-sm">
+            <table className="w-full min-w-[900px] border-collapse text-sm">
               <thead>
                 <tr className="border-b bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
                   <th className="px-4 py-3 font-semibold">Código</th>
@@ -278,7 +278,7 @@ export default function ApparatusRegistryPage() {
                   <th className="px-4 py-3 font-semibold">Planta</th>
                   <th className="px-4 py-3 font-semibold">Ubicación</th>
                   <th className="px-4 py-3 font-semibold">Empresa de mantenimiento</th>
-                  <th className="px-4 py-3 font-semibold">                  <th className="px-4 py-3 font-semibold">                  <th className="px-4 py-3 font-semibold">Estado</th>
+                  <th className="px-4 py-3 font-semibold">Estado</th>
                 </tr>
               </thead>
               <tbody>

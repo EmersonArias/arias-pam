@@ -251,17 +251,71 @@ export default function ApparatusRegistryDetailPage() {
     onSave: () => saveRecord(false),
   })
 
+  async function finishCancel() {
+    setCancelDialogOpen(false)
+
+    if (mode === 'edit') {
+      setItem(baseline)
+      setMode('view')
+      setMessage('')
+      setErrorMessage('')
+      return
+    }
+
+    navigate('/apparatusregistry')
+  }
+
+  function handleFormCancel() {
+    if (mode === 'edit' && isDirty) {
+      setCancelDialogOpen(true)
+      return
+    }
+
+    if (mode === 'edit') {
+      setItem(baseline)
+      setMode('view')
+      setMessage('')
+      setErrorMessage('')
+      return
+    }
+
+    if (mode === 'create' && isDirty) {
+      setCancelDialogOpen(true)
+      return
+    }
+
+    navigate('/apparatusregistry')
+  }
+
+  async function saveAndFinishCancel() {
+    const wasCreate = isNew
+    const saved = await saveRecord(false)
+
+    if (!saved) return
+
+    setCancelDialogOpen(false)
+
+    if (wasCreate) {
+      navigate('/apparatusregistry')
+    }
+  }
+
   const onSaveAvailable = mode === 'view' ? undefined : saveAndNavigate
 
   useEscapeAsCancel({
-    enabled: mode !== 'view' || dialogOpen,
+    enabled: mode !== 'view' || dialogOpen || cancelDialogOpen,
     onCancel: () => {
       if (dialogOpen) {
         cancelNavigation()
         return
       }
 
-      requestNavigation('/apparatusregistry')
+      if (cancelDialogOpen) {
+        setCancelDialogOpen(false)
+        return
+      }
+
+      handleFormCancel()
     },
   })
 

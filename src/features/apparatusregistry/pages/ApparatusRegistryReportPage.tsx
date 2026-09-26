@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Printer } from 'lucide-react'
 import ActionButton from '../../../shared/components/buttons/ActionButton'
+import PrintReportFooter from '../../../shared/components/reports/PrintReportFooter'
 import BrandLogo from '../../../shared/components/branding/BrandLogo'
 import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
 import { supabase } from '../../../lib/supabase'
@@ -101,7 +102,7 @@ export default function ApparatusRegistryReportPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white text-slate-900 print:bg-white">
+    <div className="arias-report-page min-h-screen bg-white text-slate-900 print:bg-white">
       <div className="mx-auto max-w-6xl p-4 sm:p-6 print:max-w-none print:p-0">
         <div className="mb-3 flex items-start justify-between border-b pb-2 print:mb-2">
           <div className="flex items-center gap-3">
@@ -183,13 +184,7 @@ export default function ApparatusRegistryReportPage() {
               </table>
             </div>
 
-            <div className="mt-5 flex items-center justify-between border-t pt-3 text-xs text-slate-400">
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-                <span>Arias Suite</span>
-                <span>Responsable SSTT hotel SB Diagonal Zero - Emerson Arias</span>
-              </div>
-              <span>{new Date().toLocaleDateString('es-ES')}</span>
-            </div>
+            <PrintReportFooter />
           </>
         )}
       </div>

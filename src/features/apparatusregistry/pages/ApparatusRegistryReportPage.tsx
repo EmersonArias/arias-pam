@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Printer } from 'lucide-react'
 import ActionButton from '../../../shared/components/buttons/ActionButton'
+import BrandLogo from '../../../shared/components/branding/BrandLogo'
 import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
 import { supabase } from '../../../lib/supabase'
 import {
@@ -104,9 +105,8 @@ export default function ApparatusRegistryReportPage() {
       <div className="mx-auto max-w-6xl p-4 sm:p-6 print:max-w-none print:p-0">
         <div className="mb-5 flex items-start justify-between border-b pb-4 print:mb-4">
           <div className="flex items-center gap-3">
-            <img
-              src="/logo.png"
-              alt="Arias Suite"
+            <BrandLogo
+              onActivate={() => navigate('/')}
               className="h-10 w-auto object-contain"
             />
             <div>

@@ -1,4 +1,4 @@
-import { AlertTriangle } from 'lucide-react'
+import { AlertTriangle, Check, Save, X } from 'lucide-react'
 import ActionButton from '../buttons/ActionButton'
 
 interface UnsavedChangesDialogProps {
@@ -56,7 +56,7 @@ export default function UnsavedChangesDialog({
         </div>
 
         <div className="mt-5 flex flex-wrap justify-end gap-2">
-          <ActionButton label="Cancelar" onClick={onCancel} disabled={saving} />
+          <ActionButton icon={X} label="Cancelar" onClick={onCancel} disabled={saving} />
           <ActionButton label={discardLabel} onClick={onDiscard} disabled={saving} />
           {onSaveAndContinue && (
             <ActionButton

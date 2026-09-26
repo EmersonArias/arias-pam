@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../../../lib/supabase'
+import { useSystemDialog } from '../../../shared/components/dialogs/SystemDialogProvider'
 import { clonePanel, createEmptyPanel, CURRENT_TECHNICIAN, fromDatabase, getNextLocalCodeFromCodes, normalizeIdentity, statusClass, statusLabel, todayInputValue, type ElectricalPanel } from '../lib/electricalPanels'
 
 export default function ElectricalPanelDetailPage() {
   const navigate = useNavigate()
+  const { confirm, alert: showAlert } = useSystemDialog()
   const location = useLocation()
   const { id } = useParams<{ id: string }>()
   const isNew = location.pathname === '/electricalpanels/new'
@@ -96,11 +98,16 @@ export default function ElectricalPanelDetailPage() {
     try {
       const duplicate = await findPossibleDuplicate()
       if (duplicate) {
-        const proceed = window.confirm(`Posible elemento repetido:
+        const proceed = await confirm({
+          title: 'Posible elemento repetido',
+          message: `Ya existe un registro que puede corresponder al mismo elemento:
 
 ${duplicate.code} — ${duplicate.name ?? 'Sin identificar'} — ${duplicate.location ?? ''}
 
-¿Deseas continuar de todos modos?`)
+¿Deseas continuar de todos modos?`,
+          variant: 'warning',
+          confirmLabel: 'Continuar',
+        })
         if (!proceed) return
       }
       if (isNew) {
@@ -125,7 +132,13 @@ ${duplicate.code} — ${duplicate.name ?? 'Sin identificar'} — ${duplicate.loc
 
   const deleteRecord = async () => {
     if (!panel.id) { navigate('/electricalpanels'); return }
-    if (!window.confirm(`¿Eliminar el registro ${panel.code}? Esta acción no se puede deshacer.`)) return
+    const confirmed = await confirm({
+      title: 'Eliminar registro',
+      message: `¿Quieres eliminar el registro ${panel.code}? Esta acción no se puede deshacer.`,
+      variant: 'warning',
+      confirmLabel: 'Eliminar',
+    })
+    if (!confirmed) return
     setSaving(true)
     const { error } = await supabase.from('electrical_panels').delete().eq('id', panel.id)
     setSaving(false)

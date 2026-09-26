@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FileText, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react'
+import IconButton from '../../../shared/components/buttons/IconButton'
 import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
 import GridToolbar from '../../../shared/components/grid/GridToolbar'
 import { supabase } from '../../../lib/supabase'
@@ -217,10 +218,6 @@ export default function ApparatusRegistryPage() {
             </label>
 
             <label className="block">
-              
-            </label>
-
-            <label className="block">
               <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
                 Estado
               </span>
@@ -254,14 +251,11 @@ export default function ApparatusRegistryPage() {
               </select>
             </label>
 
-            <button
-              type="button"
+            <IconButton
+              icon={RefreshCw}
+              label="Actualizar"
               onClick={() => void loadRecords(selectedId)}
-              title="Actualizar"
-              className="inline-flex items-center justify-center rounded-lg bg-white p-2.5 text-slate-700 shadow ring-1 ring-slate-200 hover:bg-slate-50"
-            >
-              <RefreshCw size={18} />
-            </button>
+            />
           </div>
         </div>
 
@@ -283,7 +277,7 @@ export default function ApparatusRegistryPage() {
                   <th className="px-4 py-3 font-semibold">Descripción</th>
                   <th className="px-4 py-3 font-semibold">Planta</th>
                   <th className="px-4 py-3 font-semibold">Ubicación</th>
-                  <th className="px-4 py-3 font-semibold">Mantenimiento</th>
+                  <th className="px-4 py-3 font-semibold">Empresa de mantenimiento</th>
                   <th className="px-4 py-3 font-semibold">                  <th className="px-4 py-3 font-semibold">                  <th className="px-4 py-3 font-semibold">Estado</th>
                 </tr>
               </thead>

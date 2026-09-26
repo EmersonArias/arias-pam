@@ -70,11 +70,7 @@ export default function ElectricalPanelDetailPage() {
   } = useGuardedNavigation({
     dirty: isDirty,
     onNavigate: navigate,
-    onSave: async () => {
-      const before = saving
-      await save()
-      return !before
-    },
+    onSave: save,
   })
 
   const toggleReview = (reviewId: string) => setPanel((current) => ({ ...current, reviews: current.reviews.map((review) => review.id === reviewId ? { ...review, checked: !review.checked } : review), inspectionDate: todayInputValue() }))
@@ -118,9 +114,9 @@ export default function ElectricalPanelDetailPage() {
     updated_at: new Date().toISOString(),
   })
 
-  const save = async () => {
+  const save = async (): Promise<boolean> => {
     setErrorMessage('')
-    if (!validate()) return
+    if (!validate()) return false
     setSaving(true)
     try {
       const duplicate = await findPossibleDuplicate()
@@ -135,7 +131,7 @@ ${duplicate.code} — ${duplicate.name ?? 'Sin identificar'} — ${duplicate.loc
           variant: 'warning',
           confirmLabel: 'Continuar',
         })
-        if (!proceed) return
+        if (!proceed) return false
       }
       if (isNew) {
         const { data: codeRows, error: codeError } = await supabase.from('electrical_panels').select('code')
@@ -147,7 +143,7 @@ ${duplicate.code} — ${duplicate.name ?? 'Sin identificar'} — ${duplicate.loc
         setPanel(saved)
         setBaseline(clonePanel(saved))
         navigate('/electricalpanels')
-        return
+        return true
       }
       if (!panel.id) throw new Error('Registro no válido.')
       const { data, error } = await supabase.from('electrical_panels').update(buildPayload(panel.code)).eq('id', panel.id).select('*').single()
@@ -156,8 +152,10 @@ ${duplicate.code} — ${duplicate.name ?? 'Sin identificar'} — ${duplicate.loc
       setPanel(saved)
       setBaseline(clonePanel(saved))
       navigate('/electricalpanels')
+      return true
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'No se pudieron guardar los cambios.')
+      return false
     } finally { setSaving(false) }
   }
 

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Printer } from 'lucide-react'
+import ActionButton from '../../../shared/components/buttons/ActionButton'
 import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
 import { supabase } from '../../../lib/supabase'
 import {
@@ -94,7 +95,7 @@ export default function ApparatusRegistryReportPage() {
     }
 
     return result
-  }, [records, scope, selectedId, search, plant, family, active])
+  }, [records, scope, selectedId, search, plant, active])
 
   function printReport() {
     window.print()
@@ -117,14 +118,12 @@ export default function ApparatusRegistryReportPage() {
           </div>
 
           <div className="flex gap-2 print:hidden">
-            <button
-              type="button"
+            <ActionButton
+              icon={Printer}
+              label="PDF"
+              tone="dark"
               onClick={printReport}
-              className="inline-flex items-center gap-2 rounded-xl bg-slate-800 px-3 py-2 font-semibold text-white shadow-sm hover:bg-slate-900"
-            >
-              <Printer size={17} />
-              PDF
-            </button>
+            />
             <BackButton onBack={() => navigate('/apparatusregistry')} />
             <HomeButton onHome={() => navigate('/')} />
           </div>
@@ -156,8 +155,6 @@ export default function ApparatusRegistryReportPage() {
                 <div className="font-semibold">{reportRecords.length}</div>
               </div>
               <div className="rounded-lg bg-slate-50 p-3">
-                              </div>
-              <div className="rounded-lg bg-slate-50 p-3">
                 <div className="text-xs uppercase text-slate-500">Estado</div>
                 <div className="font-semibold">
                   {active === 'ALL'
@@ -177,7 +174,7 @@ export default function ApparatusRegistryReportPage() {
                     <th className="px-2 py-2">Descripción</th>
                     <th className="px-2 py-2">Planta</th>
                     <th className="px-2 py-2">Ubicación</th>
-                    <th className="px-2 py-2">Mantenimiento</th>
+                    <th className="px-2 py-2">Empresa de mantenimiento</th>
                                         <th className="px-2 py-2">Estado</th>
                   </tr>
                 </thead>

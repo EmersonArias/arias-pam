@@ -169,7 +169,7 @@ export default function ApparatusRegistryReportPage() {
                 </thead>
                 <tbody>
                   {reportRecords.map((item) => (
-                    <tr key={item.id} className="border-b border-slate-200">
+                    <tr key={item.id} className="border-b border-slate-200 break-inside-avoid print:break-inside-avoid">
                       <td className="whitespace-nowrap px-2 py-2 font-semibold">
                         {item.code}
                       </td>

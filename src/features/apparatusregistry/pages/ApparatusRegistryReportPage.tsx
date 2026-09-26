@@ -77,8 +77,6 @@ export default function ApparatusRegistryReportPage() {
             item.plant,
             item.location,
             item.maintenance,
-            item.familyCode,
-            item.subfamilyCode,
           ]
             .join(' ')
             .toLocaleLowerCase('es')
@@ -139,7 +137,7 @@ export default function ApparatusRegistryReportPage() {
           </div>
         ) : (
           <>
-            <div className="mb-4 grid gap-2 text-sm sm:grid-cols-4">
+            <div className="mb-4 grid gap-2 text-sm sm:grid-cols-3">
               <div className="rounded-lg bg-slate-50 p-3">
                 <div className="text-xs uppercase text-slate-500">Ámbito</div>
                 <div className="font-semibold">

@@ -6,6 +6,7 @@ import {
   Search,
   UserRound,
 } from 'lucide-react'
+import BrandLogo from '../../shared/components/branding/BrandLogo'
 
 const registers = [
   {
@@ -128,9 +129,9 @@ export default function BooksPage() {
     <div className="min-h-screen bg-slate-100 px-3 py-3 text-slate-900 sm:px-5 sm:py-5">
       <div className="mx-auto w-full">
         <div className="mb-3 flex justify-center px-1 sm:mb-4">
-          <img
-            src="/logo.png"
-            alt="Arias Suite — Mantenimiento Hotelero"
+          <BrandLogo
+            onActivate={() => window.location.reload()}
+            label="Actualizar Arias Suite"
             className="h-16 w-auto object-contain sm:h-20"
           />
         </div>

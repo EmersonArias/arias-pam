@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FileText, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react'
 import IconButton from '../../../shared/components/buttons/IconButton'
+import { useSystemDialog } from '../../../shared/components/dialogs/SystemDialogProvider'
 import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
 import GridToolbar from '../../../shared/components/grid/GridToolbar'
 import { supabase } from '../../../lib/supabase'
@@ -13,6 +14,7 @@ import {
 
 export default function ApparatusRegistryPage() {
   const navigate = useNavigate()
+  const { confirm } = useSystemDialog()
 
   const [records, setRecords] = useState<ApparatusRegistry[]>([])
   const [selectedId, setSelectedId] = useState('')
@@ -113,9 +115,12 @@ export default function ApparatusRegistryPage() {
       return
     }
 
-    const confirmed = window.confirm(
-      `¿Eliminar el registro ${selected.code}? Esta acción no se puede deshacer.`,
-    )
+    const confirmed = await confirm({
+      title: 'Eliminar registro',
+      message: `¿Quieres eliminar el registro ${selected.code}? Esta acción no se puede deshacer.`,
+      variant: 'warning',
+      confirmLabel: 'Eliminar',
+    })
 
     if (!confirmed) return
 

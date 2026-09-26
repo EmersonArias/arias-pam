@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../../../lib/supabase'
 import { useSystemDialog } from '../../../shared/components/dialogs/SystemDialogProvider'
+import BrandLogo from '../../../shared/components/branding/BrandLogo'
+import UnsavedChangesDialog from '../../../shared/components/navigation/UnsavedChangesDialog'
+import { useGuardedNavigation } from '../../../shared/hooks/useGuardedNavigation'
 import { clonePanel, createEmptyPanel, CURRENT_TECHNICIAN, fromDatabase, getNextLocalCodeFromCodes, normalizeIdentity, statusClass, statusLabel, todayInputValue, type ElectricalPanel } from '../lib/electricalPanels'
 
 export default function ElectricalPanelDetailPage() {
@@ -12,6 +15,7 @@ export default function ElectricalPanelDetailPage() {
   const isNew = location.pathname === '/electricalpanels/new'
 
   const [panel, setPanel] = useState<ElectricalPanel>(() => createEmptyPanel())
+  const [baseline, setBaseline] = useState<ElectricalPanel>(() => createEmptyPanel())
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
@@ -28,7 +32,9 @@ export default function ElectricalPanelDetailPage() {
         setPanel(createEmptyPanel())
       } else {
         const code = getNextLocalCodeFromCodes((data ?? []).map((row) => String(row.code ?? '')))
-        setPanel(createEmptyPanel(code))
+        const fresh = createEmptyPanel(code)
+        setPanel(fresh)
+        setBaseline(clonePanel(fresh))
       }
       setLoading(false)
       return
@@ -44,11 +50,32 @@ export default function ElectricalPanelDetailPage() {
       setLoading(false)
       return
     }
-    setPanel(clonePanel(fromDatabase(data as never)))
+    const loaded = clonePanel(fromDatabase(data as never))
+    setPanel(loaded)
+    setBaseline(clonePanel(loaded))
     setLoading(false)
   }
 
   const updateField = <K extends keyof ElectricalPanel>(field: K, value: ElectricalPanel[K]) => setPanel((current) => ({ ...current, [field]: value }))
+
+  const isDirty = JSON.stringify(panel) !== JSON.stringify(baseline)
+
+  const {
+    requestNavigation,
+    cancelNavigation,
+    discardNavigation,
+    saveAndNavigate,
+    dialogOpen,
+    saving: navigationSaving,
+  } = useGuardedNavigation({
+    dirty: isDirty,
+    onNavigate: navigate,
+    onSave: async () => {
+      const before = saving
+      await save()
+      return !before
+    },
+  })
 
   const toggleReview = (reviewId: string) => setPanel((current) => ({ ...current, reviews: current.reviews.map((review) => review.id === reviewId ? { ...review, checked: !review.checked } : review), inspectionDate: todayInputValue() }))
 
@@ -116,14 +143,18 @@ ${duplicate.code} — ${duplicate.name ?? 'Sin identificar'} — ${duplicate.loc
         const code = getNextLocalCodeFromCodes((codeRows ?? []).map((row) => String(row.code ?? '')))
         const { data, error } = await supabase.from('electrical_panels').insert(buildPayload(code)).select('*').single()
         if (error) throw new Error(error.message)
-        setPanel(clonePanel(fromDatabase(data as never)))
+        const saved = clonePanel(fromDatabase(data as never))
+        setPanel(saved)
+        setBaseline(clonePanel(saved))
         navigate('/electricalpanels')
         return
       }
       if (!panel.id) throw new Error('Registro no válido.')
       const { data, error } = await supabase.from('electrical_panels').update(buildPayload(panel.code)).eq('id', panel.id).select('*').single()
       if (error) throw new Error(error.message)
-      setPanel(clonePanel(fromDatabase(data as never)))
+      const saved = clonePanel(fromDatabase(data as never))
+      setPanel(saved)
+      setBaseline(clonePanel(saved))
       navigate('/electricalpanels')
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'No se pudieron guardar los cambios.')
@@ -154,9 +185,8 @@ ${duplicate.code} — ${duplicate.name ?? 'Sin identificar'} — ${duplicate.loc
         <header className="mb-4 rounded-2xl bg-white p-3 shadow-lg sm:p-4">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex min-w-0 items-center gap-3">
-              <img
-                src="/logo.png"
-                alt="Arias Suite"
+              <BrandLogo
+                onActivate={() => requestNavigation('/')}
                 className="h-12 w-auto shrink-0 object-contain sm:h-14 print:h-10"
               />
               <div className="min-w-0">
@@ -193,8 +223,16 @@ ${duplicate.code} — ${duplicate.name ?? 'Sin identificar'} — ${duplicate.loc
           <section><h2 className="mb-4 text-xl font-bold text-slate-900">Observaciones</h2><textarea rows={8} value={panel.observations} onChange={(e) => updateField('observations', e.target.value)} className="w-full rounded-lg border border-slate-300 p-3" placeholder="Observaciones del cuadro o de la revisión" /></section>
         </div>
 
+        <UnsavedChangesDialog
+          open={dialogOpen}
+          onCancel={cancelNavigation}
+          onDiscard={discardNavigation}
+          onSaveAndContinue={saveAndNavigate}
+          saving={navigationSaving}
+        />
+
         <footer className="py-3 text-center text-[10px] text-slate-400 print:hidden">
-          Arias_PAM / Emerson Arias
+          Arias Suite
         </footer>
       </div>
     </div>

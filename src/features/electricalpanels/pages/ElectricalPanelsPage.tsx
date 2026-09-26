@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../../lib/supabase'
+import { useSystemDialog } from '../../../shared/components/dialogs/SystemDialogProvider'
 import {
   fromDatabase,
   matchesDateFilter,
@@ -12,6 +13,7 @@ import {
 
 export default function ElectricalPanelsPage() {
   const navigate = useNavigate()
+  const { confirm } = useSystemDialog()
 
   const [panels, setPanels] = useState<ElectricalPanel[]>([])
   const [selectedId, setSelectedId] = useState('')
@@ -126,9 +128,12 @@ export default function ElectricalPanelsPage() {
       return
     }
 
-    const confirmed = window.confirm(
-      `¿Eliminar el registro ${selected.code}? Esta acción no se puede deshacer.`,
-    )
+    const confirmed = await confirm({
+      title: 'Eliminar registro',
+      message: `¿Quieres eliminar el registro ${selected.code}? Esta acción no se puede deshacer.`,
+      variant: 'warning',
+      confirmLabel: 'Eliminar',
+    })
 
     if (!confirmed) return
 

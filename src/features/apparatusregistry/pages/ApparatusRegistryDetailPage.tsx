@@ -32,34 +32,6 @@ function generateId(): string {
     Math.random().toString(36).substring(2, 10)
   )
 }
-async function generateNextCode(): Promise<string> {
-  const { data, error } = await supabase
-    .from('apparatus_registry')
-    .select('code')
-    .like('code', 'RA-%')
-    .order('code', { ascending: true })
-
-  if (error) {
-    throw new Error(`No se pudo generar el código del aparato: ${error.message}`)
-  }
-
-  let maxSequence = 0
-
-  for (const row of data ?? []) {
-    const code = typeof row.code === 'string' ? row.code.trim().toUpperCase() : ''
-    const match = /^RA-(\d+)$/.exec(code)
-
-    if (!match) continue
-
-    const sequence = Number.parseInt(match[1], 10)
-    if (Number.isInteger(sequence) && sequence > maxSequence) {
-      maxSequence = sequence
-    }
-  }
-
-  return `RA-${String(maxSequence + 1).padStart(4, '0')}`
-}
-
 function getStoragePathFromPublicUrl(url: string): string | null {
   const marker = `/storage/v1/object/public/${PHOTO_BUCKET}/`
   const index = url.indexOf(marker)
@@ -82,7 +54,6 @@ export default function ApparatusRegistryDetailPage() {
   const [mode, setMode] = useState<FormMode>(isNew ? 'create' : 'view')
   const [loading, setLoading] = useState(!isNew)
   const [saving, setSaving] = useState(false)
-  const [generatingCode, setGeneratingCode] = useState(false)
   const [uploadingPhotos, setUploadingPhotos] = useState(false)
   const [message, setMessage] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
@@ -101,21 +72,6 @@ export default function ApparatusRegistryDetailPage() {
       setBaseline(empty)
       setMode('create')
 
-      setGeneratingCode(true)
-
-      void generateNextCode()
-        .then((code) => {
-          setItem((current) => ({ ...current, code }))
-          setBaseline((current) => ({ ...current, code }))
-        })
-        .catch((error) => {
-          setErrorMessage(
-            error instanceof Error
-              ? error.message
-              : 'No se pudo generar el código del aparato.',
-          )
-        })
-        .finally(() => setGeneratingCode(false))
       return
     }
 
@@ -169,20 +125,10 @@ export default function ApparatusRegistryDetailPage() {
     setErrorMessage('')
 
     try {
-      let record = item
-
-      if (isNew && !record.code.trim()) {
-        record = { ...record, code: await generateNextCode() }
-        setItem(record)
-        setBaseline((current) => ({ ...current, code: record.code }))
-      }
-
-      if (!record.code.trim()) {
-        setErrorMessage('No se pudo generar el código del aparato.')
-        return false
-      }
-
-      const payload = toDatabase(record)
+      const payload = toDatabase({
+        ...item,
+        code: isNew ? '' : item.code,
+      })
 
       if (isNew) {
         const { data, error } = await supabase
@@ -532,9 +478,9 @@ const path = `${item.id}/${generateId()}.${extension}`
 
                   handleFormCancel()
                 }}
-                disabled={saving || generatingCode || uploadingPhotos}
+                disabled={saving || uploadingPhotos}
               />
-              <HomeButton onHome={() => requestNavigation('/')} disabled={saving || generatingCode || uploadingPhotos} />
+              <HomeButton onHome={() => requestNavigation('/')} disabled={saving || uploadingPhotos} />
               <FormActions
                 mode={mode}
                 onSave={() => void saveRecord()}
@@ -542,7 +488,7 @@ const path = `${item.id}/${generateId()}.${extension}`
                 onEdit={() => setMode('edit')}
                 onDelete={() => void handleDelete()}
                 onReport={openReport}
-                saving={saving || generatingCode || uploadingPhotos}
+                saving={saving || uploadingPhotos}
               />
             </div>
           </div>
@@ -578,8 +524,8 @@ const path = `${item.id}/${generateId()}.${extension}`
                 value={item.code}
                 readOnly
                 className="w-full rounded-lg border border-slate-300 bg-slate-100 px-3 py-2 font-semibold uppercase text-slate-700 outline-none disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
-                placeholder={generatingCode ? 'Generando código…' : undefined}
-                disabled={generatingCode}
+                placeholder={isNew ? 'Se asignará al guardar' : undefined}
+                disabled
                 required
               />
             </label>

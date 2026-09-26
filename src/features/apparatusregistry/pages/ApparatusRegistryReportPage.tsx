@@ -184,7 +184,10 @@ export default function ApparatusRegistryReportPage() {
             </div>
 
             <div className="mt-5 flex items-center justify-between border-t pt-3 text-xs text-slate-400">
-              <span>Arias Suite</span>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                <span>Arias Suite</span>
+                <span>Responsable SSTT hotel SB Diagonal Zero - Emerson Arias</span>
+              </div>
               <span>{new Date().toLocaleDateString('es-ES')}</span>
             </div>
           </>

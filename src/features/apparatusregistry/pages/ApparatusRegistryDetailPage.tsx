@@ -14,6 +14,7 @@ import { BackButton, HomeButton } from '../../../shared/components/navigation/Na
 import UnsavedChangesDialog from '../../../shared/components/navigation/UnsavedChangesDialog'
 import { useGuardedNavigation } from '../../../shared/hooks/useGuardedNavigation'
 import BrandLogo from '../../../shared/components/branding/BrandLogo'
+import IconButton from '../../../shared/components/buttons/IconButton'
 import { useEscapeAsCancel } from '../../../shared/hooks/useEscapeAsCancel'
 import {
   createEmptyApparatus,
@@ -86,6 +87,7 @@ export default function ApparatusRegistryDetailPage() {
   const [errorMessage, setErrorMessage] = useState('')
   const [viewerPhoto, setViewerPhoto] = useState<string | null>(null)
   const [viewerMaximized, setViewerMaximized] = useState(false)
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false)
 
   const cameraInputRef = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -457,12 +459,22 @@ const path = `${item.id}/${generateId()}.${extension}`
             </div>
 
             <div className="flex flex-wrap items-center justify-end gap-2">
-              <BackButton onBack={() => requestNavigation('/apparatusregistry')} disabled={saving || generatingCode || uploadingPhotos} />
+              <BackButton
+                onBack={() => {
+                  if (mode === 'view') {
+                    navigate('/apparatusregistry')
+                    return
+                  }
+
+                  handleFormCancel()
+                }}
+                disabled={saving || generatingCode || uploadingPhotos}
+              />
               <HomeButton onHome={() => requestNavigation('/')} disabled={saving || generatingCode || uploadingPhotos} />
               <FormActions
                 mode={mode}
                 onSave={() => void saveRecord()}
-                onCancel={() => requestNavigation('/apparatusregistry')}
+                onCancel={handleFormCancel}
                 onEdit={() => setMode('edit')}
                 onDelete={() => void handleDelete()}
                 onReport={openReport}
@@ -501,7 +513,7 @@ const path = `${item.id}/${generateId()}.${extension}`
               <input
                 value={item.code}
                 readOnly
-                className="w-full rounded-lg border border-slate-300 bg-slate-100 px-3 py-2 font-semibold uppercase text-slate-700 outline-none"
+                className="w-full rounded-lg border border-slate-300 bg-slate-100 px-3 py-2 font-semibold uppercase text-slate-700 outline-none disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
                 placeholder={generatingCode ? 'Generando código…' : undefined}
                 disabled={generatingCode}
                 required
@@ -517,7 +529,7 @@ const path = `${item.id}/${generateId()}.${extension}`
                 placeholder="Descripción del equipo o instalación"
                 onChange={(event) => updateField('name', event.target.value)}
                 disabled={mode === 'view'}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition placeholder:text-slate-400 placeholder:italic focus:border-blue-500"
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 outline-none transition placeholder:text-slate-400 placeholder:italic focus:border-blue-500 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
                 required
               />
             </label>
@@ -531,7 +543,7 @@ const path = `${item.id}/${generateId()}.${extension}`
                 placeholder="Ej. P00"
                 onChange={(event) => updateField('plant', event.target.value)}
                 disabled={mode === 'view'}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition placeholder:text-slate-400 placeholder:italic focus:border-slate-500"
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 outline-none transition placeholder:text-slate-400 placeholder:italic focus:border-slate-500 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
               />
             </label>
 
@@ -544,7 +556,7 @@ const path = `${item.id}/${generateId()}.${extension}`
                 placeholder="Ej. Planta -1, cuarto técnico"
                 onChange={(event) => updateField('location', event.target.value)}
                 disabled={mode === 'view'}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-blue-500"
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 outline-none transition placeholder:text-slate-400 placeholder:italic focus:border-blue-500 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
               />
             </label>
 
@@ -572,10 +584,10 @@ const path = `${item.id}/${generateId()}.${extension}`
 
           <div className="flex flex-wrap gap-2">
             <label
-              className={`relative inline-flex items-center gap-2 overflow-hidden rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-[0_2px_5px_rgba(15,23,42,0.10)] transition-all duration-150 ${
+              className={`relative inline-flex items-center gap-2 overflow-hidden rounded-xl border border-blue-100 bg-gradient-to-b from-blue-50 via-blue-50 to-blue-100/80 px-3 py-2 text-sm font-semibold text-slate-700 shadow-[0_2px_5px_rgba(37,99,235,0.12)] transition-all duration-150 ${
                 !item.id || mode === 'view' || uploadingPhotos
-                  ? 'cursor-not-allowed opacity-40'
-                  : 'cursor-pointer hover:-translate-y-1 hover:border-slate-300 hover:bg-slate-50 hover:shadow-[0_8px_16px_rgba(15,23,42,0.16)] active:translate-y-0'
+                  ? 'cursor-not-allowed opacity-45'
+                  : 'cursor-pointer hover:-translate-y-1 hover:border-blue-200 hover:from-blue-50 hover:via-blue-100 hover:to-blue-200/80 hover:shadow-[0_8px_16px_rgba(37,99,235,0.18)] active:translate-y-0'
               }`}>
               <Camera size={17} />
               Hacer foto
@@ -591,10 +603,10 @@ const path = `${item.id}/${generateId()}.${extension}`
             </label>
 
             <label
-              className={`relative inline-flex items-center gap-2 overflow-hidden rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-[0_2px_5px_rgba(15,23,42,0.10)] transition-all duration-150 ${
+              className={`relative inline-flex items-center gap-2 overflow-hidden rounded-xl border border-blue-100 bg-gradient-to-b from-blue-50 via-blue-50 to-blue-100/80 px-3 py-2 text-sm font-semibold text-slate-700 shadow-[0_2px_5px_rgba(37,99,235,0.12)] transition-all duration-150 ${
                 !item.id || mode === 'view' || uploadingPhotos
-                  ? 'cursor-not-allowed opacity-40'
-                  : 'cursor-pointer hover:-translate-y-1 hover:border-slate-300 hover:bg-slate-50 hover:shadow-[0_8px_16px_rgba(15,23,42,0.16)] active:translate-y-0'
+                  ? 'cursor-not-allowed opacity-45'
+                  : 'cursor-pointer hover:-translate-y-1 hover:border-blue-200 hover:from-blue-50 hover:via-blue-100 hover:to-blue-200/80 hover:shadow-[0_8px_16px_rgba(37,99,235,0.18)] active:translate-y-0'
               }`}>
               <ImagePlus size={17} />
               Seleccionar imagen
@@ -642,16 +654,14 @@ const path = `${item.id}/${generateId()}.${extension}`
                       className="aspect-square w-full object-cover transition group-hover:scale-[1.02]"
                     />
                   </button>
-                  <button
-                    type="button"
+                  <IconButton
+                    icon={X}
+                    label="Eliminar fotografía"
+                    title="Eliminar fotografía"
                     onClick={() => void handleDeletePhoto(photo)}
                     disabled={mode === 'view' || uploadingPhotos}
-                    aria-label="Eliminar fotografía"
-                    title="Eliminar fotografía"
-                    className="absolute right-2 top-2 inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/95 text-red-600 shadow hover:bg-white disabled:opacity-50"
-                  >
-                    <X size={17} />
-                  </button>
+                    className="absolute right-2 top-2 h-8 w-8"
+                  />
                 </div>
               ))}
             </div>
@@ -674,6 +684,18 @@ const path = `${item.id}/${generateId()}.${extension}`
         <div className="mt-4 text-right text-xs text-slate-400">
           Arias_PAM / Emerson Arias
         </div>
+
+        <UnsavedChangesDialog
+          open={cancelDialogOpen}
+          onCancel={() => setCancelDialogOpen(false)}
+          onDiscard={finishCancel}
+          onSaveAndContinue={() => void saveAndFinishCancel()}
+          title="Hay cambios sin guardar"
+          message="¿Quieres guardar los cambios antes de volver a la vista del registro?"
+          discardLabel="Descartar cambios"
+          saveLabel="Guardar cambios"
+          saving={saving}
+        />
 
         <UnsavedChangesDialog
           open={dialogOpen}
@@ -713,27 +735,23 @@ const path = `${item.id}/${generateId()}.${extension}`
                 </div>
 
                 <div className="flex shrink-0 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setViewerMaximized((current) => !current)}
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-700 shadow-sm hover:bg-slate-200"
+                  <IconButton
+                    icon={viewerMaximized ? Minimize2 : Maximize2}
+                    label={viewerMaximized ? 'Restaurar tamaño' : 'Maximizar'}
                     title={viewerMaximized ? 'Restaurar tamaño' : 'Maximizar'}
-                    aria-label={viewerMaximized ? 'Restaurar tamaño' : 'Maximizar'}
-                  >
-                    {viewerMaximized ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
-                  </button>
-                  <button
-                    type="button"
+                    onClick={() => setViewerMaximized((current) => !current)}
+                    className="h-9 w-9"
+                  />
+                  <IconButton
+                    icon={X}
+                    label="Cerrar"
+                    title="Cerrar"
                     onClick={() => {
                       setViewerPhoto(null)
                       setViewerMaximized(false)
                     }}
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-700 shadow-sm hover:bg-slate-200"
-                    title="Cerrar"
-                    aria-label="Cerrar"
-                  >
-                    <X size={19} />
-                  </button>
+                    className="h-9 w-9"
+                  />
                 </div>
               </div>
 

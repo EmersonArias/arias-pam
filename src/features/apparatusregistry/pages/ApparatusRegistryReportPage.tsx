@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Printer } from 'lucide-react'
+import { Printer } from 'lucide-react'
+import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
 import { supabase } from '../../../lib/supabase'
 import {
   fromDatabase,
@@ -108,7 +109,7 @@ export default function ApparatusRegistryReportPage() {
           <div className="flex items-center gap-3">
             <img
               src="/logo.png"
-              alt="Arias PAM"
+              alt="Arias Suite"
               className="h-10 w-auto object-contain"
             />
             <div>
@@ -121,19 +122,13 @@ export default function ApparatusRegistryReportPage() {
             <button
               type="button"
               onClick={printReport}
-              className="inline-flex items-center gap-2 rounded-lg bg-slate-800 px-3 py-2 font-semibold text-white shadow hover:bg-slate-900"
+              className="inline-flex items-center gap-2 rounded-xl bg-slate-800 px-3 py-2 font-semibold text-white shadow-sm hover:bg-slate-900"
             >
               <Printer size={17} />
               PDF
             </button>
-            <button
-              type="button"
-              onClick={() => navigate('/apparatusregistry')}
-              className="inline-flex items-center gap-2 rounded-lg bg-white px-3 py-2 font-semibold text-slate-700 shadow ring-1 ring-slate-200 hover:bg-slate-50"
-            >
-              <ArrowLeft size={17} />
-              Salir
-            </button>
+            <BackButton onBack={() => navigate('/apparatusregistry')} />
+            <HomeButton onHome={() => navigate('/')} />
           </div>
         </div>
 
@@ -212,7 +207,7 @@ export default function ApparatusRegistryReportPage() {
             </div>
 
             <div className="mt-5 flex items-center justify-between border-t pt-3 text-xs text-slate-400">
-              <span>Arias_PAM / Emerson Arias</span>
+              <span>Arias Suite</span>
               <span>{new Date().toLocaleDateString('es-ES')}</span>
             </div>
           </>

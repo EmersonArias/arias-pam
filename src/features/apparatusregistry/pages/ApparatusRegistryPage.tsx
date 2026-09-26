@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FileText, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react'
 import IconButton from '../../../shared/components/buttons/IconButton'
+import BrandLogo from '../../../shared/components/branding/BrandLogo'
 import { useSystemDialog } from '../../../shared/components/dialogs/SystemDialogProvider'
 import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
 import GridToolbar from '../../../shared/components/grid/GridToolbar'
@@ -154,9 +155,8 @@ export default function ApparatusRegistryPage() {
         <div className="mb-4 rounded-2xl bg-white p-3 shadow-lg sm:p-4">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex min-w-0 items-center gap-3">
-              <img
-                src="/logo.png"
-                alt="Arias Suite"
+              <BrandLogo
+                onActivate={() => navigate('/')}
                 className="h-11 w-auto shrink-0 object-contain sm:h-13"
               />
               <div className="min-w-0">

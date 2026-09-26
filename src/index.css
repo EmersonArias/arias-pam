@@ -5,8 +5,16 @@ body {
   background: #f1f5f9;
 }
   
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm 10mm 22mm 10mm;
+  }
+}
+
 .arias-report-page {
-  padding-bottom: 12mm;
+  padding-top: 4mm;
+  padding-bottom: 22mm;
 }
 
 .arias-report-footer {
@@ -20,16 +28,17 @@ body {
 
 @media print {
   .arias-report-page {
-    padding-bottom: 12mm !important;
+    padding-top: 4mm !important;
+    padding-bottom: 22mm !important;
   }
 
   .arias-report-footer {
     position: fixed;
     left: 0;
     right: 0;
-    bottom: 0;
+    bottom: 4mm;
     margin: 0;
-    padding: 0 0 2mm;
+    padding: 0;
     border-top: 0;
     background: #ffffff;
     font-size: 8px;

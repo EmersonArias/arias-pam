@@ -2,7 +2,9 @@ import {
   AlertTriangle,
   CircleAlert,
   CircleCheck,
+  Check,
   Info,
+  X,
 } from 'lucide-react'
 import {
   createContext,
@@ -120,9 +122,6 @@ export function SystemDialogProvider({ children }: { children: ReactNode }) {
           <div
             className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-[2px]"
             role="presentation"
-            onMouseDown={(event) => {
-              if (event.target === event.currentTarget) close(false)
-            }}
           >
             <div
               className="relative w-full max-w-lg overflow-hidden rounded-3xl border border-blue-100 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.24)]"
@@ -163,12 +162,14 @@ export function SystemDialogProvider({ children }: { children: ReactNode }) {
                 <div className="relative mt-7 flex flex-wrap justify-end gap-2">
                   {current.kind === 'confirm' && (
                     <ActionButton
+                      icon={X}
                       label={current.cancelLabel ?? 'Cancelar'}
                       onClick={() => close(false)}
                     />
                   )}
 
                   <ActionButton
+                    icon={Check}
                     label={current.kind === 'alert' ? 'Aceptar' : current.confirmLabel ?? 'Confirmar'}
                     onClick={() => close(true)}
                   />

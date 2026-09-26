@@ -43,7 +43,7 @@ async function generateNextCode(): Promise<string> {
 
   for (const row of data ?? []) {
     const code = typeof row.code === 'string' ? row.code.trim().toUpperCase() : ''
-    const match = /^RA-(\\d+)$/.exec(code)
+    const match = /^RA-(\d+)$/.exec(code)
 
     if (!match) continue
 
@@ -94,7 +94,22 @@ export default function ApparatusRegistryDetailPage() {
       setItem(empty)
       setBaseline(empty)
       setMode('create')
-      void prepareNewRecord()
+
+      setGeneratingCode(true)
+
+      void generateNextCode()
+        .then((code) => {
+          setItem((current) => ({ ...current, code }))
+          setBaseline((current) => ({ ...current, code }))
+        })
+        .catch((error) => {
+          setErrorMessage(
+            error instanceof Error
+              ? error.message
+              : 'No se pudo generar el código del aparato.',
+          )
+        })
+        .finally(() => setGeneratingCode(false))
       return
     }
 
@@ -135,30 +150,11 @@ export default function ApparatusRegistryDetailPage() {
     setErrorMessage('')
   }
 
-  async function prepareNewRecord() {
-    setGeneratingCode(true)
-    setErrorMessage('')
-
-    try {
-      const code = await generateNextCode()
-      setItem((current) => ({ ...current, code }))
-      setBaseline((current) => ({ ...current, code }))
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : 'No se pudo generar el código del aparato.',
-      )
-    } finally {
-      setGeneratingCode(false)
-    }
-  }
-
   async function saveRecord(navigateAfterCreate = true): Promise<boolean> {
     if (mode === 'view') return true
 
-    if (!item.code.trim() || !item.name.trim()) {
-      setErrorMessage('Código y denominación son obligatorios.')
+    if (!item.name.trim()) {
+      setErrorMessage('La descripción es obligatoria.')
       return false
     }
 
@@ -167,7 +163,20 @@ export default function ApparatusRegistryDetailPage() {
     setErrorMessage('')
 
     try {
-      const payload = toDatabase(item)
+      let record = item
+
+      if (isNew && !record.code.trim()) {
+        record = { ...record, code: await generateNextCode() }
+        setItem(record)
+        setBaseline((current) => ({ ...current, code: record.code }))
+      }
+
+      if (!record.code.trim()) {
+        setErrorMessage('No se pudo generar el código del aparato.')
+        return false
+      }
+
+      const payload = toDatabase(record)
 
       if (isNew) {
         const { data, error } = await supabase
@@ -509,7 +518,7 @@ const path = `${item.id}/${generateId()}.${extension}`
                 placeholder="Ej. P00"
                 onChange={(event) => updateField('plant', event.target.value)}
                 disabled={mode === 'view'}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-blue-500"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition placeholder:text-slate-400 placeholder:italic focus:border-slate-500"
               />
             </label>
 

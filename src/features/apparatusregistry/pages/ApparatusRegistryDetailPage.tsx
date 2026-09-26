@@ -28,42 +28,32 @@ function generateId(): string {
     Math.random().toString(36).substring(2, 10)
   )
 }
-async function generateNextCode(
-  familyCode: string,
-  subfamilyCode: string,
-): Promise<string> {
-  const family = familyCode.trim().toUpperCase()
-  const subfamily = subfamilyCode.trim().toUpperCase()
-
-  if (!family || !subfamily) return ''
-
-  const prefix = `${family}-${subfamily}-`
-
+async function generateNextCode(): Promise<string> {
   const { data, error } = await supabase
     .from('apparatus_registry')
     .select('code')
-    .like('code', `${prefix}%`)
+    .like('code', 'RA-%')
     .order('code', { ascending: true })
 
   if (error) {
-    throw new Error(`No se pudo generar el código: ${error.message}`)
+    throw new Error(`No se pudo generar el código del aparato: ${error.message}`)
   }
 
   let maxSequence = 0
 
   for (const row of data ?? []) {
-    const code = typeof row.code === 'string' ? row.code.toUpperCase() : ''
-    if (!code.startsWith(prefix)) continue
+    const code = typeof row.code === 'string' ? row.code.trim().toUpperCase() : ''
+    const match = /^RA-(\\d+)$/.exec(code)
 
-    const suffix = code.slice(prefix.length)
-    const sequence = Number.parseInt(suffix, 10)
+    if (!match) continue
 
+    const sequence = Number.parseInt(match[1], 10)
     if (Number.isInteger(sequence) && sequence > maxSequence) {
       maxSequence = sequence
     }
   }
 
-  return `${prefix}${String(maxSequence + 1).padStart(2, '0')}`
+  return `RA-${String(maxSequence + 1).padStart(4, '0')}`
 }
 
 function getStoragePathFromPublicUrl(url: string): string | null {
@@ -104,6 +94,7 @@ export default function ApparatusRegistryDetailPage() {
       setItem(empty)
       setBaseline(empty)
       setMode('create')
+      void prepareNewRecord()
       return
     }
 
@@ -144,44 +135,19 @@ export default function ApparatusRegistryDetailPage() {
     setErrorMessage('')
   }
 
-  async function updateClassification(
-    field: 'familyCode' | 'subfamilyCode',
-    value: string,
-  ) {
-    const normalizedValue = value.toUpperCase()
-
-    const nextFamily =
-      field === 'familyCode' ? normalizedValue : item.familyCode
-    const nextSubfamily =
-      field === 'subfamilyCode' ? normalizedValue : item.subfamilyCode
-
-    setItem((current) => ({
-      ...current,
-      [field]: normalizedValue,
-    }))
-    setMessage('')
+  async function prepareNewRecord() {
+    setGeneratingCode(true)
     setErrorMessage('')
 
-    if (!isNew || mode !== 'create') return
-
-    if (!nextFamily.trim() || !nextSubfamily.trim()) {
-      setItem((current) => ({ ...current, code: '' }))
-      return
-    }
-
-    setGeneratingCode(true)
-
     try {
-      const code = await generateNextCode(nextFamily, nextSubfamily)
-      setItem((current) => ({
-        ...current,
-        code,
-      }))
+      const code = await generateNextCode()
+      setItem((current) => ({ ...current, code }))
+      setBaseline((current) => ({ ...current, code }))
     } catch (error) {
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : 'No se pudo generar el código.',
+          : 'No se pudo generar el código del aparato.',
       )
     } finally {
       setGeneratingCode(false)
@@ -514,20 +480,22 @@ const path = `${item.id}/${generateId()}.${extension}`
                 value={item.code}
                 readOnly
                 className="w-full rounded-lg border border-slate-300 bg-slate-100 px-3 py-2 font-semibold uppercase text-slate-700 outline-none"
-                placeholder={generatingCode ? 'Generando…' : 'Automático'}
+                placeholder={generatingCode ? 'Generando código…' : undefined}
+                disabled={generatingCode}
                 required
               />
             </label>
 
             <label className="block">
               <span className="mb-1 block text-sm font-semibold text-slate-700">
-                Denominación
+                Descripción
               </span>
               <input
                 value={item.name}
+                placeholder="Descripción del equipo o instalación"
                 onChange={(event) => updateField('name', event.target.value)}
                 disabled={mode === 'view'}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-blue-500"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition placeholder:text-slate-400 placeholder:italic focus:border-blue-500"
                 required
               />
             </label>
@@ -538,6 +506,7 @@ const path = `${item.id}/${generateId()}.${extension}`
               </span>
               <input
                 value={item.plant}
+                placeholder="Ej. P00"
                 onChange={(event) => updateField('plant', event.target.value)}
                 disabled={mode === 'view'}
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-blue-500"
@@ -550,6 +519,7 @@ const path = `${item.id}/${generateId()}.${extension}`
               </span>
               <input
                 value={item.location}
+                placeholder="Ej. Planta -1, cuarto técnico"
                 onChange={(event) => updateField('location', event.target.value)}
                 disabled={mode === 'view'}
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-blue-500"
@@ -558,10 +528,11 @@ const path = `${item.id}/${generateId()}.${extension}`
 
             <label className="block sm:col-span-2">
               <span className="mb-1 block text-sm font-semibold text-slate-700">
-                Mantenimiento
+                Empresa de mantenimiento
               </span>
               <input
                 value={item.maintenance}
+                placeholder="Empresa que lleva el mantenimiento de este equipo"
                 onChange={(event) =>
                   updateField('maintenance', event.target.value)
                 }
@@ -574,58 +545,16 @@ const path = `${item.id}/${generateId()}.${extension}`
           <hr className="my-6" />
 
           <h2 className="mb-4 text-lg font-bold text-slate-900">
-            Clasificación
-          </h2>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <label className="block">
-              <span className="mb-1 block text-sm font-semibold text-slate-700">
-                Familia
-              </span>
-              <input
-                value={item.familyCode}
-                onChange={(event) =>
-                  void updateClassification('familyCode', event.target.value)
-                }
-                disabled={mode === 'view'}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 font-semibold uppercase outline-none focus:border-blue-500"
-                placeholder="Ej. ACC"
-              />
-            </label>
-
-            <label className="block">
-              <span className="mb-1 block text-sm font-semibold text-slate-700">
-                Subfamilia
-              </span>
-              <input
-                value={item.subfamilyCode}
-                onChange={(event) =>
-                  void updateClassification(
-                    'subfamilyCode',
-                    event.target.value,
-                  )
-                }
-                disabled={mode === 'view'}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 font-semibold uppercase outline-none focus:border-blue-500"
-                placeholder="Ej. AUT"
-              />
-            </label>
-          </div>
-
-          <hr className="my-6" />
-
-          <h2 className="mb-4 text-lg font-bold text-slate-900">
             Fotografías
           </h2>
 
           <div className="flex flex-wrap gap-2">
             <label
-              className={`relative inline-flex items-center gap-2 overflow-hidden rounded-lg bg-slate-700 px-3 py-2 font-semibold text-white shadow transition ${
+              className={`relative inline-flex items-center gap-2 overflow-hidden rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-[0_2px_5px_rgba(15,23,42,0.10)] transition-all duration-150 ${
                 !item.id || mode === 'view' || uploadingPhotos
                   ? 'cursor-not-allowed opacity-40'
-                  : 'cursor-pointer hover:bg-slate-800'
-              }`}
-            >
+                  : 'cursor-pointer hover:-translate-y-1 hover:border-slate-300 hover:bg-slate-50 hover:shadow-[0_8px_16px_rgba(15,23,42,0.16)] active:translate-y-0'
+              }`}>
               <Camera size={17} />
               Hacer foto
               <input
@@ -640,12 +569,11 @@ const path = `${item.id}/${generateId()}.${extension}`
             </label>
 
             <label
-              className={`relative inline-flex items-center gap-2 overflow-hidden rounded-lg bg-blue-700 px-3 py-2 font-semibold text-white shadow transition ${
-                !item.id || uploadingPhotos
+              className={`relative inline-flex items-center gap-2 overflow-hidden rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-[0_2px_5px_rgba(15,23,42,0.10)] transition-all duration-150 ${
+                !item.id || mode === 'view' || uploadingPhotos
                   ? 'cursor-not-allowed opacity-40'
-                  : 'cursor-pointer hover:bg-blue-800'
-              }`}
-            >
+                  : 'cursor-pointer hover:-translate-y-1 hover:border-slate-300 hover:bg-slate-50 hover:shadow-[0_8px_16px_rgba(15,23,42,0.16)] active:translate-y-0'
+              }`}>
               <ImagePlus size={17} />
               Seleccionar imagen
               <input
@@ -653,7 +581,7 @@ const path = `${item.id}/${generateId()}.${extension}`
                 type="file"
                 accept="image/*"
                 multiple
-                disabled={!item.id || uploadingPhotos}
+                disabled={!item.id || mode === 'view' || uploadingPhotos}
                 onChange={handlePhotoFiles}
                 className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
               />

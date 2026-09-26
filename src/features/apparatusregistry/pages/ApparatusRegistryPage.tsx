@@ -17,7 +17,6 @@ export default function ApparatusRegistryPage() {
   const [selectedId, setSelectedId] = useState('')
   const [search, setSearch] = useState('')
   const [plantFilter, setPlantFilter] = useState('ALL')
-  const [familyFilter, setFamilyFilter] = useState('ALL')
   const [activeFilter, setActiveFilter] = useState<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL')
   const [reportScope, setReportScope] = useState<'SELECTED' | 'FILTERED' | 'ALL'>('FILTERED')
   const [loading, setLoading] = useState(true)
@@ -66,16 +65,6 @@ export default function ApparatusRegistryPage() {
     )
   }, [records])
 
-  const families = useMemo(() => {
-    const values = records
-      .map((item) => item.familyCode)
-      .filter((value): value is string => Boolean(value))
-
-    return Array.from(new Set<string>(values)).sort((a, b) =>
-      a.localeCompare(b),
-    )
-  }, [records])
-
   const filteredRecords = useMemo(() => {
     const query = search.trim().toLocaleLowerCase('es')
 
@@ -87,8 +76,6 @@ export default function ApparatusRegistryPage() {
           item.plant,
           item.location,
           item.maintenance,
-          item.familyCode,
-          item.subfamilyCode,
         ]
           .join(' ')
           .toLocaleLowerCase('es')
@@ -97,13 +84,12 @@ export default function ApparatusRegistryPage() {
       }
 
       if (plantFilter !== 'ALL' && item.plant !== plantFilter) return false
-      if (familyFilter !== 'ALL' && item.familyCode !== familyFilter) return false
       if (activeFilter === 'ACTIVE' && !item.active) return false
       if (activeFilter === 'INACTIVE' && item.active) return false
 
       return true
     })
-  }, [records, search, plantFilter, familyFilter, activeFilter])
+  }, [records, search, plantFilter, activeFilter])
 
   const selected = records.find((item) => item.id === selectedId) ?? null
 
@@ -150,7 +136,6 @@ export default function ApparatusRegistryPage() {
     params.set('scope', reportScope)
     params.set('search', search)
     params.set('plant', plantFilter)
-    params.set('family', familyFilter)
     params.set('active', activeFilter)
     if (selectedId) params.set('selectedId', selectedId)
 
@@ -200,7 +185,7 @@ export default function ApparatusRegistryPage() {
         )}
 
         <div className="mb-4 rounded-2xl bg-white p-3 shadow-lg sm:p-4">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6 lg:items-end">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5 lg:items-end">
             <label className="block">
               <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
                 Buscar
@@ -232,21 +217,7 @@ export default function ApparatusRegistryPage() {
             </label>
 
             <label className="block">
-              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Familia
-              </span>
-              <select
-                value={familyFilter}
-                onChange={(event) => setFamilyFilter(event.target.value)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2"
-              >
-                <option value="ALL">Todas</option>
-                {families.map((family) => (
-                  <option key={family} value={family}>
-                    {family}
-                  </option>
-                ))}
-              </select>
+              
             </label>
 
             <label className="block">
@@ -309,13 +280,11 @@ export default function ApparatusRegistryPage() {
               <thead>
                 <tr className="border-b bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
                   <th className="px-4 py-3 font-semibold">Código</th>
-                  <th className="px-4 py-3 font-semibold">Denominación</th>
+                  <th className="px-4 py-3 font-semibold">Descripción</th>
                   <th className="px-4 py-3 font-semibold">Planta</th>
                   <th className="px-4 py-3 font-semibold">Ubicación</th>
                   <th className="px-4 py-3 font-semibold">Mantenimiento</th>
-                  <th className="px-4 py-3 font-semibold">Familia</th>
-                  <th className="px-4 py-3 font-semibold">Subfamilia</th>
-                  <th className="px-4 py-3 font-semibold">Estado</th>
+                  <th className="px-4 py-3 font-semibold">                  <th className="px-4 py-3 font-semibold">                  <th className="px-4 py-3 font-semibold">Estado</th>
                 </tr>
               </thead>
               <tbody>
@@ -347,13 +316,7 @@ export default function ApparatusRegistryPage() {
                       <td className="px-4 py-3 text-slate-700">
                         {item.maintenance || '—'}
                       </td>
-                      <td className="whitespace-nowrap px-4 py-3 font-medium text-slate-700">
-                        {item.familyCode || '—'}
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-slate-700">
-                        {item.subfamilyCode || '—'}
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-3">
+                                            <td className="whitespace-nowrap px-4 py-3">
                         <span
                           className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
                             item.active
@@ -370,7 +333,7 @@ export default function ApparatusRegistryPage() {
 
                 {!loading && filteredRecords.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="px-4 py-10 text-center text-slate-500">
+                    <td colSpan={6} className="px-4 py-10 text-center text-slate-500">
                       No hay registros que coincidan con los filtros.
                     </td>
                   </tr>

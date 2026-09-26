@@ -7,13 +7,13 @@ body {
   
 @media print {
   @page {
-    margin: 14mm 10mm 22mm 10mm;
+    margin: 14mm 10mm 8mm 10mm;
   }
 }
 
 .arias-report-page {
   padding-top: 4mm;
-  padding-bottom: 22mm;
+  padding-bottom: 8mm;
 }
 
 .arias-report-footer {
@@ -28,14 +28,14 @@ body {
 @media print {
   .arias-report-page {
     padding-top: 4mm !important;
-    padding-bottom: 22mm !important;
+    padding-bottom: 8mm !important;
   }
 
   .arias-report-footer {
     position: fixed;
     left: 0;
     right: 0;
-    bottom: 4mm;
+    bottom: 2mm;
     margin: 0;
     padding: 0;
     border-top: 0;
@@ -49,7 +49,7 @@ body {
   .arias-report-footer-line {
     width: 100%;
     height: 0.3mm;
-    margin-bottom: 4mm;
+    margin-bottom: 2mm;
     background: #cbd5e1;
   }
 }

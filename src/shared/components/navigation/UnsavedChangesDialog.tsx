@@ -33,8 +33,15 @@ export default function UnsavedChangesDialog({
       aria-modal="true"
       aria-labelledby="unsaved-dialog-title"
     >
-      <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl">
-        <div className="flex items-start gap-3">
+      <div className="relative w-full max-w-md overflow-hidden rounded-3xl border border-blue-100 bg-white p-5 shadow-[0_24px_70px_rgba(15,23,42,0.24)]">
+        <img
+          src="/logo.png"
+          alt=""
+          aria-hidden="true"
+          className="pointer-events-none absolute -bottom-7 -right-7 w-44 opacity-[0.055]"
+        />
+
+        <div className="relative flex items-start gap-3">
           <div className="mt-0.5 rounded-full bg-blue-50 p-2 text-blue-700">
             <AlertTriangle size={20} />
           </div>

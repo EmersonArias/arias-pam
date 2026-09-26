@@ -25,7 +25,6 @@ export default function ApparatusRegistryReportPage() {
   const selectedId = getParam(params, 'selectedId')
   const search = getParam(params, 'search')
   const plant = getParam(params, 'plant', 'ALL')
-  const family = getParam(params, 'family', 'ALL')
   const active = getParam(params, 'active', 'ALL') as 'ALL' | 'ACTIVE' | 'INACTIVE'
 
   const [records, setRecords] = useState<ApparatusRegistry[]>([])
@@ -87,7 +86,6 @@ export default function ApparatusRegistryReportPage() {
         }
 
         if (plant !== 'ALL' && item.plant !== plant) return false
-        if (family !== 'ALL' && item.familyCode !== family) return false
         if (active === 'ACTIVE' && !item.active) return false
         if (active === 'INACTIVE' && item.active) return false
 
@@ -158,9 +156,7 @@ export default function ApparatusRegistryReportPage() {
                 <div className="font-semibold">{reportRecords.length}</div>
               </div>
               <div className="rounded-lg bg-slate-50 p-3">
-                <div className="text-xs uppercase text-slate-500">Familia</div>
-                <div className="font-semibold">{family === 'ALL' ? 'Todas' : family}</div>
-              </div>
+                              </div>
               <div className="rounded-lg bg-slate-50 p-3">
                 <div className="text-xs uppercase text-slate-500">Estado</div>
                 <div className="font-semibold">
@@ -178,13 +174,11 @@ export default function ApparatusRegistryReportPage() {
                 <thead>
                   <tr className="border-b-2 border-slate-400 text-left">
                     <th className="px-2 py-2">Código</th>
-                    <th className="px-2 py-2">Denominación</th>
+                    <th className="px-2 py-2">Descripción</th>
                     <th className="px-2 py-2">Planta</th>
                     <th className="px-2 py-2">Ubicación</th>
                     <th className="px-2 py-2">Mantenimiento</th>
-                    <th className="px-2 py-2">Familia</th>
-                    <th className="px-2 py-2">Subfamilia</th>
-                    <th className="px-2 py-2">Estado</th>
+                                        <th className="px-2 py-2">Estado</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -197,9 +191,7 @@ export default function ApparatusRegistryReportPage() {
                       <td className="px-2 py-2">{item.plant || '—'}</td>
                       <td className="px-2 py-2">{item.location || '—'}</td>
                       <td className="px-2 py-2">{item.maintenance || '—'}</td>
-                      <td className="px-2 py-2">{item.familyCode || '—'}</td>
-                      <td className="px-2 py-2">{item.subfamilyCode || '—'}</td>
-                      <td className="px-2 py-2">{item.active ? 'Activo' : 'Inactivo'}</td>
+                                            <td className="px-2 py-2">{item.active ? 'Activo' : 'Inactivo'}</td>
                     </tr>
                   ))}
                 </tbody>

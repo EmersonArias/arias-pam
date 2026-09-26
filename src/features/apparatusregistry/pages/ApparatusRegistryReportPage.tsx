@@ -111,7 +111,7 @@ export default function ApparatusRegistryReportPage() {
             />
             <div>
               <h1 className="text-2xl font-bold">Relación de Aparatos</h1>
-              <p className="text-sm text-slate-500">Vista previa del informe</p>
+              <p className="text-sm text-slate-500">Informe</p>
             </div>
           </div>
 
@@ -137,9 +137,9 @@ export default function ApparatusRegistryReportPage() {
           </div>
         ) : (
           <>
-            <div className="mb-4 grid gap-2 text-sm sm:grid-cols-3">
-              <div className="rounded-lg bg-slate-50 p-3">
-                <div className="text-xs uppercase text-slate-500">Ámbito</div>
+            <div className="mb-3 grid gap-2 text-sm sm:grid-cols-2">
+              <div className="rounded-lg bg-slate-50 px-3 py-2">
+                <div className="text-[11px] uppercase tracking-wide text-slate-500">Ámbito</div>
                 <div className="font-semibold">
                   {scope === 'SELECTED'
                     ? 'Registro seleccionado'
@@ -148,19 +148,9 @@ export default function ApparatusRegistryReportPage() {
                       : 'Todos los registros'}
                 </div>
               </div>
-              <div className="rounded-lg bg-slate-50 p-3">
-                <div className="text-xs uppercase text-slate-500">Registros</div>
+              <div className="rounded-lg bg-slate-50 px-3 py-2">
+                <div className="text-[11px] uppercase tracking-wide text-slate-500">Registros</div>
                 <div className="font-semibold">{reportRecords.length}</div>
-              </div>
-              <div className="rounded-lg bg-slate-50 p-3">
-                <div className="text-xs uppercase text-slate-500">Estado</div>
-                <div className="font-semibold">
-                  {active === 'ALL'
-                    ? 'Todos'
-                    : active === 'ACTIVE'
-                      ? 'Activos'
-                      : 'Inactivos'}
-                </div>
               </div>
             </div>
 
@@ -173,7 +163,7 @@ export default function ApparatusRegistryReportPage() {
                     <th className="px-2 py-2">Planta</th>
                     <th className="px-2 py-2">Ubicación</th>
                     <th className="px-2 py-2">Empresa de mantenimiento</th>
-                                        <th className="px-2 py-2">Estado</th>
+                    <th className="px-2 py-2">Estado</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -186,7 +176,7 @@ export default function ApparatusRegistryReportPage() {
                       <td className="px-2 py-2">{item.plant || '—'}</td>
                       <td className="px-2 py-2">{item.location || '—'}</td>
                       <td className="px-2 py-2">{item.maintenance || '—'}</td>
-                                            <td className="px-2 py-2">{item.active ? 'Activo' : 'Inactivo'}</td>
+                    <td className="px-2 py-2">{item.active ? 'Activo' : 'Inactivo'}</td>
                     </tr>
                   ))}
                 </tbody>

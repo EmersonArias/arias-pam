@@ -16,6 +16,7 @@ import { useGuardedNavigation } from '../../../shared/hooks/useGuardedNavigation
 import BrandLogo from '../../../shared/components/branding/BrandLogo'
 import IconButton from '../../../shared/components/buttons/IconButton'
 import { useEscapeAsCancel } from '../../../shared/hooks/useEscapeAsCancel'
+import { useSystemDialog } from '../../../shared/components/dialogs/SystemDialogProvider'
 import {
   createEmptyApparatus,
   fromDatabase,
@@ -88,6 +89,7 @@ export default function ApparatusRegistryDetailPage() {
   const [viewerPhoto, setViewerPhoto] = useState<string | null>(null)
   const [viewerMaximized, setViewerMaximized] = useState(false)
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false)
+  const { confirm } = useSystemDialog()
 
   const cameraInputRef = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -400,7 +402,12 @@ const path = `${item.id}/${generateId()}.${extension}`
   async function handleDeletePhoto(url: string) {
     if (!item.id || mode === 'view') return
 
-    const confirmed = window.confirm('¿Eliminar esta fotografía?')
+    const confirmed = await confirm({
+      title: 'Eliminar fotografía',
+      message: '¿Quieres eliminar esta fotografía?',
+      variant: 'warning',
+      confirmLabel: 'Eliminar',
+    })
     if (!confirmed) return
 
     setUploadingPhotos(true)
@@ -449,9 +456,12 @@ const path = `${item.id}/${generateId()}.${extension}`
   async function handleDelete() {
     if (isNew || !item.id || mode !== 'view') return
 
-    const confirmed = window.confirm(
-      `¿Eliminar el registro ${item.code}? Esta acción no se puede deshacer.`,
-    )
+    const confirmed = await confirm({
+      title: 'Eliminar registro',
+      message: `¿Quieres eliminar el registro ${item.code}? Esta acción no se puede deshacer.`,
+      variant: 'warning',
+      confirmLabel: 'Eliminar',
+    })
 
     if (!confirmed) return
 

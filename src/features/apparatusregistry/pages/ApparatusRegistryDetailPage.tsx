@@ -162,7 +162,7 @@ export default function ApparatusRegistryDetailPage() {
     setMessage('')
     setErrorMessage('')
 
-    if (!isNew) return
+    if (!isNew || mode !== 'create') return
 
     if (!nextFamily.trim() || !nextSubfamily.trim()) {
       setItem((current) => ({ ...current, code: '' }))
@@ -256,8 +256,6 @@ export default function ApparatusRegistryDetailPage() {
     await saveRecord()
   }
 
-  const onSaveAvailable = mode === 'view' ? undefined : saveAndNavigate
-
   const isDirty =
     mode !== 'view' && JSON.stringify(item) !== JSON.stringify(baseline)
 
@@ -273,6 +271,8 @@ export default function ApparatusRegistryDetailPage() {
     onNavigate: navigate,
     onSave: () => saveRecord(false),
   })
+
+  const onSaveAvailable = mode === 'view' ? undefined : saveAndNavigate
 
   async function handlePhotoFiles(event: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files ?? [])
@@ -621,7 +621,7 @@ const path = `${item.id}/${generateId()}.${extension}`
           <div className="flex flex-wrap gap-2">
             <label
               className={`relative inline-flex items-center gap-2 overflow-hidden rounded-lg bg-slate-700 px-3 py-2 font-semibold text-white shadow transition ${
-                !item.id || uploadingPhotos
+                !item.id || mode === 'view' || uploadingPhotos
                   ? 'cursor-not-allowed opacity-40'
                   : 'cursor-pointer hover:bg-slate-800'
               }`}

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../../../lib/supabase'
+import BrandLogo from '../../../shared/components/branding/BrandLogo'
 import {
   formatDate,
   fromDatabase,
@@ -258,9 +259,8 @@ export default function ElectricalPanelsReportPage() {
           <div className="rounded-2xl bg-white p-4 shadow-lg print:rounded-none print:p-0 print:shadow-none">
             <div className="mb-5 flex items-center justify-between gap-6 border-b border-slate-200 pb-4">
               <div className="flex items-center gap-4">
-                <img
-                  src="/logo.png"
-                  alt="Arias Suite"
+                <BrandLogo
+                  onActivate={() => navigate('/')}
                   className="h-9 w-auto object-contain print:h-7"
                 />
 

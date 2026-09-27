@@ -76,6 +76,24 @@ WHERE r.code = 'CLIENT_ADMIN'
 ON CONFLICT DO NOTHING;
 
 -- =========================================================
+-- MÓDULO DE MANTENIMIENTO EN LA LICENCIA DE EVALUACIÓN ACTUAL
+-- =========================================================
+
+INSERT INTO public.tenant_contract_modules (
+  contract_id,
+  module_code,
+  active
+)
+SELECT
+  tc.id,
+  'maintenance',
+  true
+FROM public.tenant_contracts tc
+WHERE tc.contract_code = 'EVAL-SBH-SBDZ-2026-01'
+ON CONFLICT (contract_id, module_code) DO UPDATE SET
+  active = true;
+
+-- =========================================================
 -- PLANES DE MANTENIMIENTO
 -- =========================================================
 

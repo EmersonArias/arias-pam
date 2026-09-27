@@ -1,5 +1,5 @@
-import { useEffect, useState, type FormEvent } from "react"
-import { Bell, CalendarClock, CheckCircle2, Clock3, Mail, PlayCircle, Plus, Save, Trash2, Wrench } from "lucide-react"
+import { useEffect, useState, type ChangeEvent, type FormEvent } from "react"
+import { AlertTriangle, Bell, CalendarClock, CheckCircle2, Clock3, Download, Mail, PlayCircle, Plus, Save, Trash2, Upload, Wrench } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import { supabase } from "../../../lib/supabase"
 import ActionButton from "../../../shared/components/buttons/ActionButton"
@@ -24,6 +24,23 @@ type Plan = {
 }
 type Recipient = { user_id: string; full_name: string | null; email: string | null; role_name: string }
 type Control = { id?: string; label: string; input_type: "NUMBER" | "TEXT" | "BOOLEAN" | "DATE" | "TIME" | "SELECT"; unit: string; min_value: string; max_value: string; required: boolean }
+type EvidenceFile = {
+  path: string
+  name: string
+  type: string
+  size: number
+  uploaded_at: string
+}
+type MaintenanceAlert = {
+  id: string
+  maintenance_plan_id: string
+  alert_type: "UPCOMING_REVIEW" | "DUE_TODAY" | "OVERDUE_REVIEW" | "OUT_OF_RANGE"
+  severity: "INFO" | "WARNING" | "CRITICAL"
+  title: string
+  message: string
+  due_date: string | null
+  triggered_at: string
+}
 type Execution = {
   id: string
   maintenance_plan_id: string
@@ -110,8 +127,10 @@ export default function MaintenancePage() {
   const [controls, setControls] = useState<Control[]>([])
   const [originalControlIds, setOriginalControlIds] = useState<string[]>([])
   const [executions, setExecutions] = useState<Execution[]>([])
+  const [alerts, setAlerts] = useState<MaintenanceAlert[]>([])
   const [executionFormOpen, setExecutionFormOpen] = useState(false)
   const [executionValues, setExecutionValues] = useState<ExecutionValue[]>([])
+  const [pendingEvidenceFiles, setPendingEvidenceFiles] = useState<File[]>([])
   const [executionForm, setExecutionForm] = useState<ExecutionFormState>({
     scheduled_date: "",
     executed_at: localDateTimeValue(),
@@ -126,21 +145,38 @@ export default function MaintenancePage() {
   const [error, setError] = useState("")
 
   async function loadBase() {
-    setLoading(true); setError("")
+    setLoading(true)
+    setError("")
     const hotel = await supabase.from("hotels").select("id").eq("active", true).order("name").limit(1).maybeSingle()
-    if (hotel.error || !hotel.data?.id) { setError(hotel.error?.message ?? "No se ha podido determinar el hotel activo."); setLoading(false); return }
-    const id = hotel.data.id as string; setHotelId(id)
-    const [a, p, r] = await Promise.all([
+    if (hotel.error || !hotel.data?.id) {
+      setError(hotel.error?.message ?? "No se ha podido determinar el hotel activo.")
+      setLoading(false)
+      return
+    }
+
+    const id = hotel.data.id as string
+    setHotelId(id)
+
+    await supabase.rpc("refresh_maintenance_due_alerts", { target_hotel_id: id })
+
+    const [a, p, r, al] = await Promise.all([
       supabase.from("apparatus_registry").select("id, code, name, plant, location").eq("hotel_id", id).eq("active", true).order("code"),
       supabase.from("maintenance_plans").select("id, apparatus_registry_id, name, description, maintenance_type, external_company, periodicity_value, periodicity_unit, start_date, next_due_date, active, apparatus_registry(code, name)").eq("hotel_id", id).order("next_due_date", { ascending: true, nullsFirst: false }),
       supabase.rpc("get_maintenance_alert_recipients", { target_hotel_id: id }),
+      supabase.from("maintenance_alerts").select("id, maintenance_plan_id, alert_type, severity, title, message, due_date, triggered_at").eq("hotel_id", id).is("resolved_at", null).order("triggered_at", { ascending: false }),
     ])
-    const firstError = a.error ?? p.error ?? r.error
-    if (firstError) setError(firstError.message)
-    else { setApparatus((a.data ?? []) as Apparatus[]); setPlans((p.data ?? []) as unknown as Plan[]); setRecipients((r.data ?? []) as Recipient[]) }
+
+    const firstError = a.error ?? p.error ?? r.error ?? al.error
+    if (firstError) {
+      setError(firstError.message)
+    } else {
+      setApparatus((a.data ?? []) as Apparatus[])
+      setPlans((p.data ?? []) as unknown as Plan[])
+      setRecipients((r.data ?? []) as Recipient[])
+      setAlerts((al.data ?? []) as MaintenanceAlert[])
+    }
     setLoading(false)
   }
-
   useEffect(() => { void loadBase() }, [])
 
   function setField<K extends keyof FormState>(field: K, value: FormState[K]) { setForm((current) => ({ ...current, [field]: value })) }
@@ -151,6 +187,7 @@ export default function MaintenancePage() {
     setExecutions([])
     setExecutionFormOpen(false)
     setExecutionValues([])
+    setPendingEvidenceFiles([])
     setExecutionForm({
       scheduled_date: "",
       executed_at: localDateTimeValue(),
@@ -243,6 +280,7 @@ export default function MaintenancePage() {
       controlId: control.id as string,
       value: "",
     })))
+    setPendingEvidenceFiles([])
     setExecutionFormOpen(true)
     setError("")
   }
@@ -320,6 +358,20 @@ export default function MaintenancePage() {
     if (emails.length) { const result = await supabase.from("maintenance_alert_emails").insert(emails.map((email) => ({ alert_config_id: configId, email }))); if (result.error) { setError(result.error.message); setSaving(false); return } }
     await loadBase(); setSelectedId(planId); setSaving(false)
     await showAlert({ title: "Mantenimiento guardado", message: "La configuración se ha guardado correctamente.", variant: "info" })
+  }
+
+  function handleEvidenceFiles(event: ChangeEvent<HTMLInputElement>) {
+    setPendingEvidenceFiles(Array.from(event.target.files ?? []))
+    event.target.value = ""
+  }
+
+  async function openEvidence(path: string) {
+    const result = await supabase.storage.from("maintenance-evidence").createSignedUrl(path, 300)
+    if (result.error || !result.data?.signedUrl) {
+      setError(result.error?.message ?? "No se ha podido abrir la evidencia.")
+      return
+    }
+    window.open(result.data.signedUrl, "_blank", "noopener,noreferrer")
   }
 
   async function saveExecution(event: FormEvent) {
@@ -406,6 +458,39 @@ export default function MaintenancePage() {
       }
     }
 
+    const evidence: EvidenceFile[] = []
+    for (const file of pendingEvidenceFiles) {
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]+/g, "_")
+      const evidencePath = hotelId + "/" + selectedId + "/" + execution.data.id + "/" + crypto.randomUUID() + "-" + safeName
+      const upload = await supabase.storage.from("maintenance-evidence").upload(evidencePath, file, {
+        upsert: false,
+        contentType: file.type || "application/octet-stream",
+      })
+      if (upload.error) {
+        setError("La ejecución se ha registrado, pero una evidencia no pudo subirse: " + upload.error.message)
+        setExecutionSaving(false)
+        return
+      }
+      evidence.push({
+        path: evidencePath,
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        uploaded_at: new Date().toISOString(),
+      })
+    }
+
+    if (evidence.length) {
+      const evidenceUpdate = await supabase.from("maintenance_executions").update({
+        evidence_files: evidence,
+      }).eq("id", execution.data.id)
+      if (evidenceUpdate.error) {
+        setError("La ejecución se ha registrado, pero no se pudo guardar la referencia de las evidencias: " + evidenceUpdate.error.message)
+        setExecutionSaving(false)
+        return
+      }
+    }
+
     await loadBase()
     setExecutionFormOpen(false)
     setExecutionSaving(false)
@@ -441,6 +526,30 @@ export default function MaintenancePage() {
         {error && <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">{error}</div>}
         <main className="mt-4 grid gap-4 xl:grid-cols-[420px_1fr]">
           <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            {alerts.length > 0 && (
+              <div className="border-b border-amber-200 bg-amber-50 px-4 py-3">
+                <div className="flex items-center gap-2 text-sm font-semibold text-amber-800">
+                  <AlertTriangle size={17} />
+                  Alertas activas: {alerts.length}
+                </div>
+                <div className="mt-2 space-y-1">
+                  {alerts.slice(0, 5).map((alert) => (
+                    <button
+                      key={alert.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedId(alert.maintenance_plan_id)
+                        const plan = plans.find((item) => item.id === alert.maintenance_plan_id)
+                        if (plan) void selectPlan(plan)
+                      }}
+                      className="block w-full text-left text-xs text-amber-900 hover:underline"
+                    >
+                      {alert.title}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="border-b border-slate-200 px-4 py-3 text-sm font-semibold">Planes de mantenimiento</div>
             {loading ? <div className="p-8 text-center text-sm text-slate-500">Cargando…</div> : plans.length === 0 ? <div className="p-8 text-center text-sm text-slate-500">Todavía no hay mantenimientos configurados.</div> :
               <div className="max-h-[calc(100vh-220px)] overflow-auto">{plans.map((plan) => <button key={plan.id} type="button" onClick={() => void selectPlan(plan)} className={"w-full border-b border-slate-100 px-4 py-3 text-left transition " + (selectedId === plan.id ? "bg-blue-50" : "hover:bg-slate-50")}>
@@ -594,6 +703,23 @@ export default function MaintenancePage() {
                     </label>
                   </div>
 
+                  <label className="mt-5 block rounded-xl border bg-white p-3">
+                    <span className="mb-1 block text-sm font-semibold">Evidencias</span>
+                    <span className="block text-xs text-slate-500">
+                      Puedes adjuntar fotografías o PDF de la ejecución.
+                    </span>
+                    <span className="mt-2 inline-flex items-center gap-2 rounded-lg border bg-slate-50 px-3 py-2 text-sm cursor-pointer">
+                      <Upload size={16} />
+                      Seleccionar archivos
+                      <input type="file" multiple accept="image/*,.pdf" onChange={handleEvidenceFiles} className="hidden" />
+                    </span>
+                    {pendingEvidenceFiles.length > 0 && (
+                      <div className="mt-2 text-xs text-slate-600">
+                        {pendingEvidenceFiles.map((file) => file.name).join(" · ")}
+                      </div>
+                    )}
+                  </label>
+
                   {controls.length > 0 && (
                     <div className="mt-5 space-y-3">
                       <div className="flex items-center gap-2">
@@ -735,6 +861,21 @@ export default function MaintenancePage() {
                         </div>
                         {execution.observations && (
                           <p className="mt-2 text-sm text-slate-600">{execution.observations}</p>
+                        )}
+                        {Array.isArray(execution.evidence_files) && execution.evidence_files.length > 0 && (
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {(execution.evidence_files as EvidenceFile[]).map((file) => (
+                              <button
+                                key={file.path}
+                                type="button"
+                                onClick={() => void openEvidence(file.path)}
+                                className="inline-flex items-center gap-2 rounded-lg border bg-slate-50 px-3 py-2 text-xs text-slate-700 hover:bg-slate-100"
+                              >
+                                <Download size={14} />
+                                {file.name}
+                              </button>
+                            ))}
+                          </div>
                         )}
                       </div>
                     )

@@ -83,7 +83,7 @@ SECURITY DEFINER
 SET search_path = pg_catalog, public
 AS $$
 DECLARE
-  changed boolean;
+  updated_count integer;
 BEGIN
   UPDATE public.profiles
   SET
@@ -93,8 +93,8 @@ BEGIN
     AND active = true
     AND account_status = 'PENDING_INVITATION';
 
-  GET DIAGNOSTICS changed = ROW_COUNT > 0;
-  RETURN changed;
+  GET DIAGNOSTICS updated_count = ROW_COUNT;
+  RETURN updated_count > 0;
 END;
 $$;
 

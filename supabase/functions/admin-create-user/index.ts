@@ -22,9 +22,12 @@ function validEmail(email: string) {
   return email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
 }
 
-function invitationRedirectUrl() {
-  const appUrl = (Deno.env.get('ARIAS_APP_URL') ?? '').trim().replace(/\/$/, '')
-  return appUrl ? `${appUrl}/activate` : undefined
+function invitationRedirectUrl(req: Request) {
+  const configuredUrl = (Deno.env.get('ARIAS_APP_URL') ?? '').trim().replace(/\/$/, '')
+  if (configuredUrl) return `${configuredUrl}/activate`
+
+  const origin = (req.headers.get('origin') ?? '').trim().replace(/\/$/, '')
+  return origin ? `${origin}/activate` : undefined
 }
 
 Deno.serve(async (req) => {
@@ -129,7 +132,7 @@ Deno.serve(async (req) => {
 
   const { data: invited, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, {
     data: { full_name: fullName },
-    redirectTo: invitationRedirectUrl(),
+    redirectTo: invitationRedirectUrl(req),
   })
 
   if (inviteError) return json({ error: inviteError.message }, 400)

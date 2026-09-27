@@ -189,7 +189,7 @@ export default function ApparatusRegistryPage() {
                 actions={[
                   { key: 'new', label: 'Nuevo', icon: Plus, tone: 'primary', onClick: openNew },
                   { key: 'modify', label: 'Modificar', icon: Pencil, tone: 'warning', onClick: openModify, disabled: !selected },
-                  { key: 'maintenance', label: 'Mantenimientos', icon: Wrench, tone: 'secondary', onClick: () => navigate('/maintenance') },
+                  { key: 'maintenance', label: 'Mantenimientos', icon: Wrench, onClick: () => navigate('/maintenance') },
                   { key: 'report', label: 'PDF', icon: FileText, tone: 'dark', onClick: openReport },
                 ]}
               />

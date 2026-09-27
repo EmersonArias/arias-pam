@@ -1,9 +1,14 @@
 -- Arias Suite — migración 023
--- Motor de alertas periódicas de mantenimiento y repetición de vencidos.
+-- Motor base de alertas de mantenimiento por fecha.
 --
+-- La repetición de alertas OVERDUE_REVIEW se incorpora en la migración 024.
 -- No modifica ni reejecuta migraciones anteriores.
 
 BEGIN;
+
+-- =========================================================
+-- MOTOR BASE DE ALERTAS DE CALENDARIO
+-- =========================================================
 
 CREATE OR REPLACE FUNCTION public.refresh_maintenance_due_alerts(
   target_hotel_id uuid DEFAULT NULL
@@ -16,7 +21,6 @@ AS $$
 DECLARE
   plan_record public.maintenance_plans%ROWTYPE;
   config_record public.maintenance_alert_configs%ROWTYPE;
-  days_overdue integer;
   days_before integer;
   desired_type text;
   desired_severity text;
@@ -24,6 +28,9 @@ DECLARE
   desired_message text;
   inserted_count integer := 0;
 BEGIN
+  -- En una llamada autenticada se comprueba el acceso solicitado.
+  -- Durante migraciones/operaciones administrativas auth.uid() puede ser NULL
+  -- y, en ese caso, la operación se considera confiable.
   IF target_hotel_id IS NOT NULL
      AND auth.uid() IS NOT NULL
      AND NOT public.has_hotel_access(target_hotel_id)
@@ -58,22 +65,16 @@ BEGIN
     desired_message := NULL;
 
     IF plan_record.next_due_date < CURRENT_DATE THEN
-      days_overdue := CURRENT_DATE - plan_record.next_due_date;
-
       IF config_record.notify_when_overdue IS DISTINCT FROM false THEN
         desired_type := 'OVERDUE_REVIEW';
-        desired_severity := CASE
-          WHEN days_overdue >= 7 THEN 'CRITICAL'
-          ELSE 'WARNING'
-        END;
+        desired_severity := 'CRITICAL';
         desired_title := plan_record.name || ' — mantenimiento vencido';
         desired_message :=
           'El mantenimiento previsto para ' ||
           to_char(plan_record.next_due_date, 'DD/MM/YYYY') ||
-          ' lleva ' || days_overdue ||
-          CASE WHEN days_overdue = 1 THEN ' día' ELSE ' días' END ||
-          ' sin una ejecución real registrada.';
+          ' todavía no tiene una ejecución real registrada.';
       END IF;
+
     ELSIF plan_record.next_due_date = CURRENT_DATE THEN
       IF config_record.notify_on_due IS DISTINCT FROM false THEN
         desired_type := 'DUE_TODAY';
@@ -82,6 +83,7 @@ BEGIN
         desired_message :=
           'El mantenimiento está previsto para hoy. Registra la ejecución real cuando se haya realizado.';
       END IF;
+
     ELSIF plan_record.next_due_date <= CURRENT_DATE + days_before THEN
       desired_type := 'UPCOMING_REVIEW';
       desired_severity := 'INFO';
@@ -92,75 +94,32 @@ BEGIN
     END IF;
 
     IF desired_type IS NOT NULL THEN
-      IF desired_type = 'OVERDUE_REVIEW'
-         AND COALESCE(config_record.overdue_repeat_days, 0) > 0
-         AND EXISTS (
-           SELECT 1
-           FROM public.maintenance_alerts ma
-           WHERE ma.maintenance_plan_id = plan_record.id
-             AND ma.alert_type = 'OVERDUE_REVIEW'
-             AND ma.due_date = plan_record.next_due_date
-             AND ma.resolved_at IS NULL
-         )
-      THEN
-        IF CURRENT_DATE >= (
-          COALESCE(
-            (
-              SELECT ma.triggered_at::date
-              FROM public.maintenance_alerts ma
-              WHERE ma.maintenance_plan_id = plan_record.id
-                AND ma.alert_type = 'OVERDUE_REVIEW'
-                AND ma.due_date = plan_record.next_due_date
-                AND ma.resolved_at IS NULL
-              ORDER BY ma.triggered_at DESC
-              LIMIT 1
-            ),
-            CURRENT_DATE
-          )
-          + config_record.overdue_repeat_days
-        ) THEN
-          desired_type := 'OVERDUE_REVIEW';
-        ELSE
-          desired_type := NULL;
-        END IF;
-      END IF;
+      INSERT INTO public.maintenance_alerts (
+        hotel_id,
+        maintenance_plan_id,
+        alert_type,
+        severity,
+        title,
+        message,
+        due_date
+      )
+      VALUES (
+        plan_record.hotel_id,
+        plan_record.id,
+        desired_type,
+        desired_severity,
+        desired_title,
+        desired_message,
+        plan_record.next_due_date
+      )
+      ON CONFLICT DO NOTHING;
 
-      IF desired_type IS NOT NULL
-         AND NOT EXISTS (
-           SELECT 1
-           FROM public.maintenance_alerts ma
-           WHERE ma.maintenance_plan_id = plan_record.id
-             AND ma.alert_type = desired_type
-             AND ma.due_date = plan_record.next_due_date
-             AND ma.resolved_at IS NULL
-             AND (
-               desired_type <> 'OVERDUE_REVIEW'
-               OR ma.triggered_at::date = CURRENT_DATE
-             )
-         )
-      THEN
-        INSERT INTO public.maintenance_alerts (
-          hotel_id,
-          maintenance_plan_id,
-          alert_type,
-          severity,
-          title,
-          message,
-          due_date
-        )
-        VALUES (
-          plan_record.hotel_id,
-          plan_record.id,
-          desired_type,
-          desired_severity,
-          desired_title,
-          desired_message,
-          plan_record.next_due_date
-        );
+      IF FOUND THEN
         inserted_count := inserted_count + 1;
       END IF;
     END IF;
 
+    -- Cierra alertas de calendario que ya no representan el estado actual.
     UPDATE public.maintenance_alerts ma
     SET resolved_at = COALESCE(ma.resolved_at, now())
     WHERE ma.maintenance_plan_id = plan_record.id
@@ -171,9 +130,9 @@ BEGIN
       )
       AND ma.resolved_at IS NULL
       AND (
-        plan_record.next_due_date >= CURRENT_DATE
+        desired_type IS NULL
+        OR ma.alert_type <> desired_type
         OR ma.due_date <> plan_record.next_due_date
-        OR ma.alert_type <> COALESCE(desired_type, '')
       );
   END LOOP;
 
@@ -183,5 +142,44 @@ $$;
 
 REVOKE ALL ON FUNCTION public.refresh_maintenance_due_alerts(uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.refresh_maintenance_due_alerts(uuid) TO authenticated;
+
+-- Mantiene las alertas de calendario actualizadas cuando cambia un plan.
+CREATE OR REPLACE FUNCTION public.trg_refresh_maintenance_due_alerts()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, public
+AS $$
+BEGIN
+  PERFORM public.refresh_maintenance_due_alerts(NEW.hotel_id);
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_refresh_maintenance_due_alerts
+ON public.maintenance_plans;
+
+CREATE TRIGGER trg_refresh_maintenance_due_alerts
+AFTER INSERT OR UPDATE OF next_due_date, active, start_date
+ON public.maintenance_plans
+FOR EACH ROW
+EXECUTE FUNCTION public.trg_refresh_maintenance_due_alerts();
+
+REVOKE ALL ON FUNCTION public.trg_refresh_maintenance_due_alerts() FROM PUBLIC;
+
+-- Genera el estado inicial de alertas para los hoteles activos.
+DO $$
+DECLARE
+  hotel_record public.hotels%ROWTYPE;
+BEGIN
+  FOR hotel_record IN
+    SELECT *
+    FROM public.hotels
+    WHERE active = true
+  LOOP
+    PERFORM public.refresh_maintenance_due_alerts(hotel_record.id);
+  END LOOP;
+END;
+$$;
 
 COMMIT;

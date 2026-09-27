@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { CalendarDays, RefreshCw } from 'lucide-react'
+import { CalendarDays, RefreshCw, Search } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../../lib/supabase'
 import BrandLogo from '../../../shared/components/branding/BrandLogo'
@@ -7,12 +7,16 @@ import { BackButton, HomeButton } from '../../../shared/components/navigation/Na
 import IconButton from '../../../shared/components/buttons/IconButton'
 
 type PeriodicityUnit = 'DAY' | 'WEEK' | 'MONTH' | 'YEAR' | 'VARIABLE'
+type MaintenanceType = 'INTERNAL' | 'EXTERNAL'
 
 type PamPlan = {
   id: string
   code: string | null
   name: string
+  description: string | null
   apparatus_registry_id: string | null
+  maintenance_type: MaintenanceType
+  external_company: string | null
   periodicity_value: number | null
   periodicity_unit: PeriodicityUnit | null
   next_due_date: string | null
@@ -26,22 +30,23 @@ type PamPlan = {
 type MonthLoad = {
   key: string
   short: string
+  long: string
   count: number
 }
 
 const MONTHS: MonthLoad[] = [
-  { key: '01', short: 'Ene', count: 0 },
-  { key: '02', short: 'Feb', count: 0 },
-  { key: '03', short: 'Mar', count: 0 },
-  { key: '04', short: 'Abr', count: 0 },
-  { key: '05', short: 'May', count: 0 },
-  { key: '06', short: 'Jun', count: 0 },
-  { key: '07', short: 'Jul', count: 0 },
-  { key: '08', short: 'Ago', count: 0 },
-  { key: '09', short: 'Sep', count: 0 },
-  { key: '10', short: 'Oct', count: 0 },
-  { key: '11', short: 'Nov', count: 0 },
-  { key: '12', short: 'Dic', count: 0 },
+  { key: '01', short: 'Ene', long: 'Enero', count: 0 },
+  { key: '02', short: 'Feb', long: 'Febrero', count: 0 },
+  { key: '03', short: 'Mar', long: 'Marzo', count: 0 },
+  { key: '04', short: 'Abr', long: 'Abril', count: 0 },
+  { key: '05', short: 'May', long: 'Mayo', count: 0 },
+  { key: '06', short: 'Jun', long: 'Junio', count: 0 },
+  { key: '07', short: 'Jul', long: 'Julio', count: 0 },
+  { key: '08', short: 'Ago', long: 'Agosto', count: 0 },
+  { key: '09', short: 'Sep', long: 'Septiembre', count: 0 },
+  { key: '10', short: 'Oct', long: 'Octubre', count: 0 },
+  { key: '11', short: 'Nov', long: 'Noviembre', count: 0 },
+  { key: '12', short: 'Dic', long: 'Diciembre', count: 0 },
 ]
 
 function parseDate(value: string | null) {
@@ -58,14 +63,9 @@ function daysBetween(from: Date, to: Date) {
   )
 }
 
-function monthOccurrences(
-  plan: PamPlan,
-  year: number,
-  monthIndex: number,
-) {
+function monthOccurrences(plan: PamPlan, year: number, monthIndex: number) {
   const due = parseDate(plan.next_due_date)
-  if (!due || !plan.periodicity_value || !plan.periodicity_unit) return 0
-  if (!plan.active) return 0
+  if (!due || !plan.periodicity_value || !plan.periodicity_unit || !plan.active) return 0
 
   const monthStart = new Date(year, monthIndex, 1, 12)
   const monthEnd = new Date(year, monthIndex + 1, 0, 12)
@@ -133,7 +133,7 @@ function periodicityLabel(plan: PamPlan) {
 
 function planState(nextDueDate: string | null, active: boolean) {
   if (!active) return 'Inactivo'
-  if (!nextDueDate) return 'Sin fecha'
+  if (!nextDueDate) return 'Sin programación'
 
   const today = new Date().toISOString().slice(0, 10)
   if (nextDueDate < today) return 'Vencido'
@@ -146,11 +146,17 @@ function planState(nextDueDate: string | null, active: boolean) {
   return daysBetween(now, due) <= 7 ? 'Próximo' : 'Programado'
 }
 
+function typeLabel(plan: PamPlan) {
+  return plan.maintenance_type === 'EXTERNAL' ? 'Externo' : 'Interno'
+}
+
 export default function PamPage() {
   const navigate = useNavigate()
   const currentYear = new Date().getFullYear()
   const [year, setYear] = useState(currentYear)
   const [plans, setPlans] = useState<PamPlan[]>([])
+  const [search, setSearch] = useState('')
+  const [typeFilter, setTypeFilter] = useState<'ALL' | MaintenanceType>('ALL')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -176,7 +182,7 @@ export default function PamPage() {
     const result = await supabase
       .from('maintenance_plans')
       .select(
-        'id, code, name, apparatus_registry_id, periodicity_value, periodicity_unit, next_due_date, active, apparatus_registry(code, name)',
+        'id, code, name, description, apparatus_registry_id, maintenance_type, external_company, periodicity_value, periodicity_unit, next_due_date, active, apparatus_registry(code, name)',
       )
       .eq('hotel_id', hotel.data.id)
       .order('next_due_date', { ascending: true, nullsFirst: false })
@@ -196,38 +202,71 @@ export default function PamPage() {
     void loadPam()
   }, [])
 
+  const filteredPlans = useMemo(() => {
+    const query = search.trim().toLocaleLowerCase('es')
+
+    return plans.filter((plan) => {
+      if (typeFilter !== 'ALL' && plan.maintenance_type !== typeFilter) return false
+      if (!query) return true
+
+      const haystack = [
+        plan.code,
+        plan.name,
+        plan.description,
+        plan.external_company,
+        plan.apparatus?.code,
+        plan.apparatus?.name,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLocaleLowerCase('es')
+
+      return haystack.includes(query)
+    })
+  }, [plans, search, typeFilter])
+
+  const activePlans = useMemo(
+    () => filteredPlans.filter((plan) => plan.active),
+    [filteredPlans],
+  )
+
   const months = useMemo(() => {
     return MONTHS.map((month) => ({
       ...month,
-      count: plans.reduce(
+      count: activePlans.reduce(
         (total, plan) =>
           total + monthOccurrences(plan, year, Number(month.key) - 1),
         0,
       ),
     }))
-  }, [plans, year])
+  }, [activePlans, year])
 
-  const visiblePlans = useMemo(
-    () => plans.filter((plan) => plan.active),
-    [plans],
+  const annualLoad = months.reduce((sum, month) => sum + month.count, 0)
+  const overdueCount = activePlans.filter(
+    (plan) => planState(plan.next_due_date, plan.active) === 'Vencido',
+  ).length
+  const unprogrammedCount = activePlans.filter((plan) => !plan.next_due_date).length
+  const peakMonth = months.reduce(
+    (peak, month) => (month.count > peak.count ? month : peak),
+    months[0],
   )
 
   return (
     <div className="min-h-screen bg-slate-100 p-3 sm:p-5">
-      <div className="mx-auto max-w-7xl">
-        <div className="mb-4 rounded-2xl bg-white p-3 shadow-lg sm:p-4">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <div className="mx-auto max-w-[1600px]">
+        <div className="mb-3 rounded-2xl bg-white p-3 shadow-lg sm:p-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex min-w-0 items-center gap-3">
               <BrandLogo
                 onActivate={() => navigate('/')}
-                className="h-11 w-auto shrink-0 object-contain sm:h-13"
+                className="h-10 w-auto shrink-0 object-contain sm:h-12"
               />
               <div className="min-w-0">
                 <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">
                   Plan Anual de Mantenimiento
                 </h1>
                 <p className="text-sm text-slate-500">
-                  Plan preventivo y carga anual prevista
+                  Reglas preventivas, carga anual y seguimiento
                 </p>
               </div>
             </div>
@@ -236,7 +275,7 @@ export default function PamPage() {
               <BackButton onBack={() => navigate('/')} />
               <HomeButton onHome={() => navigate('/')} />
 
-              <label className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">
+              <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm">
                 <CalendarDays size={16} className="text-slate-500" />
                 <span className="font-semibold text-slate-600">Año</span>
                 <select
@@ -266,34 +305,80 @@ export default function PamPage() {
         </div>
 
         {error && (
-          <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+          <div className="mb-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
             {error}
           </div>
         )}
 
-        <div className="mb-4 grid gap-3 sm:grid-cols-3">
-          <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-            <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-              Mantenimientos activos
+        <div className="mb-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          {[
+            ['Mantenimientos activos', activePlans.length],
+            [`Trabajos previstos ${year}`, annualLoad],
+            ['Vencidos', overdueCount],
+            ['Sin programación', unprogrammedCount],
+            ['Mes con mayor carga', peakMonth?.count ? `${peakMonth.long} · ${peakMonth.count}` : '—'],
+          ].map(([label, value]) => (
+            <div key={String(label)} className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+              <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                {label}
+              </div>
+              <div className="mt-1 text-xl font-bold text-slate-900">
+                {value}
+              </div>
             </div>
-            <div className="mt-1 text-2xl font-bold text-slate-900">
-              {visiblePlans.length}
-            </div>
-          </div>
-          <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-            <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-              Trabajos previstos {year}
-            </div>
-            <div className="mt-1 text-2xl font-bold text-slate-900">
-              {months.reduce((sum, month) => sum + month.count, 0)}
-            </div>
-          </div>
-          <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-            <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-              Pico de carga mensual
-            </div>
-            <div className="mt-1 text-2xl font-bold text-slate-900">
-              {Math.max(0, ...months.map((month) => month.count))}
+          ))}
+        </div>
+
+        <div className="mb-3 rounded-2xl bg-white p-3 shadow-lg">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
+            <label className="block min-w-0 flex-1">
+              <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                Buscar mantenimiento, equipo o empresa
+              </span>
+              <div className="relative">
+                <Search
+                  size={16}
+                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                />
+                <input
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Buscar…"
+                  className="w-full rounded-lg border border-slate-300 py-2 pl-9 pr-3 text-sm outline-none focus:border-blue-500"
+                />
+              </div>
+            </label>
+
+            <label className="block min-w-[190px]">
+              <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                Tipo
+              </span>
+              <select
+                value={typeFilter}
+                onChange={(event) => setTypeFilter(event.target.value as 'ALL' | MaintenanceType)}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              >
+                <option value="ALL">Todos</option>
+                <option value="INTERNAL">Interno</option>
+                <option value="EXTERNAL">Externo</option>
+              </select>
+            </label>
+
+            <div className="flex flex-wrap gap-2">
+              {months.map((month) => (
+                <div
+                  key={month.key}
+                  className="min-w-[52px] rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-center"
+                  title={month.long}
+                >
+                  <div className="text-[9px] font-semibold uppercase text-slate-500">
+                    {month.short}
+                  </div>
+                  <div className="text-sm font-bold text-slate-800">
+                    {month.count}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -302,116 +387,122 @@ export default function PamPage() {
           <div className="flex items-center justify-between gap-3 border-b px-4 py-3">
             <div>
               <div className="text-sm font-semibold text-slate-800">
-                Calendario anual {year}
+                Plan anual {year}
               </div>
               <div className="text-xs text-slate-500">
-                La carga mensual se calcula a partir de la próxima fecha y periodicidad configuradas.
+                Una fila representa un mantenimiento; la planificación mensual muestra cuántas ejecuciones están previstas.
               </div>
             </div>
             <div className="text-xs text-slate-500">
-              {visiblePlans.length} mantenimiento{visiblePlans.length === 1 ? '' : 's'}
+              {filteredPlans.length} / {plans.length} mantenimientos
             </div>
           </div>
 
-          <div className="max-h-[calc(100vh-360px)] min-h-[320px] overflow-auto">
-            <table className="w-full min-w-[1320px] border-collapse text-sm">
+          <div className="max-h-[calc(100vh-330px)] min-h-[320px] overflow-auto">
+            <table className="w-full min-w-[1540px] border-collapse text-sm">
               <thead>
                 <tr className="sticky top-0 z-20 border-b bg-slate-50 text-left text-[10px] uppercase tracking-wide text-slate-500 shadow-[0_1px_0_rgba(148,163,184,0.4)]">
                   <th className="sticky left-0 z-30 bg-slate-50 px-3 py-3 font-semibold">Código</th>
-                  <th className="sticky left-[86px] z-30 bg-slate-50 px-3 py-3 font-semibold">Equipo</th>
-                  <th className="px-3 py-3 font-semibold">Mantenimiento</th>
+                  <th className="sticky left-[100px] z-30 bg-slate-50 px-3 py-3 font-semibold">Mantenimiento</th>
+                  <th className="px-3 py-3 font-semibold">Equipo</th>
+                  <th className="px-3 py-3 font-semibold">Tipo</th>
                   <th className="px-3 py-3 font-semibold">Periodicidad</th>
+                  <th className="px-3 py-3 font-semibold">Empresa</th>
+                  <th className="px-3 py-3 font-semibold">Próxima</th>
                   <th className="px-3 py-3 font-semibold">Estado</th>
                   {months.map((month) => (
-                    <th key={month.key} className="min-w-[62px] px-2 py-3 text-center font-semibold">
+                    <th key={month.key} className="min-w-[58px] px-2 py-3 text-center font-semibold">
                       {month.short}
                     </th>
                   ))}
                 </tr>
-                <tr className="sticky top-[41px] z-10 border-b bg-white text-xs shadow-sm">
-                  <th className="sticky left-0 z-20 bg-white px-3 py-2 text-left font-semibold text-slate-500">
-                    CARGA
-                  </th>
-                  <th className="sticky left-[86px] z-20 bg-white px-3 py-2 font-semibold text-slate-700">
-                    —
-                  </th>
-                  <th className="px-3 py-2 text-left font-semibold text-slate-500">Trabajos previstos</th>
-                  <th className="px-3 py-2 text-left font-semibold text-slate-500">—</th>
-                  <th className="px-3 py-2 font-semibold text-slate-500">—</th>
-                  {months.map((month) => (
-                    <th key={month.key} className="px-2 py-2 text-center text-sm font-bold text-slate-800">
-                      {month.count || '—'}
-                    </th>
-                  ))}
-                </tr>
               </thead>
+
               <tbody>
-                {visiblePlans.map((plan) => (
-                  <tr
-                    key={plan.id}
-                    onClick={() => navigate('/maintenance')}
-                    className="cursor-pointer border-b border-slate-100 transition hover:bg-slate-50"
-                  >
-                    <td className="sticky left-0 bg-white px-3 py-3 font-semibold text-slate-800">
-                      {plan.code || '—'}
-                    </td>
-                    <td className="sticky left-[86px] bg-white px-3 py-3">
-                      <div className="font-semibold text-slate-800">
-                        {plan.apparatus?.code || '—'}
-                      </div>
-                      <div className="max-w-[180px] truncate text-[10px] text-slate-500">
-                        {plan.apparatus?.name || 'Equipo no indicado'}
-                      </div>
-                    </td>
-                    <td className="max-w-[300px] px-3 py-3">
-                      <div className="truncate font-semibold text-slate-800">
-                        {plan.name}
-                      </div>
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-3 text-slate-600">
-                      {periodicityLabel(plan)}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-3">
-                      {(() => {
-                        const state = planState(plan.next_due_date, plan.active)
-                        const stateClass =
-                          state === 'Vencido'
-                            ? 'bg-rose-100 text-rose-700'
-                            : state === 'Hoy'
-                              ? 'bg-amber-100 text-amber-700'
-                              : state === 'Próximo'
-                                ? 'bg-blue-100 text-blue-700'
-                                : 'bg-slate-100 text-slate-600'
+                {filteredPlans.map((plan) => {
+                  const state = planState(plan.next_due_date, plan.active)
+                  const stateClass =
+                    state === 'Vencido'
+                      ? 'bg-rose-100 text-rose-700'
+                      : state === 'Hoy'
+                        ? 'bg-amber-100 text-amber-700'
+                        : state === 'Próximo'
+                          ? 'bg-blue-100 text-blue-700'
+                          : state === 'Sin programación'
+                            ? 'bg-slate-100 text-slate-500'
+                            : 'bg-slate-100 text-slate-600'
 
+                  return (
+                    <tr
+                      key={plan.id}
+                      onClick={() => navigate('/maintenance')}
+                      className="cursor-pointer border-b border-slate-100 transition hover:bg-slate-50"
+                    >
+                      <td className="sticky left-0 bg-white px-3 py-3 font-semibold text-slate-800">
+                        {plan.code || '—'}
+                      </td>
+                      <td className="sticky left-[100px] bg-white px-3 py-3">
+                        <div className="max-w-[260px] truncate font-semibold text-slate-800">
+                          {plan.name}
+                        </div>
+                        {plan.description && (
+                          <div className="max-w-[300px] truncate text-[10px] text-slate-500">
+                            {plan.description}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-3 py-3">
+                        <div className="font-semibold text-slate-700">{plan.apparatus?.code || '—'}</div>
+                        <div className="max-w-[190px] truncate text-[10px] text-slate-500">
+                          {plan.apparatus?.name || 'Equipo no indicado'}
+                        </div>
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-3">
+                        <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-700">
+                          {typeLabel(plan)}
+                        </span>
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-3 text-slate-600">
+                        {periodicityLabel(plan)}
+                      </td>
+                      <td className="max-w-[180px] truncate px-3 py-3 text-slate-600">
+                        {plan.external_company || 'SSTT'}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-3 text-slate-600">
+                        {plan.next_due_date
+                          ? new Date(plan.next_due_date + 'T12:00:00').toLocaleDateString('es-ES')
+                          : '—'}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-3">
+                        <span className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-semibold ${stateClass}`}>
+                          {state}
+                        </span>
+                      </td>
+                      {months.map((month) => {
+                        const count = monthOccurrences(plan, year, Number(month.key) - 1)
                         return (
-                          <span className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-semibold ${stateClass}`}>
-                            {state}
-                          </span>
+                          <td
+                            key={month.key}
+                            className={`px-2 py-3 text-center font-semibold ${
+                              count > 0 ? 'text-slate-800' : 'text-slate-300'
+                            }`}
+                          >
+                            {count || '·'}
+                          </td>
                         )
-                      })()}
-                    </td>
-                    {months.map((month) => {
-                      const count = monthOccurrences(plan, year, Number(month.key) - 1)
-                      return (
-                        <td
-                          key={month.key}
-                          className={`px-2 py-3 text-center font-semibold ${count > 0 ? 'text-slate-800' : 'text-slate-300'}`}
-                        >
-                          {count || '·'}
-                        </td>
-                      )
-                    })}
-                  </tr>
-                ))}
+                      })}
+                    </tr>
+                  )
+                })}
 
-                {!loading && visiblePlans.length === 0 && (
+                {!loading && filteredPlans.length === 0 && (
                   <tr>
-                    <td colSpan={17} className="px-4 py-14 text-center">
+                    <td colSpan={20} className="px-4 py-14 text-center">
                       <div className="text-sm font-semibold text-slate-600">
-                        No hay mantenimientos configurados para este hotel.
+                        No hay mantenimientos que mostrar.
                       </div>
                       <div className="mt-1 text-xs text-slate-400">
-                        El PAM no muestra datos ficticios: aparecerá aquí cuando existan mantenimientos reales.
+                        El PAM no muestra datos ficticios: aparecerán aquí los mantenimientos reales del hotel.
                       </div>
                     </td>
                   </tr>
@@ -419,7 +510,7 @@ export default function PamPage() {
 
                 {loading && (
                   <tr>
-                    <td colSpan={17} className="px-4 py-14 text-center text-sm text-slate-400">
+                    <td colSpan={20} className="px-4 py-14 text-center text-sm text-slate-400">
                       Cargando PAM…
                     </td>
                   </tr>

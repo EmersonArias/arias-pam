@@ -11,10 +11,16 @@ import type {
 function mapSession(session: SupabaseSession | null): AriasSession | null {
   if (!session) return null
 
+  const authEmail = session.user.email ?? null
+  const displayEmail =
+    authEmail && !authEmail.toLowerCase().startsWith('internal+')
+      ? authEmail
+      : null
+
   return {
     user: {
       id: session.user.id,
-      email: session.user.email ?? null,
+      email: displayEmail,
       fullName:
         (session.user.user_metadata?.full_name as string | undefined) ??
         (session.user.user_metadata?.name as string | undefined) ??

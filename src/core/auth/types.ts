@@ -27,6 +27,7 @@ export interface AriasAuthService {
   signOut(): Promise<AuthResult<null>>
   requestPasswordReset(email: string): Promise<AuthResult<null>>
   updatePassword(password: string): Promise<AuthResult<null>>
+  updateProfile(fullName: string): Promise<AuthResult<null>>
   activateAccount(): Promise<AuthResult<boolean>>
   onAuthStateChange(listener: AuthStateListener): AuthSubscription
   isProfileActive(userId: string): Promise<AuthResult<boolean>>

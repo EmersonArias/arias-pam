@@ -212,14 +212,14 @@ export default function UsersPage() {
     setFormMode('create')
   }
 
-  function openEdit() {
+  function openEdit(activeOverride?: boolean) {
     if (!selectedUser || isOwnAccount) return
 
     setForm({
       fullName: selectedUser.full_name ?? '',
       email: selectedUser.email ?? '',
       password: '',
-      active: selectedUser.active,
+      active: activeOverride ?? selectedUser.active,
       assignments: selectedUser.assignments.map((assignment) => ({
         hotelId: assignment.hotelId,
         roleId: assignment.roleId,
@@ -528,7 +528,7 @@ export default function UsersPage() {
                     <ActionButton
                       icon={Power}
                       label={selectedUser.active ? 'Desactivar usuario' : 'Activar usuario'}
-                      onClick={openEdit}
+                      onClick={() => openEdit()}
                     />
                   </div>
                 )}

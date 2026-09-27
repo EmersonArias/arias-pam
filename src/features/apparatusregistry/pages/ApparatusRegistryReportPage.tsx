@@ -4,6 +4,7 @@ import { Printer } from 'lucide-react'
 import ActionButton from '../../../shared/components/buttons/ActionButton'
 import PrintReportFooter from '../../../shared/components/reports/PrintReportFooter'
 import BrandLogo from '../../../shared/components/branding/BrandLogo'
+import { useAuth } from '../../auth/context/AuthProvider'
 import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
 import { supabase } from '../../../lib/supabase'
 import {
@@ -19,6 +20,7 @@ function getParam(params: URLSearchParams, key: string, fallback = '') {
 export default function ApparatusRegistryReportPage() {
   const navigate = useNavigate()
   const location = useLocation()
+  const { session } = useAuth()
   const params = useMemo(
     () => new URLSearchParams(location.search),
     [location.search],
@@ -111,7 +113,12 @@ export default function ApparatusRegistryReportPage() {
               className="h-10 w-auto object-contain"
             />
             <div>
+              <div>
               <h1 className="text-2xl font-bold">Relación de Aparatos</h1>
+              <p className="text-xs text-slate-400">
+                Generado por: {session?.user.fullName || session?.user.email || 'Usuario'}
+              </p>
+            </div>
               <p className="text-sm text-slate-500">Informe</p>
             </div>
           </div>
@@ -119,7 +126,7 @@ export default function ApparatusRegistryReportPage() {
           <div className="flex gap-2 print:hidden">
             <ActionButton
               icon={Printer}
-              label="PDF"
+              label="Imprimir / PDF"
               tone="dark"
               onClick={printReport}
             />

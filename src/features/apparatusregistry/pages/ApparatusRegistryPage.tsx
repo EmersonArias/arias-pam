@@ -9,6 +9,7 @@ import {
   Pencil,
   Plus,
   RefreshCw,
+  Wrench,
 } from 'lucide-react'
 import IconButton from '../../../shared/components/buttons/IconButton'
 import BrandLogo from '../../../shared/components/branding/BrandLogo'
@@ -173,10 +174,10 @@ export default function ApparatusRegistryPage() {
               />
               <div className="min-w-0">
                 <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">
-                  Relación de Aparatos
+                  Equipos e instalaciones
                 </h1>
                 <p className="text-sm text-slate-500">
-                  Registro de equipos e instalaciones
+                  Mantenimientos, controles y estado de equipos
                 </p>
               </div>
             </div>
@@ -188,6 +189,7 @@ export default function ApparatusRegistryPage() {
                 actions={[
                   { key: 'new', label: 'Nuevo', icon: Plus, tone: 'primary', onClick: openNew },
                   { key: 'modify', label: 'Modificar', icon: Pencil, tone: 'warning', onClick: openModify, disabled: !selected },
+                  { key: 'maintenance', label: 'Mantenimientos', icon: Wrench, tone: 'secondary', onClick: () => navigate('/maintenance') },
                   { key: 'report', label: 'PDF', icon: FileText, tone: 'dark', onClick: openReport },
                 ]}
               />

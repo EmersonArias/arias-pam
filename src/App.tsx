@@ -33,6 +33,7 @@ import ApparatusRegistryPage from './features/apparatusregistry/pages/ApparatusR
 import ApparatusRegistryDetailPage from './features/apparatusregistry/pages/ApparatusRegistryDetailPage'
 import ApparatusRegistryReportPage from './features/apparatusregistry/pages/ApparatusRegistryReportPage'
 import MaintenancePage from './features/maintenance/pages/MaintenancePage'
+import ProvidersPage from './features/providers/pages/ProvidersPage'
 
 export default function App() {
   return (

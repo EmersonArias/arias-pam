@@ -210,6 +210,7 @@ export default function UsersPage() {
       const haystack = [
         row.full_name ?? '',
         row.email ?? '',
+        row.login_identifier,
         ...row.assignments.flatMap((assignment) => [
           assignment.hotelName,
           assignment.hotelCode,

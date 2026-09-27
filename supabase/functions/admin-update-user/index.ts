@@ -64,21 +64,41 @@ Deno.serve(async (req) => {
 
   const userId = payload.user_id?.trim() ?? ''
   const fullName = payload.full_name?.trim() ?? ''
-  const email = payload.email?.trim().toLowerCase() ?? ''
+  const requestedEmail = payload.email?.trim().toLowerCase() ?? ''
   const active = payload.active !== false
   const assignments = Array.isArray(payload.assignments) ? payload.assignments : []
 
-  if (!userId || !fullName || !email) {
-    return json({ error: 'Usuario, nombre y correo son obligatorios.' }, 400)
+  if (!userId || !fullName) {
+    return json({ error: 'Usuario y nombre son obligatorios.' }, 400)
   }
 
-  const [{ data: targetPlatformAdmin, error: targetPlatformError }, { data: targetAuthUser, error: targetAuthError }] =
-    await Promise.all([
-      admin.from('platform_admins').select('user_id').eq('user_id', userId).maybeSingle(),
-      admin.auth.admin.getUserById(userId),
-    ])
+  const [
+    { data: targetPlatformAdmin, error: targetPlatformError },
+    { data: targetAuthUser, error: targetAuthError },
+    { data: targetProfile, error: targetProfileError },
+    { data: previousAssignments, error: previousAssignmentsError },
+  ] = await Promise.all([
+    admin.from('platform_admins').select('user_id').eq('user_id', userId).maybeSingle(),
+    admin.auth.admin.getUserById(userId),
+    admin
+      .from('profiles')
+      .select('full_name, email, active, account_status')
+      .eq('id', userId)
+      .maybeSingle(),
+    admin
+      .from('user_hotel_roles')
+      .select('hotel_id, role_id, active')
+      .eq('user_id', userId),
+  ])
 
-  if (targetPlatformError || targetAuthError || !targetAuthUser.user) {
+  if (
+    targetPlatformError ||
+    targetAuthError ||
+    targetProfileError ||
+    previousAssignmentsError ||
+    !targetAuthUser.user ||
+    !targetProfile
+  ) {
     return json({ error: 'No se ha podido localizar el usuario.' }, 404)
   }
 
@@ -86,39 +106,73 @@ Deno.serve(async (req) => {
     return json({ error: 'Esta cuenta no puede modificarse desde Usuarios.' }, 403)
   }
 
-  const hotelIds = assignments
-    .map((assignment) => assignment.hotel_id?.trim() ?? '')
-    .filter(Boolean)
-  const roleIds = assignments
-    .map((assignment) => assignment.role_id?.trim() ?? '')
-    .filter(Boolean)
-
-  if (new Set(hotelIds).size !== hotelIds.length) {
-    return json({ error: 'Un usuario solo puede tener un rol por hotel.' }, 400)
+  const currentEmail = (targetProfile.email ?? targetAuthUser.user.email ?? '').trim().toLowerCase()
+  if (requestedEmail && requestedEmail !== currentEmail) {
+    return json({
+      error: 'El correo identifica la cuenta y no puede modificarse desde esta pantalla.',
+    }, 400)
   }
 
-  if (hotelIds.length !== assignments.length || roleIds.length !== assignments.length) {
-    return json({ error: 'Hay asignaciones de hotel o rol no válidas.' }, 400)
+  const normalizedAssignments = assignments.map((assignment) => ({
+    hotel_id: assignment.hotel_id?.trim() ?? '',
+    role_id: assignment.role_id?.trim() ?? '',
+  }))
+
+  const hotelIds = normalizedAssignments.map((assignment) => assignment.hotel_id)
+  const roleIds = normalizedAssignments.map((assignment) => assignment.role_id)
+
+  if (
+    hotelIds.length !== normalizedAssignments.length ||
+    roleIds.length !== normalizedAssignments.length ||
+    hotelIds.some((id) => !id) ||
+    roleIds.some((id) => !id) ||
+    new Set(hotelIds).size !== hotelIds.length
+  ) {
+    return json({ error: 'Las asignaciones de hotel y rol no son válidas.' }, 400)
   }
 
-  if (assignments.length > 0) {
-    const [{ data: hotels, error: hotelsError }, { data: roles, error: rolesError }] = await Promise.all([
-      admin.from('hotels').select('id, active').in('id', hotelIds),
-      admin.from('roles').select('id, active').in('id', roleIds),
-    ])
+  if (normalizedAssignments.length > 0) {
+    const [{ data: hotels, error: hotelsError }, { data: roles, error: rolesError }] =
+      await Promise.all([
+        admin.from('hotels').select('id, active').in('id', hotelIds),
+        admin.from('roles').select('id, active').in('id', roleIds),
+      ])
 
-    if (hotelsError || rolesError) return json({ error: 'No se han podido validar las asignaciones.' }, 500)
-    if ((hotels ?? []).length !== hotelIds.length) return json({ error: 'Uno de los hoteles no existe.' }, 400)
-    if ((roles ?? []).length !== roleIds.length) return json({ error: 'Uno de los roles no existe.' }, 400)
-    if ((hotels ?? []).some((hotel) => !hotel.active)) return json({ error: 'No se puede asignar un hotel inactivo.' }, 400)
-    if ((roles ?? []).some((role) => !role.active)) return json({ error: 'No se puede asignar un rol inactivo.' }, 400)
+    if (hotelsError || rolesError) {
+      return json({ error: 'No se han podido validar las asignaciones.' }, 500)
+    }
+
+    if ((hotels ?? []).length !== hotelIds.length) {
+      return json({ error: 'Uno de los hoteles no existe.' }, 400)
+    }
+
+    if ((roles ?? []).length !== roleIds.length) {
+      return json({ error: 'Uno de los roles no existe.' }, 400)
+    }
+
+    if ((hotels ?? []).some((hotel) => !hotel.active)) {
+      return json({ error: 'No se puede asignar un hotel inactivo.' }, 400)
+    }
+
+    if ((roles ?? []).some((role) => !role.active)) {
+      return json({ error: 'No se puede asignar un rol inactivo.' }, 400)
+    }
   }
 
-  const previousEmail = targetAuthUser.user.email ?? ''
-  const previousFullName = String(targetAuthUser.user.user_metadata?.full_name ?? targetAuthUser.user.user_metadata?.name ?? '')
+  const previousProfile = {
+    full_name: targetProfile.full_name,
+    email: targetProfile.email,
+    active: targetProfile.active,
+    account_status: targetProfile.account_status,
+  }
+
+  const nextAccountStatus = active
+    ? targetProfile.account_status === 'PENDING_INVITATION'
+      ? 'PENDING_INVITATION'
+      : 'ACTIVE'
+    : 'INACTIVE'
 
   const { error: authUpdateError } = await admin.auth.admin.updateUserById(userId, {
-    email,
     user_metadata: {
       ...targetAuthUser.user.user_metadata,
       full_name: fullName,
@@ -131,16 +185,15 @@ Deno.serve(async (req) => {
     .from('profiles')
     .update({
       full_name: fullName,
-      email,
       active,
+      account_status: nextAccountStatus,
       updated_at: new Date().toISOString(),
     })
     .eq('id', userId)
 
   if (profileError) {
     await admin.auth.admin.updateUserById(userId, {
-      email: previousEmail,
-      user_metadata: { ...targetAuthUser.user.user_metadata, full_name: previousFullName },
+      user_metadata: { ...targetAuthUser.user.user_metadata },
     })
     return json({ error: 'No se ha podido actualizar el perfil.' }, 500)
   }
@@ -153,38 +206,58 @@ Deno.serve(async (req) => {
   if (deleteAssignmentsError) {
     await admin
       .from('profiles')
-      .update({
-        full_name: previousFullName || null,
-        email: previousEmail || null,
-        active: targetAuthUser.user.user_metadata?.active !== false,
-      })
+      .update(previousProfile)
     await admin.auth.admin.updateUserById(userId, {
-      email: previousEmail,
-      user_metadata: { ...targetAuthUser.user.user_metadata, full_name: previousFullName },
+      user_metadata: { ...targetAuthUser.user.user_metadata },
     })
-    return json({ error: 'No se han podido actualizar los accesos del usuario.' }, 500)
-  }
-
-  if (assignments.length > 0) {
-    const { error: insertAssignmentsError } = await admin
-      .from('user_hotel_roles')
-      .insert(assignments.map((assignment) => ({
+    await admin.from('user_hotel_roles').insert(
+      (previousAssignments ?? []).map((assignment) => ({
         user_id: userId,
         hotel_id: assignment.hotel_id,
         role_id: assignment.role_id,
-        active,
-      })))
+        active: assignment.active,
+      })),
+    )
+    return json({ error: 'No se han podido actualizar los accesos del usuario.' }, 500)
+  }
+
+  if (normalizedAssignments.length > 0) {
+    const { error: insertAssignmentsError } = await admin
+      .from('user_hotel_roles')
+      .insert(
+        normalizedAssignments.map((assignment) => ({
+          user_id: userId,
+          hotel_id: assignment.hotel_id,
+          role_id: assignment.role_id,
+          active,
+        })),
+      )
 
     if (insertAssignmentsError) {
+      await admin.from('profiles').update(previousProfile)
+      await admin.auth.admin.updateUserById(userId, {
+        user_metadata: { ...targetAuthUser.user.user_metadata },
+      })
+      if ((previousAssignments ?? []).length > 0) {
+        await admin.from('user_hotel_roles').insert(
+          (previousAssignments ?? []).map((assignment) => ({
+            user_id: userId,
+            hotel_id: assignment.hotel_id,
+            role_id: assignment.role_id,
+            active: assignment.active,
+          })),
+        )
+      }
       return json({ error: 'No se han podido guardar los nuevos accesos del usuario.' }, 500)
     }
   }
 
   return json({
     id: userId,
-    email,
+    email: currentEmail,
     full_name: fullName,
     active,
-    assignments: assignments.length,
+    account_status: nextAccountStatus,
+    assignments: normalizedAssignments.length,
   })
 })

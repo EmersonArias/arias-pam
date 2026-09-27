@@ -1,6 +1,7 @@
 import { Routes, Route } from 'react-router-dom'
 import BooksPage from './pages/Books/BooksPage'
 import LoginPage from './features/auth/pages/LoginPage'
+import ProtectedRoute from './features/auth/components/ProtectedRoute'
 import PamPage from './features/registers/pages/PamPage'
 import AssetsPage from './features/registers/pages/AssetsPage'
 import PumpsPage from './features/registers/pages/PumpsPage'
@@ -29,9 +30,11 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
-      <Route path="/" element={<BooksPage />} />
 
-      <Route path="/pam" element={<PamPage />} />
+      <Route element={<ProtectedRoute />}>
+        <Route path="/" element={<BooksPage />} />
+
+        <Route path="/pam" element={<PamPage />} />
       <Route path="/assets" element={<AssetsPage />} />
       <Route path="/pumps" element={<PumpsPage />} />
       <Route path="/pools" element={<PoolsPage />} />
@@ -59,7 +62,8 @@ export default function App() {
       <Route path="/fireequipment/extinguishers" element={<ExtinguishersPage />} />
       <Route path="/fireequipment/bie" element={<BiePage />} />
       <Route path="/fireequipment/sprinklers" element={<SprinklersPage />} />
-      <Route path="/fireequipment/pci-review" element={<PciReviewPage />} />
+        <Route path="/fireequipment/pci-review" element={<PciReviewPage />} />
+      </Route>
     </Routes>
   )
 }

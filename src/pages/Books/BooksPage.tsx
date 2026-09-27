@@ -1,14 +1,16 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Bell,
   CircleHelp,
   Search,
+  Settings,
   UserRound,
 } from 'lucide-react'
 import BrandLogo from '../../shared/components/branding/BrandLogo'
 import { useAuth } from '../../features/auth/context/AuthProvider'
 import { ariasAuth } from '../../core/auth/authService'
+import { supabase } from '../../lib/supabase'
 
 const registers = [
   {
@@ -109,27 +111,6 @@ const registers = [
     info: '1 calibración próxima',
     detail: '02/10',
   },
-  {
-    icon: '👤',
-    name: 'Usuarios',
-    path: '/users',
-    info: 'Administración de usuarios',
-    detail: 'Accesos y roles',
-  },
-  {
-    icon: '🛡️',
-    name: 'Roles',
-    path: '/roles',
-    info: 'Roles y permisos',
-    detail: 'Configuración de accesos',
-  },
-  {
-    icon: '📄',
-    name: 'Informes',
-    path: '/reports',
-    info: 'Ver e imprimir informes',
-    detail: 'Informes disponibles',
-  },
 ]
 
 export default function BooksPage() {
@@ -137,7 +118,35 @@ export default function BooksPage() {
   const { session } = useAuth()
   const [search, setSearch] = useState('')
   const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const [adminMenuOpen, setAdminMenuOpen] = useState(false)
+  const [isPlatformAdmin, setIsPlatformAdmin] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
+
+  useEffect(() => {
+    let mounted = true
+
+    async function loadAdministrationAccess() {
+      if (!session?.user.id) {
+        if (mounted) setIsPlatformAdmin(false)
+        return
+      }
+
+      const { data, error } = await supabase
+        .from('platform_admins')
+        .select('active')
+        .eq('user_id', session.user.id)
+        .maybeSingle()
+
+      if (!mounted) return
+      setIsPlatformAdmin(!error && data?.active === true)
+    }
+
+    void loadAdministrationAccess()
+
+    return () => {
+      mounted = false
+    }
+  }, [session?.user.id])
 
   async function handleSignOut() {
     if (signingOut) return
@@ -210,10 +219,73 @@ export default function BooksPage() {
               >
                 <CircleHelp size={18} />
               </button>
+              {isPlatformAdmin && (
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAdminMenuOpen((open) => !open)
+                      setUserMenuOpen(false)
+                    }}
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md active:translate-y-0"
+                    title="Administración"
+                    aria-label="Administración"
+                    aria-expanded={adminMenuOpen}
+                    aria-haspopup="menu"
+                  >
+                    <Settings size={18} />
+                  </button>
+
+                  {adminMenuOpen && (
+                    <div
+                      className="absolute right-0 top-12 z-50 w-60 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.16)]"
+                      role="menu"
+                    >
+                      <div className="border-b border-slate-100 px-4 py-3">
+                        <div className="text-sm font-semibold text-slate-800">
+                          Administración
+                        </div>
+                        <div className="mt-0.5 text-xs text-slate-500">
+                          Gestión de accesos
+                        </div>
+                      </div>
+
+                      <div className="p-1.5">
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={() => {
+                            setAdminMenuOpen(false)
+                            navigate('/users')
+                          }}
+                          className="flex w-full items-center rounded-xl px-3 py-2.5 text-left text-sm text-slate-700 transition hover:bg-slate-50"
+                        >
+                          Usuarios
+                        </button>
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={() => {
+                            setAdminMenuOpen(false)
+                            navigate('/roles')
+                          }}
+                          className="mt-0.5 flex w-full items-center rounded-xl px-3 py-2.5 text-left text-sm text-slate-700 transition hover:bg-slate-50"
+                        >
+                          Roles y permisos
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="relative">
                 <button
                   type="button"
-                  onClick={() => setUserMenuOpen((open) => !open)}
+                  onClick={() => {
+                    setUserMenuOpen((open) => !open)
+                    setAdminMenuOpen(false)
+                  }}
                   className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md active:translate-y-0"
                   title="Usuario"
                   aria-label="Usuario"

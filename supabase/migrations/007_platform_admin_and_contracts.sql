@@ -12,6 +12,13 @@
 
 BEGIN;
 
+-- Permite revocar el acceso de un usuario a un hotel sin borrar su asignación histórica.
+ALTER TABLE public.user_hotel_roles
+  ADD COLUMN IF NOT EXISTS active boolean NOT NULL DEFAULT true;
+
+CREATE INDEX IF NOT EXISTS ix_user_hotel_roles_active
+  ON public.user_hotel_roles (active);
+
 -- =========================================================
 -- SUPERADMIN DE LA PLATAFORMA
 -- =========================================================

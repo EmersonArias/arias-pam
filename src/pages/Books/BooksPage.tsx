@@ -107,6 +107,13 @@ const registers = [
     info: '1 calibración próxima',
     detail: '02/10',
   },
+  {
+    icon: '👤',
+    name: 'Usuarios',
+    path: '/users',
+    info: 'Administración de usuarios',
+    detail: 'Accesos y roles',
+  },
 ]
 
 export default function BooksPage() {

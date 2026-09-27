@@ -88,7 +88,7 @@ Deno.serve(async (req) => {
     admin.auth.admin.getUserById(userId),
     admin
       .from('profiles')
-      .select('full_name, email, active, account_status')
+      .select('full_name, email, login_identifier, active, account_status')
       .eq('id', userId)
       .maybeSingle(),
     admin

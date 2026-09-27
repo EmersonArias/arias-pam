@@ -62,8 +62,12 @@ AS $$
       WHERE p.id = target_user_id
         AND p.active = true
         AND p.account_status = 'ACTIVE'
-        AND public.is_platform_admin()
-        AND p.id = auth.uid()
+        AND EXISTS (
+          SELECT 1
+          FROM public.platform_admins pa
+          WHERE pa.user_id = p.id
+            AND pa.active = true
+        )
     )
     OR EXISTS (
       SELECT 1
@@ -93,7 +97,6 @@ AS $$
 $$;
 
 REVOKE ALL ON FUNCTION public.user_has_suite_access(uuid) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.user_has_suite_access(uuid) TO authenticated;
 
 CREATE OR REPLACE FUNCTION public.has_suite_access()
 RETURNS boolean
@@ -159,17 +162,20 @@ RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = pg_catalog, public
-AS $$
+AS $
 BEGIN
   UPDATE public.profiles
   SET
-    email = NULLIF(NEW.raw_user_meta_data ->> 'arias_real_email', ''),
+    email = COALESCE(
+      NULLIF(NEW.raw_user_meta_data ->> 'arias_real_email', ''),
+      public.profiles.email
+    ),
     updated_at = now()
   WHERE id = NEW.id;
 
   RETURN NEW;
 END;
-$$;
+$;
 
 DROP TRIGGER IF EXISTS on_auth_user_email_updated_profile
 ON auth.users;

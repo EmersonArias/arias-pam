@@ -97,6 +97,17 @@ export const supabaseAuthProvider: AriasAuthService = {
     }
   },
 
+  async updateProfile(fullName: string): Promise<AuthResult<null>> {
+    const { error } = await supabase.auth.updateUser({
+      data: { full_name: fullName.trim() },
+    })
+
+    return {
+      data: null,
+      error: error ? new Error(error.message) : null,
+    }
+  },
+
   async activateAccount(): Promise<AuthResult<boolean>> {
     const { data, error } = await supabase.rpc('activate_my_account')
 

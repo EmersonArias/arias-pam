@@ -222,6 +222,20 @@ export default function RolesPage() {
         return
       }
 
+      const { data: reportPermissions, error: reportPermissionsError } = await supabase
+        .from('permissions')
+        .select('id')
+        .in('code', ['reports.view', 'reports.print'])
+
+      if (!reportPermissionsError && reportPermissions?.length) {
+        await supabase.from('role_permissions').insert(
+          reportPermissions.map((permission) => ({
+            role_id: data.id,
+            permission_id: permission.id,
+          })),
+        )
+      }
+
       setRoles((current) => [...current, data].sort((a, b) => a.name.localeCompare(b.name, 'es')))
       setSelectedRoleId(data.id)
     } else {

@@ -467,6 +467,7 @@ export default function MaintenancePage() {
           </section>
           <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             {!form.name ? <div className="flex min-h-[520px] items-center justify-center text-center"><div><Bell className="mx-auto h-10 w-10 text-slate-300" /><h2 className="mt-4 text-lg font-semibold text-slate-700">Configura un mantenimiento</h2><p className="mt-2 max-w-md text-sm text-slate-500">Define el equipo, periodicidad, controles y las personas que deben recibir los avisos.</p></div></div> :
+            <>
             <form onSubmit={save} className="space-y-6">
               <div className="flex flex-col gap-3 border-b pb-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
@@ -735,7 +736,8 @@ export default function MaintenancePage() {
                   })}
                 </div>
               )}
-            </section>}
+            </section>
+            </>}
           </section>
         </main>
       </div>

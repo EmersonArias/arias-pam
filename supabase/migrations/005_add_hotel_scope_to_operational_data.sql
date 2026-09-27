@@ -1,28 +1,71 @@
 -- Arias Suite — migración 005
 -- Añade el ámbito de hotel a las tablas operativas existentes.
---
--- IMPORTANTE:
--- Esta migración NO conoce ni contiene nombres de clientes/hoteles.
--- Solo prepara la estructura. La asignación de los datos existentes al hotel
--- actual se realiza como operación de transición de la instalación, no como
--- regla fija del producto.
---
--- hotel_id permanece nullable temporalmente para permitir la transición.
--- Se hará NOT NULL cuando el flujo de alta/selección de hotel esté operativo.
+-- Fase segura: mantiene compatible la aplicación actual.
+-- NO activa todavía RLS sobre estas tablas y NO hace hotel_id NOT NULL:
+-- eso se hará cuando Login + selección de hotel + permisos estén operativos.
 
 BEGIN;
 
-ALTER TABLE public.apparatus_registry
-  ADD COLUMN IF NOT EXISTS hotel_id uuid;
+DO $$
+DECLARE
+  current_hotel_id uuid;
+  hotel_count integer;
+BEGIN
+  SELECT COUNT(*)
+  INTO hotel_count
+  FROM public.hotels
+  WHERE active = true;
 
-ALTER TABLE public.assets
-  ADD COLUMN IF NOT EXISTS hotel_id uuid;
+  IF hotel_count <> 1 THEN
+    RAISE EXCEPTION
+      'La migración 005 requiere exactamente 1 hotel activo para migrar los datos existentes. Hoteles activos encontrados: %',
+      hotel_count;
+  END IF;
 
-ALTER TABLE public.electrical_panels
-  ADD COLUMN IF NOT EXISTS hotel_id uuid;
+  SELECT id
+  INTO current_hotel_id
+  FROM public.hotels
+  WHERE active = true
+  LIMIT 1;
 
-ALTER TABLE public.inspections
-  ADD COLUMN IF NOT EXISTS hotel_id uuid;
+  ALTER TABLE public.apparatus_registry
+    ADD COLUMN IF NOT EXISTS hotel_id uuid;
+
+  ALTER TABLE public.assets
+    ADD COLUMN IF NOT EXISTS hotel_id uuid;
+
+  ALTER TABLE public.electrical_panels
+    ADD COLUMN IF NOT EXISTS hotel_id uuid;
+
+  ALTER TABLE public.inspections
+    ADD COLUMN IF NOT EXISTS hotel_id uuid;
+
+  -- Los datos existentes pertenecen al único hotel activo actual.
+  UPDATE public.apparatus_registry
+  SET hotel_id = current_hotel_id
+  WHERE hotel_id IS NULL;
+
+  UPDATE public.assets
+  SET hotel_id = current_hotel_id
+  WHERE hotel_id IS NULL;
+
+  UPDATE public.electrical_panels
+  SET hotel_id = current_hotel_id
+  WHERE hotel_id IS NULL;
+
+  -- Las inspecciones heredan el hotel de su activo cuando es posible.
+  UPDATE public.inspections i
+  SET hotel_id = a.hotel_id
+  FROM public.assets a
+  WHERE i.asset_id = a.id
+    AND i.hotel_id IS NULL;
+
+  -- Cualquier inspección sin activo válido queda dentro del único hotel actual
+  -- para no perder datos durante la transición.
+  UPDATE public.inspections
+  SET hotel_id = current_hotel_id
+  WHERE hotel_id IS NULL;
+END $$;
 
 CREATE INDEX IF NOT EXISTS ix_apparatus_registry_hotel_id
   ON public.apparatus_registry (hotel_id);
@@ -86,5 +129,28 @@ BEGIN
       ON DELETE RESTRICT;
   END IF;
 END $$;
+
+-- Contador de códigos RA independiente por hotel.
+CREATE TABLE IF NOT EXISTS public.apparatus_registry_code_counters (
+  hotel_id uuid PRIMARY KEY REFERENCES public.hotels(id) ON DELETE RESTRICT,
+  last_number bigint NOT NULL DEFAULT 0,
+  CONSTRAINT apparatus_registry_code_counters_last_number_nonnegative
+    CHECK (last_number >= 0)
+);
+
+-- Inicializar la serie del hotel actual con el contador existente.
+INSERT INTO public.apparatus_registry_code_counters (hotel_id, last_number)
+SELECT
+  h.id,
+  COALESCE(c.last_number, 0)
+FROM public.hotels h
+LEFT JOIN public.apparatus_registry_code_counter c
+  ON c.id = true
+WHERE h.active = true
+ON CONFLICT (hotel_id)
+DO UPDATE SET last_number = EXCLUDED.last_number;
+
+CREATE INDEX IF NOT EXISTS ix_apparatus_registry_code_counters_hotel_id
+  ON public.apparatus_registry_code_counters (hotel_id);
 
 COMMIT;

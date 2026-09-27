@@ -186,6 +186,139 @@ CREATE UNIQUE INDEX IF NOT EXISTS ux_provider_services_name
   ON public.provider_services (provider_id, lower(btrim(service_name)));
 
 -- =========================================================
+-- ALTA ATÓMICA DE PROVEEDOR + HOTEL
+-- =========================================================
+
+CREATE OR REPLACE FUNCTION public.create_provider_for_hotel(
+  target_hotel_id uuid,
+  provider_legal_name text,
+  provider_trade_name text DEFAULT NULL,
+  provider_tax_id text DEFAULT NULL,
+  provider_address_line text DEFAULT NULL,
+  provider_postal_code text DEFAULT NULL,
+  provider_city text DEFAULT NULL,
+  provider_province text DEFAULT NULL,
+  provider_country text DEFAULT 'España',
+  provider_phone_main text DEFAULT NULL,
+  provider_email_main text DEFAULT NULL,
+  provider_website_url text DEFAULT NULL,
+  provider_portal_url text DEFAULT NULL,
+  provider_emergency_phone text DEFAULT NULL,
+  provider_notes text DEFAULT NULL
+)
+RETURNS uuid
+LANGUAGE plpgsql
+SET search_path = pg_catalog, public
+AS $
+DECLARE
+  target_tenant_id uuid;
+  new_provider_id uuid;
+BEGIN
+  SELECT h.tenant_id
+    INTO target_tenant_id
+  FROM public.hotels h
+  WHERE h.id = target_hotel_id
+    AND h.active = true;
+
+  IF target_tenant_id IS NULL THEN
+    RAISE EXCEPTION 'Hotel no válido o inactivo.';
+  END IF;
+
+  IF NOT public.is_platform_admin()
+     AND NOT public.has_hotel_permission(target_hotel_id, 'providers.create') THEN
+    RAISE EXCEPTION 'No tienes permiso para crear proveedores en este hotel.';
+  END IF;
+
+  INSERT INTO public.providers (
+    tenant_id,
+    legal_name,
+    trade_name,
+    tax_id,
+    address_line,
+    postal_code,
+    city,
+    province,
+    country,
+    phone_main,
+    email_main,
+    website_url,
+    portal_url,
+    emergency_phone,
+    notes,
+    created_by
+  )
+  VALUES (
+    target_tenant_id,
+    btrim(provider_legal_name),
+    NULLIF(btrim(provider_trade_name), ''),
+    NULLIF(btrim(provider_tax_id), ''),
+    NULLIF(btrim(provider_address_line), ''),
+    NULLIF(btrim(provider_postal_code), ''),
+    NULLIF(btrim(provider_city), ''),
+    NULLIF(btrim(provider_province), ''),
+    COALESCE(NULLIF(btrim(provider_country), ''), 'España'),
+    NULLIF(btrim(provider_phone_main), ''),
+    NULLIF(btrim(provider_email_main), ''),
+    NULLIF(btrim(provider_website_url), ''),
+    NULLIF(btrim(provider_portal_url), ''),
+    NULLIF(btrim(provider_emergency_phone), ''),
+    NULLIF(btrim(provider_notes), ''),
+    auth.uid()
+  )
+  RETURNING id INTO new_provider_id;
+
+  INSERT INTO public.provider_hotels (
+    provider_id,
+    hotel_id,
+    active
+  )
+  VALUES (
+    new_provider_id,
+    target_hotel_id,
+    true
+  );
+
+  RETURN new_provider_id;
+END;
+$;
+
+REVOKE ALL ON FUNCTION public.create_provider_for_hotel(
+  uuid,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text
+) FROM PUBLIC;
+
+GRANT EXECUTE ON FUNCTION public.create_provider_for_hotel(
+  uuid,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text
+) TO authenticated;
+
+-- =========================================================
 -- RLS
 -- =========================================================
 

@@ -126,22 +126,22 @@ BEGIN
         recipient_user_id,
         recipient_email
       )
-      VALUES (
+      SELECT
         alert_record.id,
         alert_record.hotel_id,
         'USER',
-        (
-          SELECT mau.user_id
-          FROM public.maintenance_alert_users mau
-          JOIN public.profiles p2
-            ON p2.id = mau.user_id
-          WHERE mau.alert_config_id = config_record.id
-            AND lower(btrim(p2.email)) = recipient_email
-          ORDER BY mau.user_id
-          LIMIT 1
-        ),
-        recipient_email
-      )
+        mau.user_id,
+        lower(btrim(p.email))
+      FROM public.maintenance_alert_users mau
+      JOIN public.profiles p
+        ON p.id = mau.user_id
+      WHERE mau.alert_config_id = config_record.id
+        AND p.active = true
+        AND p.account_status = 'ACTIVE'
+        AND lower(btrim(p.email)) = recipient_email
+        AND p.email IS NOT NULL
+        AND length(btrim(p.email)) BETWEEN 3 AND 320
+        AND position('@' in p.email) > 1
       ON CONFLICT (maintenance_alert_id, recipient_email) DO NOTHING;
 
       IF FOUND THEN

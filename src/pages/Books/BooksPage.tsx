@@ -12,6 +12,16 @@ import { useAuth } from '../../features/auth/context/AuthProvider'
 import { ariasAuth } from '../../core/auth/authService'
 import { supabase } from '../../lib/supabase'
 
+type MaintenanceAlert = {
+  id: string
+  alert_type: 'UPCOMING_REVIEW' | 'DUE_TODAY' | 'OVERDUE_REVIEW' | 'OUT_OF_RANGE'
+  severity: 'INFO' | 'WARNING' | 'CRITICAL'
+  title: string
+  message: string
+  due_date: string | null
+  triggered_at: string
+}
+
 const registers = [
   {
     icon: '📋',
@@ -121,6 +131,9 @@ export default function BooksPage() {
   const [adminMenuOpen, setAdminMenuOpen] = useState(false)
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
+  const [notificationOpen, setNotificationOpen] = useState(false)
+  const [maintenanceAlerts, setMaintenanceAlerts] = useState<MaintenanceAlert[]>([])
+  const [notificationsLoading, setNotificationsLoading] = useState(false)
 
   useEffect(() => {
     let mounted = true
@@ -147,6 +160,113 @@ export default function BooksPage() {
       mounted = false
     }
   }, [session?.user.id])
+
+  useEffect(() => {
+    let mounted = true
+
+    async function loadNotifications() {
+      if (!session?.user.id) {
+        if (mounted) setMaintenanceAlerts([])
+        return
+      }
+
+      setNotificationsLoading(true)
+
+      const { data: assignment, error: assignmentError } = await supabase
+        .from('user_hotel_roles')
+        .select('hotel_id')
+        .eq('user_id', session.user.id)
+        .eq('active', true)
+        .limit(1)
+        .maybeSingle()
+
+      if (assignmentError || !assignment?.hotel_id) {
+        if (mounted) {
+          setMaintenanceAlerts([])
+          setNotificationsLoading(false)
+        }
+        return
+      }
+
+      const { data: hotel, error: hotelError } = await supabase
+        .from('hotels')
+        .select('id')
+        .eq('id', assignment.hotel_id)
+        .eq('active', true)
+        .maybeSingle()
+
+      if (hotelError || !hotel) {
+        if (mounted) {
+          setMaintenanceAlerts([])
+          setNotificationsLoading(false)
+        }
+        return
+      }
+
+      const { data, error } = await supabase
+        .from('maintenance_alerts')
+        .select('id, alert_type, severity, title, message, due_date, triggered_at')
+        .eq('hotel_id', hotel.id)
+        .is('resolved_at', null)
+        .order('triggered_at', { ascending: false })
+        .limit(20)
+
+      if (!mounted) return
+
+      setMaintenanceAlerts(error ? [] : ((data ?? []) as MaintenanceAlert[]))
+      setNotificationsLoading(false)
+    }
+
+    void loadNotifications()
+
+    return () => {
+      mounted = false
+    }
+  }, [session?.user.id])
+
+  async function refreshNotifications() {
+    if (!session?.user.id) return
+
+    setNotificationsLoading(true)
+
+    const { data: assignment, error: assignmentError } = await supabase
+      .from('user_hotel_roles')
+      .select('hotel_id')
+      .eq('user_id', session.user.id)
+      .eq('active', true)
+      .limit(1)
+      .maybeSingle()
+
+    if (assignmentError || !assignment?.hotel_id) {
+      setMaintenanceAlerts([])
+      setNotificationsLoading(false)
+      return
+    }
+
+    const { data, error } = await supabase
+      .from('maintenance_alerts')
+      .select('id, alert_type, severity, title, message, due_date, triggered_at')
+      .eq('hotel_id', assignment.hotel_id)
+      .is('resolved_at', null)
+      .order('triggered_at', { ascending: false })
+      .limit(20)
+
+    setMaintenanceAlerts(error ? [] : ((data ?? []) as MaintenanceAlert[]))
+    setNotificationsLoading(false)
+  }
+
+  function alertSeverityClass(severity: MaintenanceAlert['severity']) {
+    if (severity === 'CRITICAL') return 'border-rose-200 bg-rose-50 text-rose-800'
+    if (severity === 'WARNING') return 'border-amber-200 bg-amber-50 text-amber-800'
+    return 'border-slate-200 bg-slate-50 text-slate-700'
+  }
+
+  function alertTypeLabel(type: MaintenanceAlert['alert_type']) {
+    if (type === 'OUT_OF_RANGE') return 'Fuera de rango'
+    if (type === 'OVERDUE_REVIEW') return 'Vencido'
+    if (type === 'DUE_TODAY') return 'Vence hoy'
+    return 'Próximo'
+  }
 
   async function handleSignOut() {
     if (signingOut) return
@@ -203,14 +323,89 @@ export default function BooksPage() {
             </label>
 
             <div className="flex items-center justify-center gap-2 sm:justify-end">
-              <button
-                type="button"
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md active:translate-y-0"
-                title="Notificaciones"
-                aria-label="Notificaciones"
-              >
-                <Bell size={18} />
-              </button>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNotificationOpen((open) => !open)
+                    setUserMenuOpen(false)
+                    setAdminMenuOpen(false)
+                    if (!notificationOpen) void refreshNotifications()
+                  }}
+                  className="relative inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md active:translate-y-0"
+                  title="Notificaciones"
+                  aria-label="Notificaciones"
+                  aria-expanded={notificationOpen}
+                  aria-haspopup="dialog"
+                >
+                  <Bell size={18} />
+                  {maintenanceAlerts.length > 0 && (
+                    <span className="absolute -right-0.5 -top-0.5 min-w-4 rounded-full border-2 border-white bg-rose-500 px-1 text-[9px] font-bold leading-3 text-white">
+                      {maintenanceAlerts.length > 9 ? '9+' : maintenanceAlerts.length}
+                    </span>
+                  )}
+                </button>
+
+                {notificationOpen && (
+                  <div
+                    className="absolute right-0 top-12 z-50 w-[min(380px,calc(100vw-24px))] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.16)]"
+                    role="dialog"
+                    aria-label="Notificaciones"
+                  >
+                    <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+                      <div>
+                        <div className="text-sm font-semibold text-slate-800">Notificaciones</div>
+                        <div className="mt-0.5 text-xs text-slate-500">
+                          Alertas activas de mantenimiento
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => void refreshNotifications()}
+                        className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs text-slate-600 hover:bg-slate-50"
+                      >
+                        Actualizar
+                      </button>
+                    </div>
+
+                    <div className="max-h-[420px] space-y-2 overflow-y-auto p-3">
+                      {notificationsLoading ? (
+                        <div className="px-2 py-6 text-center text-sm text-slate-500">
+                          Cargando alertas…
+                        </div>
+                      ) : maintenanceAlerts.length === 0 ? (
+                        <div className="px-2 py-6 text-center text-sm text-slate-500">
+                          No hay alertas activas.
+                        </div>
+                      ) : (
+                        maintenanceAlerts.map((alert) => (
+                          <button
+                            key={alert.id}
+                            type="button"
+                            onClick={() => navigate('/maintenance')}
+                            className="w-full rounded-xl border p-3 text-left transition hover:border-slate-300 hover:bg-slate-50"
+                          >
+                            <div className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold ${alertSeverityClass(alert.severity)}`}>
+                              {alertTypeLabel(alert.alert_type)}
+                            </div>
+                            <div className="mt-2 text-sm font-semibold text-slate-800">
+                              {alert.title}
+                            </div>
+                            <div className="mt-1 text-xs leading-5 text-slate-600">
+                              {alert.message}
+                            </div>
+                            {alert.due_date && (
+                              <div className="mt-2 text-[10px] text-slate-400">
+                                Fecha prevista: {new Date(alert.due_date + 'T12:00:00').toLocaleDateString('es-ES')}
+                              </div>
+                            )}
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
               <button
                 type="button"
                 className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md active:translate-y-0"

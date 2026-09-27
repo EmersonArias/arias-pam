@@ -638,12 +638,18 @@ export default function UsersPage() {
                       type="email"
                       required
                       autoComplete="username"
+                      readOnly={formMode === 'edit'}
                       value={form.email}
                       onChange={(event) =>
                         setForm((current) => ({ ...current, email: event.target.value }))
                       }
-                      className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none transition focus:border-sky-300 focus:ring-4 focus:ring-sky-50"
+                      className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none transition focus:border-sky-300 focus:ring-4 focus:ring-sky-50 read-only:bg-slate-50 read-only:text-slate-500"
                     />
+                    {formMode === 'edit' && (
+                      <span className="mt-1.5 block text-xs text-slate-400">
+                        El correo identifica la cuenta y no se modifica desde esta pantalla.
+                      </span>
+                    )}
                   </label>
 
                   {formMode === 'create' && (

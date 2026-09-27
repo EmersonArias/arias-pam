@@ -46,7 +46,7 @@ export default function ApparatusRegistryPage() {
       .order('code', { ascending: true })
 
     if (error) {
-      setErrorMessage(`Error cargando la relación de aparatos: ${error.message}`)
+      setErrorMessage(`Error cargando equipos e instalaciones: ${error.message}`)
       setLoading(false)
       return
     }

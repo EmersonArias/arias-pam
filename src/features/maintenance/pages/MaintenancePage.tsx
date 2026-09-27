@@ -343,6 +343,17 @@ export default function MaintenancePage() {
 
     const selectedPlan = plans.find((plan) => plan.id === selectedId)
     const executedAt = new Date(executionForm.executed_at)
+
+    const invalidNumericControl = controls.some((control) => {
+      if (!control.id || control.input_type !== "NUMBER") return false
+      const rawValue = (executionValues.find((item) => item.controlId === control.id)?.value ?? "").trim()
+      return rawValue !== "" && !Number.isFinite(Number(rawValue))
+    })
+    if (invalidNumericControl) {
+      setError("Hay un valor numérico de control que no es válido.")
+      setExecutionSaving(false)
+      return
+    }
     if (Number.isNaN(executedAt.getTime())) {
       setError("La fecha y hora de ejecución no son válidas.")
       setExecutionSaving(false)
@@ -383,12 +394,6 @@ export default function MaintenancePage() {
         observed_at: executedAt.toISOString(),
       }
     })
-
-    if (controlRows.some((row) => row.numeric_value !== null && !Number.isFinite(row.numeric_value))) {
-      setError("Hay un valor numérico de control que no es válido.")
-      setExecutionSaving(false)
-      return
-    }
 
     if (controlRows.length) {
       const results = await supabase.from("maintenance_control_results").upsert(controlRows, {

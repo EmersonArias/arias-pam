@@ -36,7 +36,7 @@ export default function ForgotPasswordPage() {
             <img src="/logo.png" alt="Arias Suite" className="mx-auto h-16 w-auto object-contain" />
             <h1 className="mt-5 text-xl font-semibold text-slate-800">Recuperar contraseña</h1>
             <p className="mt-1 text-sm text-slate-500">
-              Introduce tu correo y te enviaremos instrucciones.
+              Si tu cuenta tiene un correo individual, introduce ese correo para recibir las instrucciones. Las cuentas sin correo recuperan el acceso mediante un código generado por el administrador.
             </p>
           </div>
 

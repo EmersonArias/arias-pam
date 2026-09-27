@@ -73,6 +73,20 @@ export default function MyProfilePage() {
 
           <form className="mt-6 max-w-xl space-y-5" onSubmit={submit}>
             <label className="block">
+              <span className="mb-1.5 block text-sm font-medium text-slate-700">
+                Identificador de acceso
+              </span>
+              <input
+                value={session?.user.loginIdentifier ?? ''}
+                readOnly
+                className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 font-mono text-sm text-slate-500 outline-none"
+              />
+              <span className="mt-1.5 block text-xs text-slate-400">
+                Este identificador se utiliza para iniciar sesión.
+              </span>
+            </label>
+
+            <label className="block">
               <span className="mb-1.5 block text-sm font-medium text-slate-700">Nombre</span>
               <input
                 required

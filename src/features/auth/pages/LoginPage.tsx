@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { supabase } from '../../../lib/supabase'
+import { ariasAuth } from '../../../core/auth/authService'
 
 export default function LoginPage() {
   const navigate = useNavigate()
@@ -12,8 +12,8 @@ export default function LoginPage() {
   useEffect(() => {
     let active = true
 
-    supabase.auth.getSession().then(({ data }) => {
-      if (active && data.session) {
+    ariasAuth.getSession().then(({ data }) => {
+      if (active && data) {
         navigate('/', { replace: true })
       }
     })
@@ -30,10 +30,7 @@ export default function LoginPage() {
     setError('')
     setBusy(true)
 
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password,
-    })
+    const { error: signInError } = await ariasAuth.signIn(email.trim(), password)
 
     if (signInError) {
       setError('No se ha podido iniciar sesión. Comprueba el usuario y la contraseña.')

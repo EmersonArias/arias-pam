@@ -46,7 +46,7 @@ const registers: HomeRegister[] = [
   { icon: '🚪', name: 'Cortafuegos', path: '/firedoors' },
   { icon: '🧯', name: 'PCI', path: '/fireequipment' },
   { icon: '📏', name: 'Calibraciones', path: '/calibrations' },
-  { icon: '🛠️', name: 'Actuaciones', path: null, comingSoon: true },
+  { icon: '🛠️', name: 'Actuaciones', path: '/actions' },
   { icon: '📦', name: 'Stock', path: null, comingSoon: true },
   { icon: '🗓️', name: 'Planificador horario', path: null, comingSoon: true },
   { icon: '🏢', name: 'Proveedores', path: '/providers' },

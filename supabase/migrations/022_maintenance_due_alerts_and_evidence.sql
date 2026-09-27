@@ -38,7 +38,11 @@ DECLARE
   desired_message text;
   inserted_count integer := 0;
 BEGIN
+  -- En una ejecución autenticada se valida el acceso al hotel.
+  -- Durante una migración/operación administrativa auth.uid() puede ser NULL;
+  -- en ese caso la propia operación se considera confiable.
   IF target_hotel_id IS NOT NULL
+     AND auth.uid() IS NOT NULL
      AND NOT public.has_hotel_access(target_hotel_id)
   THEN
     RAISE EXCEPTION 'No tienes acceso al hotel solicitado.';

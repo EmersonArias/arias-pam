@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Globe, Mail, Pencil, Phone, Plus, RefreshCw, Search, UserRound, Wrench } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import BrandLogo from '../../../shared/components/branding/BrandLogo'
@@ -311,7 +311,7 @@ export default function ProvidersPage() {
     setFormOpen(true)
   }
 
-  async function saveProvider(event: React.FormEvent<HTMLFormElement>) {
+  async function saveProvider(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (saving) return
 

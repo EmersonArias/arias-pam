@@ -28,7 +28,9 @@ CREATE TABLE IF NOT EXISTS public.platform_superadmins (
   platform_identifier text NOT NULL UNIQUE,
   active boolean NOT NULL DEFAULT true,
   created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now()
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT platform_superadmins_identifier_check
+    CHECK (btrim(platform_identifier) <> '')
 );
 
 CREATE INDEX IF NOT EXISTS ix_platform_superadmins_active
@@ -81,7 +83,9 @@ CREATE TABLE IF NOT EXISTS public.tenant_contracts (
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT tenant_contracts_status_check
-    CHECK (status IN ('DRAFT', 'ACTIVE', 'SUSPENDED', 'EXPIRED', 'CANCELLED'))
+    CHECK (status IN ('DRAFT', 'ACTIVE', 'SUSPENDED', 'EXPIRED', 'CANCELLED')),
+  CONSTRAINT tenant_contracts_dates_check
+    CHECK (end_date IS NULL OR start_date IS NULL OR end_date >= start_date)
 );
 
 CREATE INDEX IF NOT EXISTS ix_tenant_contracts_tenant_id
@@ -110,7 +114,9 @@ CREATE TABLE IF NOT EXISTS public.tenant_contract_modules (
   created_at timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (contract_id, module_code),
   CONSTRAINT tenant_contract_modules_user_limit_check
-    CHECK (user_limit IS NULL OR user_limit > 0)
+    CHECK (user_limit IS NULL OR user_limit > 0),
+  CONSTRAINT tenant_contract_modules_module_code_check
+    CHECK (btrim(module_code) <> '')
 );
 
 CREATE INDEX IF NOT EXISTS ix_tenant_contract_modules_module_code
@@ -164,24 +170,27 @@ SET search_path = pg_catalog, public
 AS $$
   SELECT
     public.is_platform_superadmin()
-    OR EXISTS (
-      SELECT 1
-      FROM public.hotels h
-      JOIN public.tenant_contract_hotels tch
-        ON tch.hotel_id = h.id
-       AND tch.active = true
-      JOIN public.tenant_contracts tc
-        ON tc.id = tch.contract_id
-       AND tc.tenant_id = h.tenant_id
-       AND tc.status = 'ACTIVE'
-      JOIN public.tenant_contract_modules tcm
-        ON tcm.contract_id = tc.id
-       AND tcm.module_code = target_module_code
-       AND tcm.active = true
-      WHERE h.id = target_hotel_id
-        AND h.active = true
-        AND (tc.start_date IS NULL OR tc.start_date <= CURRENT_DATE)
-        AND (tc.end_date IS NULL OR tc.end_date >= CURRENT_DATE)
+    OR (
+      public.has_hotel_access(target_hotel_id)
+      AND EXISTS (
+        SELECT 1
+        FROM public.hotels h
+        JOIN public.tenant_contract_hotels tch
+          ON tch.hotel_id = h.id
+         AND tch.active = true
+        JOIN public.tenant_contracts tc
+          ON tc.id = tch.contract_id
+         AND tc.tenant_id = h.tenant_id
+         AND tc.status = 'ACTIVE'
+        JOIN public.tenant_contract_modules tcm
+          ON tcm.contract_id = tc.id
+         AND lower(tcm.module_code) = lower(target_module_code)
+         AND tcm.active = true
+        WHERE h.id = target_hotel_id
+          AND h.active = true
+          AND (tc.start_date IS NULL OR tc.start_date <= CURRENT_DATE)
+          AND (tc.end_date IS NULL OR tc.end_date >= CURRENT_DATE)
+      )
     );
 $$;
 
@@ -199,33 +208,39 @@ SET search_path = pg_catalog, public
 AS $$
   SELECT
     public.is_platform_superadmin()
-    OR EXISTS (
-      SELECT 1
-      FROM public.user_hotel_roles uhr
-      JOIN public.hotels h
-        ON h.id = uhr.hotel_id
-      JOIN public.tenant_contract_hotels tch
-        ON tch.hotel_id = h.id
-       AND tch.active = true
-      JOIN public.tenant_contracts tc
-        ON tc.id = tch.contract_id
-       AND tc.tenant_id = h.tenant_id
-       AND tc.status = 'ACTIVE'
-      JOIN public.tenant_contract_modules tcm
-        ON tcm.contract_id = tc.id
-       AND tcm.active = true
-      JOIN public.role_permissions rp
-        ON rp.role_id = uhr.role_id
-      JOIN public.permissions p
-        ON p.id = rp.permission_id
-       AND p.code = permission_code
-       AND lower(p.module) = lower(tcm.module_code)
-      WHERE uhr.user_id = auth.uid()
-        AND uhr.hotel_id = target_hotel_id
-        AND uhr.active IS NOT FALSE
-        AND h.active = true
-        AND (tc.start_date IS NULL OR tc.start_date <= CURRENT_DATE)
-        AND (tc.end_date IS NULL OR tc.end_date >= CURRENT_DATE)
+    OR (
+      public.has_hotel_access(target_hotel_id)
+      AND EXISTS (
+        SELECT 1
+        FROM public.user_hotel_roles uhr
+        JOIN public.hotels h
+          ON h.id = uhr.hotel_id
+        JOIN public.tenant_contract_hotels tch
+          ON tch.hotel_id = h.id
+         AND tch.active = true
+        JOIN public.tenant_contracts tc
+          ON tc.id = tch.contract_id
+         AND tc.tenant_id = h.tenant_id
+         AND tc.status = 'ACTIVE'
+        JOIN public.tenant_contract_modules tcm
+          ON tcm.contract_id = tc.id
+         AND tcm.active = true
+        JOIN public.roles r
+          ON r.id = uhr.role_id
+         AND r.active = true
+        JOIN public.role_permissions rp
+          ON rp.role_id = r.id
+        JOIN public.permissions p
+          ON p.id = rp.permission_id
+         AND p.code = permission_code
+         AND lower(p.module) = lower(tcm.module_code)
+        WHERE uhr.user_id = auth.uid()
+          AND uhr.hotel_id = target_hotel_id
+          AND uhr.active IS NOT FALSE
+          AND h.active = true
+          AND (tc.start_date IS NULL OR tc.start_date <= CURRENT_DATE)
+          AND (tc.end_date IS NULL OR tc.end_date >= CURRENT_DATE)
+      )
     );
 $$;
 

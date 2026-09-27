@@ -1,4 +1,4 @@
-import { FormEvent, useState } from 'react'
+import { type FormEvent, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ariasAuth } from '../../../core/auth/authService'
 import { useAuth } from '../context/AuthProvider'

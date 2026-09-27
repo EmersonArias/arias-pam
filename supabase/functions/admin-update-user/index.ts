@@ -167,7 +167,8 @@ Deno.serve(async (req) => {
   }
 
   const nextAccountStatus = active
-    ? targetProfile.account_status === 'PENDING_INVITATION'
+    ? targetProfile.account_status === 'PENDING_INVITATION' ||
+      !targetAuthUser.user.email_confirmed_at
       ? 'PENDING_INVITATION'
       : 'ACTIVE'
     : 'INACTIVE'

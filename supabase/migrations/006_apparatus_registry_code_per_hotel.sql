@@ -135,13 +135,27 @@ $fn$;
 
 REVOKE ALL ON FUNCTION public.initialize_hotel_code_sequences(uuid) FROM PUBLIC;
 
+CREATE OR REPLACE FUNCTION public.initialize_new_hotel_code_sequences()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, public
+AS $fn$
+BEGIN
+  PERFORM public.initialize_hotel_code_sequences(NEW.id);
+  RETURN NEW;
+END;
+$fn$;
+
+REVOKE ALL ON FUNCTION public.initialize_new_hotel_code_sequences() FROM PUBLIC;
+
 DROP TRIGGER IF EXISTS trg_initialize_hotel_code_sequences
 ON public.hotels;
 
 CREATE TRIGGER trg_initialize_hotel_code_sequences
 AFTER INSERT ON public.hotels
 FOR EACH ROW
-EXECUTE FUNCTION public.initialize_hotel_code_sequences(NEW.id);
+EXECUTE FUNCTION public.initialize_new_hotel_code_sequences();
 
 CREATE OR REPLACE FUNCTION public.allocate_hotel_code(
   target_hotel_id uuid,

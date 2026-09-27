@@ -123,6 +123,13 @@ const registers = [
     info: 'Roles y permisos',
     detail: 'Configuración de accesos',
   },
+  {
+    icon: '📄',
+    name: 'Informes',
+    path: '/reports',
+    info: 'Ver e imprimir informes',
+    detail: 'Informes disponibles',
+  },
 ]
 
 export default function BooksPage() {
@@ -234,9 +241,20 @@ export default function BooksPage() {
                       <button
                         type="button"
                         role="menuitem"
+                        onClick={() => {
+                          setUserMenuOpen(false)
+                          navigate('/profile')
+                        }}
+                        className="flex w-full items-center rounded-xl px-3 py-2.5 text-left text-sm text-slate-700 transition hover:bg-slate-50"
+                      >
+                        Mi perfil
+                      </button>
+                      <button
+                        type="button"
+                        role="menuitem"
                         onClick={() => void handleSignOut()}
                         disabled={signingOut}
-                        className="flex w-full items-center rounded-xl px-3 py-2.5 text-left text-sm text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                        className="mt-0.5 flex w-full items-center rounded-xl px-3 py-2.5 text-left text-sm text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         {signingOut ? 'Cerrando sesión…' : 'Cerrar sesión'}
                       </button>

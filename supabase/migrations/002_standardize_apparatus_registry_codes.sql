@@ -6,63 +6,35 @@ BEGIN;
 CREATE TABLE IF NOT EXISTS public.apparatus_registry_code_counter (
   id boolean PRIMARY KEY DEFAULT true,
   last_number bigint NOT NULL DEFAULT 0,
-  CONSTRAINT apparatus_registry_code_counter_id_true
-    CHECK (id = true),
-  CONSTRAINT apparatus_registry_code_counter_last_number_nonnegative
-    CHECK (last_number >= 0)
+  CONSTRAINT apparatus_registry_code_counter_id_true CHECK (id = true),
+  CONSTRAINT apparatus_registry_code_counter_last_number_nonnegative CHECK (last_number >= 0)
 );
 
--- Reasigna toda la base existente en el orden actual de código.
--- El paso intermedio evita colisiones si existe una restricción UNIQUE sobre code.
-CREATE TEMP TABLE _apparatus_registry_recode (
-  id uuid PRIMARY KEY,
-  sequence_number bigint NOT NULL
-) ON COMMIT DROP;
+UPDATE public.apparatus_registry
+SET code = 'TMP-' || id::text;
 
-INSERT INTO _apparatus_registry_recode (id, sequence_number)
-SELECT
-  id,
-  ROW_NUMBER() OVER (ORDER BY code ASC NULLS LAST, id ASC)
-FROM public.apparatus_registry;
-
+WITH numbered AS (
+  SELECT id, ROW_NUMBER() OVER (ORDER BY id) AS sequence_number
+  FROM public.apparatus_registry
+)
 UPDATE public.apparatus_registry ar
-SET code = 'TMP' || LPAD(r.sequence_number::text, 8, '0')
-FROM _apparatus_registry_recode r
-WHERE ar.id = r.id;
-
-UPDATE public.apparatus_registry ar
-SET code = 'RA-' || LPAD(r.sequence_number::text, 4, '0')
-FROM _apparatus_registry_recode r
-WHERE ar.id = r.id;
+SET code = 'RA-' || LPAD(numbered.sequence_number::text, 4, '0')
+FROM numbered
+WHERE ar.id = numbered.id;
 
 INSERT INTO public.apparatus_registry_code_counter (id, last_number)
-SELECT true, COALESCE(MAX(sequence_number), 0)
-FROM _apparatus_registry_recode
+SELECT true, COUNT(*) FROM public.apparatus_registry
 ON CONFLICT (id)
-DO UPDATE SET last_number = GREATEST(
-  public.apparatus_registry_code_counter.last_number,
-  EXCLUDED.last_number
-);
+DO UPDATE SET last_number = EXCLUDED.last_number;
 
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_indexes
-    WHERE schemaname = 'public'
-      AND tablename = 'apparatus_registry'
-      AND indexdef ILIKE '%UNIQUE%'
-      AND indexdef ILIKE '%(code)%'
-  ) THEN
-    CREATE UNIQUE INDEX ux_apparatus_registry_code
-      ON public.apparatus_registry (code);
-  END IF;
-END
-$$;
+CREATE UNIQUE INDEX IF NOT EXISTS ux_apparatus_registry_code
+  ON public.apparatus_registry (code);
 
 CREATE OR REPLACE FUNCTION public.assign_apparatus_registry_code()
 RETURNS trigger
 LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, public
 AS $$
 DECLARE
   next_number bigint;
@@ -85,8 +57,10 @@ BEGIN
 END;
 $$;
 
+REVOKE ALL ON FUNCTION public.assign_apparatus_registry_code() FROM PUBLIC;
+
 DROP TRIGGER IF EXISTS trg_assign_apparatus_registry_code
-  ON public.apparatus_registry;
+ON public.apparatus_registry;
 
 CREATE TRIGGER trg_assign_apparatus_registry_code
 BEFORE INSERT ON public.apparatus_registry

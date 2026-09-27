@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FileText, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react'
+import { FileText, Pencil, Plus, RefreshCw } from 'lucide-react'
 import IconButton from '../../../shared/components/buttons/IconButton'
 import BrandLogo from '../../../shared/components/branding/BrandLogo'
 import { useSystemDialog } from '../../../shared/components/dialogs/SystemDialogProvider'
@@ -15,7 +15,6 @@ import {
 
 export default function ApparatusRegistryPage() {
   const navigate = useNavigate()
-  const { confirm } = useSystemDialog()
 
   const [records, setRecords] = useState<ApparatusRegistry[]>([])
   const [selectedId, setSelectedId] = useState('')
@@ -110,34 +109,6 @@ export default function ApparatusRegistryPage() {
     navigate(`/apparatusregistry/${selected.id}`)
   }
 
-  async function handleDelete() {
-    if (!selected) {
-      setErrorMessage('Selecciona un registro.')
-      return
-    }
-
-    const confirmed = await confirm({
-      title: 'Eliminar registro',
-      message: `¿Quieres eliminar el registro ${selected.code}? Esta acción no se puede deshacer.`,
-      variant: 'warning',
-      confirmLabel: 'Eliminar',
-    })
-
-    if (!confirmed) return
-
-    const { error } = await supabase
-      .from('apparatus_registry')
-      .delete()
-      .eq('id', selected.id)
-
-    if (error) {
-      setErrorMessage(`Error eliminando el registro: ${error.message}`)
-      return
-    }
-
-    await loadRecords()
-  }
-
   function openReport() {
     const params = new URLSearchParams()
     params.set('scope', reportScope)
@@ -176,7 +147,6 @@ export default function ApparatusRegistryPage() {
                 actions={[
                   { key: 'new', label: 'Nuevo', icon: Plus, tone: 'primary', onClick: openNew },
                   { key: 'modify', label: 'Modificar', icon: Pencil, tone: 'warning', onClick: openModify, disabled: !selected },
-                  { key: 'delete', label: 'Eliminar', icon: Trash2, tone: 'danger', onClick: () => void handleDelete(), disabled: !selected },
                   { key: 'report', label: 'PDF', icon: FileText, tone: 'dark', onClick: openReport },
                 ]}
               />

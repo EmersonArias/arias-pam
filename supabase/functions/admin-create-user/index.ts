@@ -13,13 +13,29 @@ function json(body: unknown, status = 200) {
   })
 }
 
+type Assignment = {
+  hotel_id?: string
+  role_id?: string
+}
+
+function validEmail(email: string) {
+  return email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+}
+
+function invitationRedirectUrl() {
+  const appUrl = (Deno.env.get('ARIAS_APP_URL') ?? '').trim().replace(/\/$/, '')
+  return appUrl ? `${appUrl}/activate` : undefined
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
   if (req.method !== 'POST') return json({ error: 'Método no permitido.' }, 405)
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-  if (!supabaseUrl || !serviceRoleKey) return json({ error: 'Configuración del servicio incompleta.' }, 500)
+  if (!supabaseUrl || !serviceRoleKey) {
+    return json({ error: 'Configuración del servicio incompleta.' }, 500)
+  }
 
   const admin = createClient(supabaseUrl, serviceRoleKey, {
     auth: { autoRefreshToken: false, persistSession: false },
@@ -41,7 +57,12 @@ Deno.serve(async (req) => {
   if (platformError) return json({ error: 'No se ha podido verificar el acceso.' }, 500)
   if (!platformAdmin?.active) return json({ error: 'No autorizado.' }, 403)
 
-  let payload: { full_name?: string; email?: string; password?: string }
+  let payload: {
+    full_name?: string
+    email?: string
+    assignments?: Assignment[]
+  }
+
   try {
     payload = await req.json()
   } catch {
@@ -50,24 +71,109 @@ Deno.serve(async (req) => {
 
   const fullName = payload.full_name?.trim() ?? ''
   const email = payload.email?.trim().toLowerCase() ?? ''
-  const password = payload.password ?? ''
+  const assignments = Array.isArray(payload.assignments) ? payload.assignments : []
 
-  if (!fullName || !email || !password) return json({ error: 'Nombre, correo y contraseña son obligatorios.' }, 400)
-  if (password.length < 10) return json({ error: 'La contraseña inicial debe tener al menos 10 caracteres.' }, 400)
+  if (!fullName || !email) {
+    return json({ error: 'Nombre y correo son obligatorios.' }, 400)
+  }
 
-  const { data: created, error: createError } = await admin.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true,
-    user_metadata: { full_name: fullName },
+  if (!validEmail(email)) {
+    return json({ error: 'El correo electrónico no tiene un formato válido.' }, 400)
+  }
+
+  if (assignments.length === 0) {
+    return json({ error: 'Debes asignar al menos un hotel y un rol.' }, 400)
+  }
+
+  const normalizedAssignments = assignments.map((assignment) => ({
+    hotel_id: assignment.hotel_id?.trim() ?? '',
+    role_id: assignment.role_id?.trim() ?? '',
+  }))
+
+  const hotelIds = normalizedAssignments.map((assignment) => assignment.hotel_id)
+  const roleIds = normalizedAssignments.map((assignment) => assignment.role_id)
+
+  if (
+    hotelIds.some((id) => !id) ||
+    roleIds.some((id) => !id) ||
+    new Set(hotelIds).size !== hotelIds.length
+  ) {
+    return json({ error: 'Las asignaciones de hotel y rol no son válidas.' }, 400)
+  }
+
+  const [{ data: hotels, error: hotelsError }, { data: roles, error: rolesError }] =
+    await Promise.all([
+      admin.from('hotels').select('id, active').in('id', hotelIds),
+      admin.from('roles').select('id, active').in('id', roleIds),
+    ])
+
+  if (hotelsError || rolesError) {
+    return json({ error: 'No se han podido validar las asignaciones.' }, 500)
+  }
+
+  if ((hotels ?? []).length !== hotelIds.length) {
+    return json({ error: 'Uno de los hoteles no existe.' }, 400)
+  }
+
+  if ((roles ?? []).length !== roleIds.length) {
+    return json({ error: 'Uno de los roles no existe.' }, 400)
+  }
+
+  if ((hotels ?? []).some((hotel) => !hotel.active)) {
+    return json({ error: 'No se puede asignar un hotel inactivo.' }, 400)
+  }
+
+  if ((roles ?? []).some((role) => !role.active)) {
+    return json({ error: 'No se puede asignar un rol inactivo.' }, 400)
+  }
+
+  const { data: invited, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, {
+    data: { full_name: fullName },
+    redirectTo: invitationRedirectUrl(),
   })
 
-  if (createError) return json({ error: createError.message }, 400)
-  if (!created.user) return json({ error: 'No se ha podido crear el usuario.' }, 500)
+  if (inviteError) return json({ error: inviteError.message }, 400)
+  if (!invited.user) return json({ error: 'No se ha podido crear la invitación.' }, 500)
+
+  const userId = invited.user.id
+
+  const { error: profileError } = await admin
+    .from('profiles')
+    .upsert({
+      id: userId,
+      full_name: fullName,
+      email,
+      active: true,
+      account_status: 'PENDING_INVITATION',
+      updated_at: new Date().toISOString(),
+    })
+
+  if (profileError) {
+    await admin.auth.admin.deleteUser(userId)
+    return json({ error: 'No se ha podido preparar el perfil del usuario.' }, 500)
+  }
+
+  const { error: assignmentError } = await admin
+    .from('user_hotel_roles')
+    .insert(
+      normalizedAssignments.map((assignment) => ({
+        user_id: userId,
+        hotel_id: assignment.hotel_id,
+        role_id: assignment.role_id,
+        active: true,
+      })),
+    )
+
+  if (assignmentError) {
+    await admin.auth.admin.deleteUser(userId)
+    return json({ error: 'No se han podido guardar los accesos del usuario.' }, 500)
+  }
 
   return json({
-    id: created.user.id,
-    email: created.user.email,
+    id: userId,
+    email,
     full_name: fullName,
+    account_status: 'PENDING_INVITATION',
+    assignments: normalizedAssignments.length,
   }, 201)
 })

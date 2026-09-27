@@ -64,7 +64,7 @@ Deno.serve(async (req) => {
   const [{ data: targetPlatformAdmin, error: targetPlatformError }, { data: profile, error: profileError }, { data: targetAuth, error: targetAuthError }] =
     await Promise.all([
       admin.from('platform_admins').select('user_id').eq('user_id', userId).maybeSingle(),
-      admin.from('profiles').select('full_name, email, active, account_status').eq('id', userId).maybeSingle(),
+      admin.from('profiles').select('full_name, email, login_identifier, active, account_status').eq('id', userId).maybeSingle(),
       admin.auth.admin.getUserById(userId),
     ])
 
@@ -86,6 +86,8 @@ Deno.serve(async (req) => {
   const { error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, {
     data: {
       full_name: profile.full_name ?? targetAuth.user.user_metadata?.full_name ?? '',
+      login_identifier: profile.login_identifier,
+      arias_real_email: email,
     },
     redirectTo: invitationRedirectUrl(req),
   })

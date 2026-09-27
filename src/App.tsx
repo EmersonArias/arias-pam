@@ -34,6 +34,7 @@ import ApparatusRegistryDetailPage from './features/apparatusregistry/pages/Appa
 import ApparatusRegistryReportPage from './features/apparatusregistry/pages/ApparatusRegistryReportPage'
 import MaintenancePage from './features/maintenance/pages/MaintenancePage'
 import ProvidersPage from './features/providers/pages/ProvidersPage'
+import ActionsPage from './features/actions/pages/ActionsPage'
 
 export default function App() {
   return (

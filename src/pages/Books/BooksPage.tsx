@@ -22,7 +22,7 @@ const registers = [
   },
   {
     icon: '⚙️',
-    name: 'Aparatos',
+    name: 'Equipos e instalaciones',
     path: '/apparatusregistry',
     info: '6 revisiones pendientes',
     detail: '2 vencidas',

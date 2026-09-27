@@ -4,7 +4,7 @@ import { ariasAuth } from '../../../core/auth/authService'
 
 export default function LoginPage() {
   const navigate = useNavigate()
-  const [email, setEmail] = useState('')
+  const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -30,7 +30,7 @@ export default function LoginPage() {
     setError('')
     setBusy(true)
 
-    const { error: signInError } = await ariasAuth.signIn(email.trim(), password)
+    const { error: signInError } = await ariasAuth.signIn(identifier.trim(), password)
 
     if (signInError) {
       setError('No se ha podido iniciar sesión. Comprueba el usuario y la contraseña.')
@@ -63,14 +63,14 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <label className="block">
               <span className="mb-1.5 block text-sm font-medium text-slate-700">
-                Correo electrónico
+                Correo o identificador de acceso
               </span>
               <input
-                type="email"
+                type="text"
                 autoComplete="username"
                 required
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
+                value={identifier}
+                onChange={(event) => setIdentifier(event.target.value)}
                 className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-sm outline-none transition focus:border-sky-300 focus:ring-4 focus:ring-sky-50"
               />
             </label>

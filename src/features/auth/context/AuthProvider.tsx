@@ -1,41 +1,40 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
-import type { Session } from '@supabase/supabase-js'
-import { supabase } from '../../../lib/supabase'
+import type { AriasSession } from '../../../core/auth/authService'
+import { ariasAuth } from '../../../core/auth/authService'
 
 type AuthContextValue = {
-  session: Session | null
+  session: AriasSession | null
   loading: boolean
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 
-async function isProfileActive(userId: string) {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('active')
-    .eq('id', userId)
-    .maybeSingle()
-
-  if (error) return true
-  return data?.active !== false
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState<Session | null>(null)
+  const [session, setSession] = useState<AriasSession | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     let mounted = true
 
     async function restoreSession() {
-      const { data } = await supabase.auth.getSession()
+      const { data: restoredSession, error } = await ariasAuth.getSession()
       if (!mounted) return
 
-      if (data.session && !(await isProfileActive(data.session.user.id))) {
-        await supabase.auth.signOut()
+      if (error || !restoredSession) {
+        setSession(null)
+        setLoading(false)
+        return
+      }
+
+      const profileCheck = await ariasAuth.isProfileActive(restoredSession.user.id)
+
+      if (!mounted) return
+
+      if (profileCheck.error || profileCheck.data === false) {
+        await ariasAuth.signOut()
         if (mounted) setSession(null)
       } else {
-        setSession(data.session)
+        setSession(restoredSession)
       }
 
       if (mounted) setLoading(false)
@@ -43,23 +42,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     void restoreSession()
 
-    const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    const subscription = ariasAuth.onAuthStateChange((nextSession) => {
       if (!mounted) return
 
-      setSession(nextSession)
-      setLoading(false)
-
-      if (nextSession) {
-        void isProfileActive(nextSession.user.id).then((active) => {
-          if (!mounted || active) return
-          void supabase.auth.signOut()
-        })
+      if (!nextSession) {
+        setSession(null)
+        setLoading(false)
+        return
       }
+
+      void ariasAuth.isProfileActive(nextSession.user.id).then((profileCheck) => {
+        if (!mounted) return
+
+        if (profileCheck.error || profileCheck.data === false) {
+          void ariasAuth.signOut()
+          setSession(null)
+          setLoading(false)
+          return
+        }
+
+        setSession(nextSession)
+        setLoading(false)
+      })
     })
 
     return () => {
       mounted = false
-      data.subscription.unsubscribe()
+      subscription.unsubscribe()
     }
   }, [])
 

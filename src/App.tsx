@@ -4,9 +4,11 @@ import LoginPage from './features/auth/pages/LoginPage'
 import ActivateAccountPage from './features/auth/pages/ActivateAccountPage'
 import ForgotPasswordPage from './features/auth/pages/ForgotPasswordPage'
 import UpdatePasswordPage from './features/auth/pages/UpdatePasswordPage'
+import MyProfilePage from './features/auth/pages/MyProfilePage'
 import ProtectedRoute from './features/auth/components/ProtectedRoute'
 import UsersPage from './features/users/pages/UsersPage'
 import RolesPage from './features/roles/pages/RolesPage'
+import ReportsPage from './features/reports/pages/ReportsPage'
 import PamPage from './features/registers/pages/PamPage'
 import AssetsPage from './features/registers/pages/AssetsPage'
 import PumpsPage from './features/registers/pages/PumpsPage'
@@ -44,6 +46,8 @@ export default function App() {
 
         <Route path="/users" element={<UsersPage />} />
         <Route path="/roles" element={<RolesPage />} />
+        <Route path="/profile" element={<MyProfilePage />} />
+        <Route path="/reports" element={<ReportsPage />} />
         <Route path="/pam" element={<PamPage />} />
       <Route path="/assets" element={<AssetsPage />} />
       <Route path="/pumps" element={<PumpsPage />} />

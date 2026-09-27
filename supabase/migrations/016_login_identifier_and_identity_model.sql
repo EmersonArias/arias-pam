@@ -135,7 +135,10 @@ BEGIN
       NEW.raw_user_meta_data ->> 'name'
     ),
     NULLIF(NEW.raw_user_meta_data ->> 'arias_real_email', ''),
-    NULLIF(upper(NEW.raw_user_meta_data ->> 'login_identifier'), '')
+    COALESCE(
+      NULLIF(upper(NEW.raw_user_meta_data ->> 'login_identifier'), ''),
+      'USR-' || upper(left(replace(NEW.id::text, '-', ''), 12))
+    )
   )
   ON CONFLICT (id) DO UPDATE
   SET

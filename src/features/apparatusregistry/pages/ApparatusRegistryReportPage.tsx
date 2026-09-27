@@ -114,7 +114,7 @@ export default function ApparatusRegistryReportPage() {
             />
             <div>
               <div>
-              <h1 className="text-2xl font-bold">Relación de Aparatos</h1>
+              <h1 className="text-2xl font-bold">Equipos e instalaciones</h1>
               <p className="text-xs text-slate-400">
                 Generado por: {session?.user.fullName || session?.user.email || 'Usuario'}
               </p>

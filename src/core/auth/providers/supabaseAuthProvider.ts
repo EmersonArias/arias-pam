@@ -19,6 +19,8 @@ function mapSession(session: SupabaseSession | null): AriasSession | null {
         (session.user.user_metadata?.full_name as string | undefined) ??
         (session.user.user_metadata?.name as string | undefined) ??
         null,
+      loginIdentifier:
+        (session.user.user_metadata?.login_identifier as string | undefined) ?? null,
       emailConfirmedAt: session.user.email_confirmed_at ?? null,
     },
     accessToken: session.access_token,
@@ -35,36 +37,43 @@ export const supabaseAuthProvider: AriasAuthService = {
     }
   },
 
-  async signIn(email: string, password: string): Promise<AuthResult<AriasSession>> {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
+  async signIn(identifier: string, password: string): Promise<AuthResult<AriasSession>> {
+    const { data: result, error } = await supabase.functions.invoke('auth-login', {
+      body: {
+        identifier: identifier.trim(),
+        password,
+      },
     })
 
-    if (error) {
+    if (error || !result?.access_token || !result?.refresh_token) {
       return {
         data: null,
-        error: new Error(error.message),
+        error: new Error('No se ha podido iniciar sesión. Comprueba el identificador y la contraseña.'),
       }
     }
 
-    if (!data.session || !data.user) {
+    const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
+      access_token: result.access_token,
+      refresh_token: result.refresh_token,
+    })
+
+    if (sessionError || !sessionData.session) {
       return {
         data: null,
         error: new Error('No se ha podido establecer la sesión.'),
       }
     }
 
-    if (!data.user.email_confirmed_at) {
+    if (!sessionData.user.email_confirmed_at) {
       await supabase.auth.signOut()
       return {
         data: null,
-        error: new Error('La cuenta todavía no ha sido activada por correo electrónico.'),
+        error: new Error('La cuenta todavía no ha sido activada.'),
       }
     }
 
     return {
-      data: mapSession(data.session),
+      data: mapSession(sessionData.session),
       error: null,
     }
   },
@@ -114,6 +123,47 @@ export const supabaseAuthProvider: AriasAuthService = {
     return {
       data: data ?? false,
       error: error ? new Error(error.message) : null,
+    }
+  },
+
+  async activateAccountWithCode(
+    loginIdentifier: string,
+    activationCode: string,
+    password: string,
+  ): Promise<AuthResult<AriasSession>> {
+    const { data: result, error } = await supabase.functions.invoke('activate-account-by-code', {
+      body: {
+        login_identifier: loginIdentifier.trim().toUpperCase(),
+        activation_code: activationCode.trim().toUpperCase(),
+        password,
+      },
+    })
+
+    if (error || !result?.access_token || !result?.refresh_token) {
+      return {
+        data: null,
+        error: new Error(
+          error?.message ??
+            'No se ha podido validar el código de activación.',
+        ),
+      }
+    }
+
+    const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
+      access_token: result.access_token,
+      refresh_token: result.refresh_token,
+    })
+
+    if (sessionError || !sessionData.session) {
+      return {
+        data: null,
+        error: new Error('No se ha podido establecer la sesión.'),
+      }
+    }
+
+    return {
+      data: mapSession(sessionData.session),
+      error: null,
     }
   },
 

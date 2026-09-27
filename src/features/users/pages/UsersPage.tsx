@@ -11,6 +11,7 @@ type Profile = {
   id: string
   full_name: string | null
   email: string | null
+  login_identifier: string
   active: boolean
   account_status: 'PENDING_INVITATION' | 'ACTIVE' | 'INACTIVE'
   created_at?: string
@@ -45,6 +46,7 @@ type DraftAssignment = {
 type UserForm = {
   fullName: string
   email: string
+  loginIdentifier: string
   active: boolean
   assignments: DraftAssignment[]
 }
@@ -52,6 +54,7 @@ type UserForm = {
 const emptyForm: UserForm = {
   fullName: '',
   email: '',
+  loginIdentifier: '',
   active: true,
   assignments: [],
 }
@@ -74,6 +77,12 @@ export default function UsersPage() {
   const [formBusy, setFormBusy] = useState(false)
   const [formError, setFormError] = useState('')
   const [resendingInvitation, setResendingInvitation] = useState(false)
+  const [generatingAccessCode, setGeneratingAccessCode] = useState(false)
+  const [accessCodeNotice, setAccessCodeNotice] = useState<{
+    code: string
+    userName: string
+    identifier: string
+  } | null>(null)
 
   async function checkPlatformAccess() {
     if (!session?.user.id) {
@@ -117,7 +126,7 @@ export default function UsersPage() {
     ] = await Promise.all([
       supabase
         .from('profiles')
-        .select('id, full_name, email, active, account_status, created_at')
+        .select('id, full_name, email, login_identifier, active, account_status, created_at')
         .order('full_name', { ascending: true }),
       supabase
         .from('hotels')
@@ -224,6 +233,7 @@ export default function UsersPage() {
 
     setForm({
       ...emptyForm,
+      loginIdentifier: '',
       assignments:
         firstHotel && firstRole ? [{ hotelId: firstHotel.id, roleId: firstRole.id }] : [],
     })
@@ -237,6 +247,7 @@ export default function UsersPage() {
     setForm({
       fullName: selectedUser.full_name ?? '',
       email: selectedUser.email ?? '',
+      loginIdentifier: selectedUser.login_identifier,
       active: activeOverride ?? selectedUser.active,
       assignments: selectedUser.assignments.map((assignment) => ({
         hotelId: assignment.hotelId,
@@ -292,6 +303,32 @@ export default function UsersPage() {
     if (status === 'PENDING_INVITATION') return 'text-amber-700'
     if (status === 'INACTIVE') return 'text-slate-400'
     return 'text-slate-700'
+  }
+
+  async function generateAccessCode() {
+    if (!selectedUser || isOwnAccount || selectedUser.email) return
+    if (generatingAccessCode) return
+
+    setGeneratingAccessCode(true)
+    setError('')
+
+    const { data, error: functionError } = await supabase.functions.invoke(
+      'admin-generate-access-code',
+      { body: { user_id: selectedUser.id } },
+    )
+
+    if (functionError || !data?.activation_code) {
+      setError(functionError?.message ?? 'No se ha podido generar el código de acceso.')
+      setGeneratingAccessCode(false)
+      return
+    }
+
+    setAccessCodeNotice({
+      code: data.activation_code,
+      userName: data.full_name ?? selectedUser.full_name ?? 'Usuario',
+      identifier: data.login_identifier ?? selectedUser.login_identifier,
+    })
+    setGeneratingAccessCode(false)
   }
 
   async function resendInvitation() {
@@ -351,7 +388,8 @@ export default function UsersPage() {
       formMode === 'create'
         ? {
             full_name: form.fullName,
-            email: normalizedEmail,
+            email: normalizedEmail || undefined,
+            login_identifier: normalizedIdentifier,
             assignments: form.assignments.map((assignment) => ({
               hotel_id: assignment.hotelId,
               role_id: assignment.roleId,
@@ -360,7 +398,8 @@ export default function UsersPage() {
         : {
             user_id: selectedUser?.id,
             full_name: form.fullName,
-            email: normalizedEmail,
+            email: normalizedEmail || undefined,
+            login_identifier: normalizedIdentifier,
             active: form.active,
             assignments: form.assignments.map((assignment) => ({
               hotel_id: assignment.hotelId,
@@ -382,6 +421,14 @@ export default function UsersPage() {
     }
 
     const savedUserId = data.id as string
+    if (data.activation_code) {
+      setAccessCodeNotice({
+        code: data.activation_code,
+        userName: data.full_name ?? form.fullName,
+        identifier: data.login_identifier ?? normalizedIdentifier,
+      })
+    }
+
     setFormMode(null)
     setForm(emptyForm)
     await loadData()
@@ -503,8 +550,11 @@ export default function UsersPage() {
                             <div className="font-medium text-slate-800">
                               {row.full_name || 'Sin nombre'}
                             </div>
+                            <div className="mt-0.5 text-xs font-mono text-slate-400">
+                              {row.login_identifier}
+                            </div>
                             <div className="mt-0.5 text-xs text-slate-500">
-                              {row.email || 'Sin correo'}
+                              {row.email || 'Sin correo individual'}
                             </div>
                           </td>
                           <td className="px-4 py-3">
@@ -547,7 +597,10 @@ export default function UsersPage() {
                     {selectedUser.full_name || 'Sin nombre'}
                   </h2>
                   <p className="mt-1 text-sm text-slate-500">
-                    {selectedUser.email || 'Sin correo'}
+                    {selectedUser.email || 'Sin correo individual'}
+                  </p>
+                  <p className="mt-1 font-mono text-xs text-slate-400">
+                    Acceso: {selectedUser.login_identifier}
                   </p>
                   <div className={`mt-3 text-xs font-medium ${getAccountStatusClass(selectedUser.account_status)}`}>
                     Estado: {getAccountStatusLabel(selectedUser.account_status)}
@@ -586,12 +639,21 @@ export default function UsersPage() {
 
                 {!isOwnAccount && (
                   <div className="mt-6 flex flex-wrap gap-2">
-                    {selectedUser.account_status === 'PENDING_INVITATION' && (
+                    {selectedUser.email &&
+                      selectedUser.account_status === 'PENDING_INVITATION' && (
+                        <ActionButton
+                          icon={Send}
+                          label={resendingInvitation ? 'Enviando…' : 'Reenviar invitación'}
+                          onClick={() => void resendInvitation()}
+                          disabled={resendingInvitation}
+                        />
+                      )}
+                    {!selectedUser.email && selectedUser.active && (
                       <ActionButton
                         icon={Send}
-                        label={resendingInvitation ? 'Enviando…' : 'Reenviar invitación'}
-                        onClick={() => void resendInvitation()}
-                        disabled={resendingInvitation}
+                        label={generatingAccessCode ? 'Generando…' : 'Generar código'}
+                        onClick={() => void generateAccessCode()}
+                        disabled={generatingAccessCode}
                       />
                     )}
                     <ActionButton
@@ -651,12 +713,31 @@ export default function UsersPage() {
 
                   <label className="block sm:col-span-2">
                     <span className="mb-1.5 block text-sm font-medium text-slate-700">
-                      Correo electrónico
+                      Identificador de acceso
+                    </span>
+                    <input
+                      required
+                      value={form.loginIdentifier}
+                      onChange={(event) =>
+                        setForm((current) => ({
+                          ...current,
+                          loginIdentifier: event.target.value.toUpperCase(),
+                        }))
+                      }
+                      className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 font-mono text-sm outline-none transition focus:border-sky-300 focus:ring-4 focus:ring-sky-50 read-only:bg-slate-50 read-only:text-slate-500"
+                    />
+                    <span className="mt-1.5 block text-xs text-slate-400">
+                      Es el identificador que el trabajador utilizará para entrar. Debe ser único.
+                    </span>
+                  </label>
+
+                  <label className="block sm:col-span-2">
+                    <span className="mb-1.5 block text-sm font-medium text-slate-700">
+                      Correo electrónico <span className="font-normal text-slate-400">(opcional)</span>
                     </span>
                     <input
                       type="email"
-                      required
-                      autoComplete="username"
+                      autoComplete="email"
                       readOnly={formMode === 'edit'}
                       value={form.email}
                       onChange={(event) =>
@@ -666,7 +747,7 @@ export default function UsersPage() {
                     />
                     {formMode === 'edit' && (
                       <span className="mt-1.5 block text-xs text-slate-400">
-                        El correo identifica la cuenta y no se modifica desde esta pantalla.
+                        El correo es opcional. Con email: invitación por correo. Sin email: activación mediante código.
                       </span>
                     )}
                   </label>

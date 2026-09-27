@@ -163,7 +163,7 @@ RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = pg_catalog, public
-AS $
+AS $$
 BEGIN
   UPDATE public.profiles
   SET
@@ -176,7 +176,7 @@ BEGIN
 
   RETURN NEW;
 END;
-$;
+$$;
 
 DROP TRIGGER IF EXISTS on_auth_user_email_updated_profile
 ON auth.users;

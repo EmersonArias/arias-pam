@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { ariasAuth } from '../../../core/auth/authService'
 
 export default function LoginPage() {
@@ -107,12 +107,12 @@ export default function LoginPage() {
             </button>
 
             <div className="text-center">
-              <a
-                href="/forgot-password"
+              <Link
+                to="/forgot-password"
                 className="text-sm font-medium text-slate-500 transition hover:text-slate-800"
               >
                 ¿Has olvidado tu contraseña?
-              </a>
+              </Link>
             </div>
           </form>
         </section>

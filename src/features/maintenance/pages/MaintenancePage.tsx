@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react"
-import { Bell, Mail, Plus, Save, Trash2 } from "lucide-react"
+import { Bell, CalendarClock, CheckCircle2, Clock3, Mail, PlayCircle, Plus, Save, Trash2, Wrench } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import { supabase } from "../../../lib/supabase"
 import ActionButton from "../../../shared/components/buttons/ActionButton"
@@ -24,6 +24,26 @@ type Plan = {
 }
 type Recipient = { user_id: string; full_name: string | null; email: string | null; role_name: string }
 type Control = { id?: string; label: string; input_type: "NUMBER" | "TEXT" | "BOOLEAN" | "DATE" | "TIME" | "SELECT"; unit: string; min_value: string; max_value: string; required: boolean }
+type Execution = {
+  id: string
+  maintenance_plan_id: string
+  scheduled_date: string | null
+  executed_at: string | null
+  executed_by: string | null
+  performer_name: string | null
+  performer_company: string | null
+  result: "COMPLETED" | "COMPLETED_WITH_ISSUES" | "NOT_CONFORM" | "CANCELLED"
+  observations: string | null
+  evidence_files: unknown
+}
+type ExecutionValue = { controlId: string; value: string }
+type ExecutionFormState = {
+  scheduled_date: string
+  executed_at: string
+  performer_name: string
+  performer_company: string
+  observations: string
+}
 type FormState = {
   apparatus_registry_id: string
   name: string
@@ -41,6 +61,34 @@ type FormState = {
   overdue_repeat_days: string
   recipient_ids: string[]
   external_emails: string
+}
+
+function localDateTimeValue() {
+  const date = new Date()
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+  return local.toISOString().slice(0, 16)
+}
+
+function executionResultLabel(result: Execution["result"]) {
+  switch (result) {
+    case "COMPLETED": return "Realizada"
+    case "COMPLETED_WITH_ISSUES": return "Realizada con incidencias"
+    case "NOT_CONFORM": return "No conforme"
+    case "CANCELLED": return "Cancelada"
+    default: return result
+  }
+}
+
+function planState(nextDueDate: string | null, active: boolean) {
+  if (!active) return "Inactiva"
+  if (!nextDueDate) return "Sin próxima fecha"
+  const today = new Date().toISOString().slice(0, 10)
+  if (nextDueDate < today) return "Vencida"
+  if (nextDueDate === today) return "Hoy"
+  const due = new Date(nextDueDate + "T12:00:00")
+  const start = new Date(today + "T12:00:00")
+  const days = Math.round((due.getTime() - start.getTime()) / 86400000)
+  return days <= 7 ? "Próxima" : "Programada"
 }
 
 const emptyForm: FormState = {
@@ -61,9 +109,20 @@ export default function MaintenancePage() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [controls, setControls] = useState<Control[]>([])
   const [originalControlIds, setOriginalControlIds] = useState<string[]>([])
+  const [executions, setExecutions] = useState<Execution[]>([])
+  const [executionFormOpen, setExecutionFormOpen] = useState(false)
+  const [executionValues, setExecutionValues] = useState<ExecutionValue[]>([])
+  const [executionForm, setExecutionForm] = useState<ExecutionFormState>({
+    scheduled_date: "",
+    executed_at: localDateTimeValue(),
+    performer_name: "",
+    performer_company: "",
+    observations: "",
+  })
   const [form, setForm] = useState<FormState>(emptyForm)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [executionSaving, setExecutionSaving] = useState(false)
   const [error, setError] = useState("")
 
   async function loadBase() {
@@ -86,17 +145,47 @@ export default function MaintenancePage() {
 
   function setField<K extends keyof FormState>(field: K, value: FormState[K]) { setForm((current) => ({ ...current, [field]: value })) }
   function newPlan() {
-    setSelectedId(null); setOriginalControlIds([]); setControls([{ ...emptyControl }]);
-    setForm({ ...emptyForm, start_date: new Date().toISOString().slice(0, 10) }); setError("")
+    setSelectedId(null)
+    setOriginalControlIds([])
+    setControls([{ ...emptyControl }])
+    setExecutions([])
+    setExecutionFormOpen(false)
+    setExecutionValues([])
+    setExecutionForm({
+      scheduled_date: "",
+      executed_at: localDateTimeValue(),
+      performer_name: "",
+      performer_company: "",
+      observations: "",
+    })
+    setForm({ ...emptyForm, start_date: new Date().toISOString().slice(0, 10) })
+    setError("")
   }
 
   async function selectPlan(plan: Plan) {
-    setSelectedId(plan.id); setError("")
-    const [c, config] = await Promise.all([
-      supabase.from("maintenance_controls").select("id, label, input_type, unit, min_value, max_value, required").eq("maintenance_plan_id", plan.id).order("sort_order"),
-      supabase.from("maintenance_alert_configs").select("id, email_enabled, days_before, notify_on_due, notify_when_overdue, overdue_repeat_days").eq("maintenance_plan_id", plan.id).maybeSingle(),
+    setSelectedId(plan.id)
+    setExecutionFormOpen(false)
+    setError("")
+    const [c, config, executionQuery] = await Promise.all([
+      supabase.from("maintenance_controls")
+        .select("id, label, input_type, unit, min_value, max_value, required")
+        .eq("maintenance_plan_id", plan.id)
+        .eq("active", true)
+        .order("sort_order"),
+      supabase.from("maintenance_alert_configs")
+        .select("id, email_enabled, days_before, notify_on_due, notify_when_overdue, overdue_repeat_days")
+        .eq("maintenance_plan_id", plan.id)
+        .maybeSingle(),
+      supabase.from("maintenance_executions")
+        .select("id, maintenance_plan_id, scheduled_date, executed_at, executed_by, performer_name, performer_company, result, observations, evidence_files")
+        .eq("maintenance_plan_id", plan.id)
+        .order("executed_at", { ascending: false, nullsFirst: false }),
     ])
-    if (c.error || config.error) { setError(c.error?.message ?? config.error?.message ?? "No se ha podido cargar el mantenimiento."); return }
+    if (c.error || config.error || executionQuery.error) {
+      setError(c.error?.message ?? config.error?.message ?? executionQuery.error?.message ?? "No se ha podido cargar el mantenimiento.")
+      return
+    }
+
     let recipientIds: string[] = []
     let externalEmails = ""
     if (config.data?.id) {
@@ -104,16 +193,31 @@ export default function MaintenancePage() {
         supabase.from("maintenance_alert_users").select("user_id").eq("alert_config_id", config.data.id),
         supabase.from("maintenance_alert_emails").select("email").eq("alert_config_id", config.data.id).order("created_at"),
       ])
-      if (u.error || e.error) { setError(u.error?.message ?? e.error?.message ?? "No se han podido cargar los destinatarios."); return }
+      if (u.error || e.error) {
+        setError(u.error?.message ?? e.error?.message ?? "No se han podido cargar los destinatarios.")
+        return
+      }
       recipientIds = (u.data ?? []).map((row) => row.user_id)
       externalEmails = (e.data ?? []).map((row) => row.email).join("\n")
     }
-    const loadedControls = (c.data ?? []) as Array<{ id: string; label: string; input_type: Control["input_type"]; unit: string | null; min_value: number | null; max_value: number | null; required: boolean }>
+
+    const loadedControls = (c.data ?? []) as Array<{
+      id: string
+      label: string
+      input_type: Control["input_type"]
+      unit: string | null
+      min_value: number | null
+      max_value: number | null
+      required: boolean
+    }>
     setOriginalControlIds(loadedControls.map((row) => row.id))
     setControls(loadedControls.map((row) => ({
       id: row.id, label: row.label, input_type: row.input_type, unit: row.unit ?? "",
       min_value: row.min_value?.toString() ?? "", max_value: row.max_value?.toString() ?? "", required: row.required,
     })))
+    setExecutions((executionQuery.data ?? []) as Execution[])
+    setExecutionValues(loadedControls.map((row) => ({ controlId: row.id, value: "" })))
+
     setForm({
       apparatus_registry_id: plan.apparatus_registry_id ?? "", name: plan.name, description: plan.description ?? "",
       maintenance_type: plan.maintenance_type, external_company: plan.external_company ?? "",
@@ -122,6 +226,32 @@ export default function MaintenancePage() {
       days_before: config.data?.days_before?.toString() ?? "7", notify_on_due: config.data?.notify_on_due ?? true,
       notify_when_overdue: config.data?.notify_when_overdue ?? true, overdue_repeat_days: config.data?.overdue_repeat_days?.toString() ?? "2",
       recipient_ids: recipientIds, external_emails: externalEmails,
+    })
+  }
+
+  function openExecutionForm() {
+    const selectedPlan = plans.find((plan) => plan.id === selectedId)
+    if (!selectedPlan) return
+    setExecutionForm({
+      scheduled_date: selectedPlan.next_due_date ?? new Date().toISOString().slice(0, 10),
+      executed_at: localDateTimeValue(),
+      performer_name: "",
+      performer_company: selectedPlan.maintenance_type === "EXTERNAL" ? selectedPlan.external_company ?? "" : "",
+      observations: "",
+    })
+    setExecutionValues(controls.filter((control) => control.id).map((control) => ({
+      controlId: control.id as string,
+      value: "",
+    })))
+    setExecutionFormOpen(true)
+    setError("")
+  }
+
+  function updateExecutionValue(controlId: string, value: string) {
+    setExecutionValues((current) => {
+      const existing = current.find((item) => item.controlId === controlId)
+      if (existing) return current.map((item) => item.controlId === controlId ? { ...item, value } : item)
+      return [...current, { controlId, value }]
     })
   }
 
@@ -190,6 +320,104 @@ export default function MaintenancePage() {
     if (emails.length) { const result = await supabase.from("maintenance_alert_emails").insert(emails.map((email) => ({ alert_config_id: configId, email }))); if (result.error) { setError(result.error.message); setSaving(false); return } }
     await loadBase(); setSelectedId(planId); setSaving(false)
     await showAlert({ title: "Mantenimiento guardado", message: "La configuración se ha guardado correctamente.", variant: "info" })
+  }
+
+  async function saveExecution(event: FormEvent) {
+    event.preventDefault()
+    if (executionSaving || !selectedId) return
+    setExecutionSaving(true)
+    setError("")
+
+    if (!executionForm.executed_at) {
+      setError("Indica la fecha y hora reales de ejecución.")
+      setExecutionSaving(false)
+      return
+    }
+
+    const currentUser = await supabase.auth.getUser()
+    if (currentUser.error || !currentUser.data.user?.id) {
+      setError(currentUser.error?.message ?? "No se ha podido identificar al usuario que registra la ejecución.")
+      setExecutionSaving(false)
+      return
+    }
+
+    const selectedPlan = plans.find((plan) => plan.id === selectedId)
+    const executedAt = new Date(executionForm.executed_at)
+    if (Number.isNaN(executedAt.getTime())) {
+      setError("La fecha y hora de ejecución no son válidas.")
+      setExecutionSaving(false)
+      return
+    }
+
+    const execution = await supabase.from("maintenance_executions")
+      .insert({
+        maintenance_plan_id: selectedId,
+        scheduled_date: executionForm.scheduled_date || null,
+        executed_at: executedAt.toISOString(),
+        executed_by: currentUser.data.user.id,
+        performer_name: executionForm.performer_name.trim() || null,
+        performer_company: executionForm.performer_company.trim() || (selectedPlan?.external_company ?? null),
+        result: "COMPLETED",
+        observations: executionForm.observations.trim() || null,
+      })
+      .select("id")
+      .single()
+
+    if (execution.error || !execution.data?.id) {
+      setError(execution.error?.message ?? "No se ha podido registrar la ejecución.")
+      setExecutionSaving(false)
+      return
+    }
+
+    const controlRows = controls.filter((control) => control.id).map((control) => {
+      const value = (executionValues.find((item) => item.controlId === control.id)?.value ?? "").trim()
+      return {
+        execution_id: execution.data.id,
+        maintenance_control_id: control.id as string,
+        numeric_value: control.input_type === "NUMBER" && value !== "" ? Number(value) : null,
+        text_value: control.input_type === "TEXT" && value !== "" ? value : null,
+        boolean_value: control.input_type === "BOOLEAN" && value !== "" ? value === "true" : null,
+        date_value: control.input_type === "DATE" && value !== "" ? value : null,
+        time_value: control.input_type === "TIME" && value !== "" ? value : null,
+        selected_value: control.input_type === "SELECT" && value !== "" ? value : null,
+        observed_at: executedAt.toISOString(),
+      }
+    })
+
+    if (controlRows.some((row) => row.numeric_value !== null && !Number.isFinite(row.numeric_value))) {
+      setError("Hay un valor numérico de control que no es válido.")
+      setExecutionSaving(false)
+      return
+    }
+
+    if (controlRows.length) {
+      const results = await supabase.from("maintenance_control_results").upsert(controlRows, {
+        onConflict: "execution_id,maintenance_control_id",
+      })
+      if (results.error) {
+        setError("La ejecución se ha registrado, pero no se pudieron guardar todos los controles: " + results.error.message)
+        setExecutionSaving(false)
+        return
+      }
+    }
+
+    await loadBase()
+    setExecutionFormOpen(false)
+    setExecutionSaving(false)
+
+    if (selectedPlan) {
+      const refreshed = await supabase.from("maintenance_plans")
+        .select("id, apparatus_registry_id, name, description, maintenance_type, external_company, periodicity_value, periodicity_unit, start_date, next_due_date, active, apparatus_registry(code, name)")
+        .eq("id", selectedId)
+        .single()
+      if (!refreshed.error && refreshed.data) await selectPlan(refreshed.data as unknown as Plan)
+    }
+
+    await showAlert({
+      title: "Ejecución registrada",
+      message: "La ejecución real se ha registrado. El resultado y la próxima fecha se calculan automáticamente.",
+      variant: "info",
+    })
   }
 
   return (

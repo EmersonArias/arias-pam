@@ -528,7 +528,7 @@ export default function UsersPage() {
                     <ActionButton
                       icon={Power}
                       label={selectedUser.active ? 'Desactivar usuario' : 'Activar usuario'}
-                      onClick={() => openEdit()}
+                      onClick={() => openEdit(!selectedUser.active)}
                     />
                   </div>
                 )}

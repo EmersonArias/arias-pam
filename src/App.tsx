@@ -1,6 +1,9 @@
 import { Routes, Route } from 'react-router-dom'
 import BooksPage from './pages/Books/BooksPage'
 import LoginPage from './features/auth/pages/LoginPage'
+import ActivateAccountPage from './features/auth/pages/ActivateAccountPage'
+import ForgotPasswordPage from './features/auth/pages/ForgotPasswordPage'
+import UpdatePasswordPage from './features/auth/pages/UpdatePasswordPage'
 import ProtectedRoute from './features/auth/components/ProtectedRoute'
 import UsersPage from './features/users/pages/UsersPage'
 import PamPage from './features/registers/pages/PamPage'
@@ -31,6 +34,9 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/activate" element={<ActivateAccountPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/update-password" element={<UpdatePasswordPage />} />
 
       <Route element={<ProtectedRoute />}>
         <Route path="/" element={<BooksPage />} />

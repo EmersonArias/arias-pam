@@ -1,18 +1,143 @@
 -- Arias Suite — migración 006
--- Numeración RA independiente por hotel.
+-- Sistema de codificación configurable por hotel y módulo.
 --
--- Objetivo:
---   Hotel A -> RA-0001, RA-0002, ...
---   Hotel B -> RA-0001, RA-0002, ...
+-- OBJETIVO:
+--   * Los formatos de código no están fijados por el cliente ni por el nombre del hotel.
+--   * Arias Suite proporciona valores por defecto.
+--   * Cada hotel puede configurar sus propias series antes de empezar a utilizarlas.
+--   * Cada serie tiene contador independiente por hotel.
+--   * Los números utilizados no se reutilizan.
 --
--- La serie no se reutiliza: el contador de cada hotel solo avanza.
--- Mientras exista un único hotel activo, una creación realizada por la
--- aplicación actual puede omitir hotel_id y la base de datos asignará ese hotel.
--- Cuando existan varios hoteles activos, la aplicación deberá enviar hotel_id.
+-- Ejemplo de configuración por defecto:
+--   Relación de Aparatos      RA- + 4 dígitos
+--   Luces de Emergencia       LE- + 4 dígitos
+--   Cuadros Eléctricos        CE- + 4 dígitos
+--   Bombas                    BM- + 4 dígitos
+--   Puertas Cortafuegos       PC- + 4 dígitos
+--   Equipos Contra Incendios  EC- + 4 dígitos
+--   Calibraciones             CA- + 4 dígitos
+--
+-- Piscinas y SPA quedan sin código según el estándar actual.
+--
+-- IMPORTANTE:
+-- Esta migración todavía no introduce el selector de hotel ni Login.
+-- Mientras exista un único hotel activo, el trigger de aparatos mantiene
+-- compatibilidad con la aplicación actual. Cuando existan varios hoteles,
+-- la aplicación deberá enviar hotel_id explícitamente.
 
 BEGIN;
 
--- Comprobación de transición: todos los aparatos actuales deben pertenecer a un hotel.
+-- =========================================================
+-- 1. MODELO DE CONFIGURACIÓN DE SERIES
+-- =========================================================
+
+CREATE TABLE IF NOT EXISTS public.code_sequence_templates (
+  module_code text PRIMARY KEY,
+  module_name text NOT NULL,
+  code_enabled_by_default boolean NOT NULL DEFAULT true,
+  prefix_default text,
+  digits_default integer,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT code_sequence_templates_digits_check
+    CHECK (digits_default IS NULL OR digits_default BETWEEN 1 AND 12)
+);
+
+CREATE TABLE IF NOT EXISTS public.hotel_code_sequences (
+  hotel_id uuid NOT NULL REFERENCES public.hotels(id) ON DELETE RESTRICT,
+  module_code text NOT NULL REFERENCES public.code_sequence_templates(module_code) ON DELETE RESTRICT,
+  enabled boolean NOT NULL DEFAULT true,
+  prefix text,
+  digits integer,
+  last_number bigint NOT NULL DEFAULT 0,
+  format_locked boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (hotel_id, module_code),
+  CONSTRAINT hotel_code_sequences_digits_check
+    CHECK (digits IS NULL OR digits BETWEEN 1 AND 12),
+  CONSTRAINT hotel_code_sequences_last_number_check
+    CHECK (last_number >= 0)
+);
+
+CREATE INDEX IF NOT EXISTS ix_hotel_code_sequences_hotel_id
+  ON public.hotel_code_sequences (hotel_id);
+
+-- =========================================================
+-- 2. VALORES POR DEFECTO DE ARIAS SUITE
+-- =========================================================
+
+INSERT INTO public.code_sequence_templates (
+  module_code,
+  module_name,
+  code_enabled_by_default,
+  prefix_default,
+  digits_default
+)
+VALUES
+  ('apparatusregistry', 'Relación de Aparatos', true, 'RA-', 4),
+  ('emergencylights', 'Luces de Emergencia', true, 'LE-', 4),
+  ('electricalpanels', 'Cuadros Eléctricos', true, 'CE-', 4),
+  ('pumps', 'Bombas', true, 'BM-', 4),
+  ('firedoors', 'Puertas Cortafuegos', true, 'PC-', 4),
+  ('fireequipment', 'Equipos Contra Incendios', true, 'EC-', 4),
+  ('calibrations', 'Calibraciones', true, 'CA-', 4)
+ON CONFLICT (module_code) DO UPDATE
+SET
+  module_name = EXCLUDED.module_name;
+
+-- =========================================================
+-- 3. CONFIGURAR LAS SERIES DEL HOTEL EXISTENTE
+-- =========================================================
+
+-- Se copia la configuración por defecto únicamente para hoteles que todavía
+-- no tienen una configuración de esa serie.
+INSERT INTO public.hotel_code_sequences (
+  hotel_id,
+  module_code,
+  enabled,
+  prefix,
+  digits,
+  last_number
+)
+SELECT
+  h.id,
+  t.module_code,
+  t.code_enabled_by_default,
+  t.prefix_default,
+  t.digits_default,
+  0
+FROM public.hotels h
+CROSS JOIN public.code_sequence_templates t
+WHERE h.active = true
+ON CONFLICT (hotel_id, module_code) DO NOTHING;
+
+-- La serie existente de Relación de Aparatos ya tiene registros.
+-- Su configuración inicial se sincroniza con el máximo código real.
+UPDATE public.hotel_code_sequences s
+SET
+  enabled = true,
+  prefix = COALESCE(s.prefix, 'RA-'),
+  digits = COALESCE(s.digits, 4),
+  last_number = GREATEST(
+    s.last_number,
+    COALESCE(
+      (
+        SELECT MAX(CAST(SUBSTRING(ar.code FROM LENGTH(s.prefix) + 1) AS bigint))
+        FROM public.apparatus_registry ar
+        WHERE ar.hotel_id = s.hotel_id
+          AND ar.code ~ '^RA-[0-9]+$'
+      ),
+      0
+    )
+  ),
+  format_locked = true,
+  updated_at = now()
+WHERE s.module_code = 'apparatusregistry';
+
+-- =========================================================
+-- 4. ÁMBITO HOTEL DE RELACIÓN DE APARATOS
+-- =========================================================
+
 DO $$
 DECLARE
   orphan_count bigint;
@@ -29,35 +154,72 @@ BEGIN
   END IF;
 END $$;
 
--- El código pasa a ser único dentro del hotel, no globalmente.
 DROP INDEX IF EXISTS public.ux_apparatus_registry_code;
 
 CREATE UNIQUE INDEX IF NOT EXISTS ux_apparatus_registry_hotel_code
   ON public.apparatus_registry (hotel_id, code);
 
--- Asegurar que existe una fila de contador para cada hotel que ya tenga aparatos,
--- inicializada con el máximo código existente de ese hotel.
-INSERT INTO public.apparatus_registry_code_counters (hotel_id, last_number)
-SELECT
-  ar.hotel_id,
-  COALESCE(
-    MAX(
-      CASE
-        WHEN ar.code ~ '^RA-[0-9]+$'
-        THEN CAST(SUBSTRING(ar.code FROM 4) AS bigint)
-        ELSE 0
-      END
-    ),
-    0
-  ) AS last_number
-FROM public.apparatus_registry ar
-GROUP BY ar.hotel_id
-ON CONFLICT (hotel_id)
-DO UPDATE SET
-  last_number = GREATEST(
-    public.apparatus_registry_code_counters.last_number,
-    EXCLUDED.last_number
-  );
+-- =========================================================
+-- 5. GENERADOR GENÉRICO DE CÓDIGOS
+-- =========================================================
+
+CREATE OR REPLACE FUNCTION public.allocate_hotel_code(
+  target_hotel_id uuid,
+  target_module_code text
+)
+RETURNS text
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, public
+AS $$
+DECLARE
+  sequence_record public.hotel_code_sequences%ROWTYPE;
+  next_number bigint;
+BEGIN
+  SELECT *
+  INTO sequence_record
+  FROM public.hotel_code_sequences
+  WHERE hotel_id = target_hotel_id
+    AND module_code = target_module_code
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION
+      'No existe configuración de código para el hotel % y módulo %.',
+      target_hotel_id,
+      target_module_code;
+  END IF;
+
+  IF sequence_record.enabled IS NOT TRUE THEN
+    RAISE EXCEPTION
+      'La codificación está desactivada para el módulo % en el hotel %.',
+      target_module_code,
+      target_hotel_id;
+  END IF;
+
+  IF sequence_record.prefix IS NULL OR sequence_record.digits IS NULL THEN
+    RAISE EXCEPTION
+      'La configuración de código del módulo % está incompleta.',
+      target_module_code;
+  END IF;
+
+  UPDATE public.hotel_code_sequences
+  SET
+    last_number = last_number + 1,
+    updated_at = now()
+  WHERE hotel_id = target_hotel_id
+    AND module_code = target_module_code
+  RETURNING last_number INTO next_number;
+
+  RETURN sequence_record.prefix || LPAD(next_number::text, sequence_record.digits, '0');
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.allocate_hotel_code(uuid, text) FROM PUBLIC;
+
+-- =========================================================
+-- 6. TRIGGER DE RELACIÓN DE APARATOS
+-- =========================================================
 
 CREATE OR REPLACE FUNCTION public.assign_apparatus_registry_code()
 RETURNS trigger
@@ -66,14 +228,13 @@ SECURITY DEFINER
 SET search_path = pg_catalog, public
 AS $$
 DECLARE
-  next_number bigint;
   resolved_hotel_id uuid;
   active_hotel_count integer;
 BEGIN
   resolved_hotel_id := NEW.hotel_id;
 
   -- Compatibilidad temporal con la aplicación actual.
-  -- Solo es seguro hacerlo mientras exista un único hotel activo.
+  -- Cuando haya varios hoteles activos, hotel_id será obligatorio.
   IF resolved_hotel_id IS NULL THEN
     SELECT COUNT(*)
     INTO active_hotel_count
@@ -94,16 +255,10 @@ BEGIN
     NEW.hotel_id := resolved_hotel_id;
   END IF;
 
-  INSERT INTO public.apparatus_registry_code_counters (hotel_id, last_number)
-  VALUES (resolved_hotel_id, 0)
-  ON CONFLICT (hotel_id) DO NOTHING;
-
-  UPDATE public.apparatus_registry_code_counters
-  SET last_number = last_number + 1
-  WHERE hotel_id = resolved_hotel_id
-  RETURNING last_number INTO next_number;
-
-  NEW.code := 'RA-' || LPAD(next_number::text, 4, '0');
+  NEW.code := public.allocate_hotel_code(
+    resolved_hotel_id,
+    'apparatusregistry'
+  );
 
   RETURN NEW;
 END;
@@ -118,5 +273,13 @@ CREATE TRIGGER trg_assign_apparatus_registry_code
 BEFORE INSERT ON public.apparatus_registry
 FOR EACH ROW
 EXECUTE FUNCTION public.assign_apparatus_registry_code();
+
+-- =========================================================
+-- 7. CONTINUIDAD CON LA TABLA DE CONTADOR LEGADA
+-- =========================================================
+--
+-- La tabla apparatus_registry_code_counter se conserva porque forma parte
+-- del historial de la instalación. Desde esta migración deja de ser la fuente
+-- de verdad; hotel_code_sequences es la nueva fuente de verdad.
 
 COMMIT;

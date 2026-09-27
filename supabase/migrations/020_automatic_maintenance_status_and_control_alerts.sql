@@ -41,16 +41,8 @@ BEGIN
 
   IF latest_execution_date IS NULL THEN
     UPDATE public.maintenance_plans
-    SET next_due_date = CASE
-      WHEN plan_record.periodicity_unit = 'VARIABLE' THEN plan_record.start_date
-      WHEN plan_record.start_date IS NULL THEN NULL
-      WHEN plan_record.periodicity_unit = 'DAY' THEN plan_record.start_date + plan_record.periodicity_value
-      WHEN plan_record.periodicity_unit = 'WEEK' THEN plan_record.start_date + (plan_record.periodicity_value * 7)
-      WHEN plan_record.periodicity_unit = 'MONTH' THEN (plan_record.start_date + make_interval(months => plan_record.periodicity_value))::date
-      WHEN plan_record.periodicity_unit = 'YEAR' THEN (plan_record.start_date + make_interval(years => plan_record.periodicity_value))::date
-      ELSE plan_record.start_date
-    END,
-    updated_at = now()
+    SET next_due_date = plan_record.start_date,
+        updated_at = now()
     WHERE id = target_plan_id;
     RETURN;
   END IF;
@@ -82,7 +74,10 @@ BEGIN
   PERFORM public.recalculate_maintenance_plan_due_date(
     COALESCE(NEW.maintenance_plan_id, OLD.maintenance_plan_id)
   );
-  RETURN COALESCE(NEW, OLD);
+  IF TG_OP = 'DELETE' THEN
+    RETURN OLD;
+  END IF;
+  RETURN NEW;
 END;
 $$;
 
@@ -250,10 +245,13 @@ SECURITY DEFINER
 SET search_path = pg_catalog, public
 AS $$
 DECLARE
+  target_execution_id uuid;
   required_count integer;
   completed_required_count integer;
   out_of_range_count integer;
 BEGIN
+  target_execution_id := COALESCE(NEW.execution_id, OLD.execution_id);
+
   SELECT COUNT(*)
   INTO required_count
   FROM public.maintenance_controls mc
@@ -265,13 +263,13 @@ BEGIN
   INTO completed_required_count
   FROM public.maintenance_control_results mcr
   JOIN public.maintenance_controls mc ON mc.id = mcr.maintenance_control_id
-  WHERE mcr.execution_id = NEW.execution_id
+  WHERE mcr.execution_id = target_execution_id
     AND mc.required = true
     AND mcr.status <> 'NOT_COMPLETED';
 
   SELECT COUNT(*) INTO out_of_range_count
   FROM public.maintenance_control_results
-  WHERE execution_id = NEW.execution_id
+  WHERE execution_id = target_execution_id
     AND status = 'OUT_OF_RANGE';
 
   UPDATE public.maintenance_executions
@@ -281,7 +279,7 @@ BEGIN
     ELSE 'COMPLETED_WITH_ISSUES'
   END,
   updated_at = now()
-  WHERE id = NEW.execution_id
+  WHERE id = target_execution_id
     AND executed_at IS NOT NULL
     AND result <> 'CANCELLED';
 

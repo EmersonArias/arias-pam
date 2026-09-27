@@ -365,8 +365,16 @@ export default function UsersPage() {
     setFormError('')
 
     const normalizedEmail = form.email.trim().toLowerCase()
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
-      setFormError('Introduce un correo electrónico válido.')
+    const normalizedIdentifier = form.loginIdentifier.trim().toUpperCase()
+
+    if (normalizedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      setFormError('Introduce un correo electrónico válido o déjalo vacío.')
+      setFormBusy(false)
+      return
+    }
+
+    if (!/^[A-Z0-9._-]{3,64}$/.test(normalizedIdentifier)) {
+      setFormError('El identificador debe tener entre 3 y 64 caracteres y solo puede contener letras, números, punto, guion o guion bajo.')
       setFormBusy(false)
       return
     }
@@ -934,7 +942,9 @@ export default function UsersPage() {
                       formBusy
                         ? 'Guardando…'
                         : formMode === 'create'
-                          ? 'Crear usuario'
+                          ? form.email.trim()
+                            ? 'Crear y enviar invitación'
+                            : 'Crear y generar código'
                           : 'Guardar cambios'
                     }
                     type="submit"

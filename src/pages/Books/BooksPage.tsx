@@ -428,7 +428,7 @@ export default function BooksPage() {
               </button>
             </div>
 
-            <div className="h-[112px] overflow-y-auto">
+            <div className="h-[220px] overflow-y-auto">
               <table className="w-full min-w-[720px] border-collapse text-xs">
                 <thead>
                   <tr className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50 text-left text-[10px] uppercase tracking-wide text-slate-500">

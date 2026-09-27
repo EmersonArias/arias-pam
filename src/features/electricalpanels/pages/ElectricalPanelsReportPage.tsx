@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../../../lib/supabase'
 import BrandLogo from '../../../shared/components/branding/BrandLogo'
+import { useAuth } from '../../auth/context/AuthProvider'
 import PrintReportFooter from '../../../shared/components/reports/PrintReportFooter'
 import {
   formatDate,
@@ -15,6 +16,8 @@ import {
 export default function ElectricalPanelsReportPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
+
+  const { session } = useAuth()
 
   const [panels, setPanels] = useState<
     ElectricalPanel[]
@@ -263,7 +266,7 @@ export default function ElectricalPanelsReportPage() {
               </div>
 
               <div className="text-right text-sm text-slate-600">
-                <div>Técnico: Emerson Arias</div>
+                <div>Generado por: {session?.user.fullName || session?.user.email || 'Usuario'}</div>
                 <div>
                   Registros: {reportPanels.length}
                 </div>

@@ -70,7 +70,7 @@ export const supabaseAuthProvider: AriasAuthService = {
       }
     }
 
-    if (!sessionData.user.email_confirmed_at) {
+    if (!sessionData.session.user.email_confirmed_at) {
       await supabase.auth.signOut()
       return {
         data: null,

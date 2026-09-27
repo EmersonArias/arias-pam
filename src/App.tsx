@@ -1,5 +1,6 @@
 import { Routes, Route } from 'react-router-dom'
 import BooksPage from './pages/Books/BooksPage'
+import LoginPage from './features/auth/pages/LoginPage'
 import PamPage from './features/registers/pages/PamPage'
 import AssetsPage from './features/registers/pages/AssetsPage'
 import PumpsPage from './features/registers/pages/PumpsPage'
@@ -27,6 +28,7 @@ import ApparatusRegistryReportPage from './features/apparatusregistry/pages/Appa
 export default function App() {
   return (
     <Routes>
+      <Route path="/login" element={<LoginPage />} />
       <Route path="/" element={<BooksPage />} />
 
       <Route path="/pam" element={<PamPage />} />

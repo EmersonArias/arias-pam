@@ -2,6 +2,7 @@ import { Routes, Route } from 'react-router-dom'
 import BooksPage from './pages/Books/BooksPage'
 import LoginPage from './features/auth/pages/LoginPage'
 import ProtectedRoute from './features/auth/components/ProtectedRoute'
+import UsersPage from './features/users/pages/UsersPage'
 import PamPage from './features/registers/pages/PamPage'
 import AssetsPage from './features/registers/pages/AssetsPage'
 import PumpsPage from './features/registers/pages/PumpsPage'
@@ -34,6 +35,7 @@ export default function App() {
       <Route element={<ProtectedRoute />}>
         <Route path="/" element={<BooksPage />} />
 
+        <Route path="/users" element={<UsersPage />} />
         <Route path="/pam" element={<PamPage />} />
       <Route path="/assets" element={<AssetsPage />} />
       <Route path="/pumps" element={<PumpsPage />} />

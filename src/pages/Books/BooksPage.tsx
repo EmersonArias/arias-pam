@@ -12,6 +12,13 @@ import { useAuth } from '../../features/auth/context/AuthProvider'
 import { ariasAuth } from '../../core/auth/authService'
 import { supabase } from '../../lib/supabase'
 
+type HomeRegister = {
+  icon: string
+  name: string
+  path: string | null
+  comingSoon?: boolean
+}
+
 type MaintenanceAlert = {
   id: string
   alert_type: 'UPCOMING_REVIEW' | 'DUE_TODAY' | 'OVERDUE_REVIEW' | 'OUT_OF_RANGE'
@@ -22,7 +29,7 @@ type MaintenanceAlert = {
   triggered_at: string
 }
 
-const registers = [
+const registers: HomeRegister[] = [
   { icon: '📋', name: 'PAM', path: '/pam' },
   { icon: '⚙️', name: 'Equipos e instalaciones', path: '/apparatusregistry' },
   { icon: '🏊', name: 'Piscinas', path: '/pools' },
@@ -37,6 +44,9 @@ const registers = [
   { icon: '🚪', name: 'Cortafuegos', path: '/firedoors' },
   { icon: '🧯', name: 'PCI', path: '/fireequipment' },
   { icon: '📏', name: 'Calibraciones', path: '/calibrations' },
+  { icon: '🛠️', name: 'Actuaciones', path: null, comingSoon: true },
+  { icon: '📦', name: 'Stock', path: null, comingSoon: true },
+  { icon: '🗓️', name: 'Planificador horario', path: null, comingSoon: true },
 ]
 
 export default function BooksPage() {
@@ -199,18 +209,18 @@ export default function BooksPage() {
   }, [search])
 
   return (
-    <div className="min-h-screen bg-slate-100 px-3 py-3 text-slate-900 sm:px-5 sm:py-5">
+    <div className="min-h-screen bg-slate-100 px-2 py-2 text-slate-900 sm:px-4 sm:py-3">
       <div className="mx-auto w-full">
-        <div className="mb-3 flex justify-center px-1 sm:mb-4">
+        <div className="mb-2 flex justify-center px-1 sm:mb-2">
           <BrandLogo
             onActivate={() => window.location.reload()}
             label="Actualizar Arias Suite"
-            className="h-16 w-auto object-contain sm:h-20"
+            className="h-14 w-auto object-contain sm:h-16"
           />
         </div>
 
         <div className="mx-auto w-full px-2 sm:px-3 md:px-5 lg:px-[clamp(48px,5.5vw,90px)]">
-          <header className="mb-5 rounded-2xl border border-slate-200 bg-white/95 px-3 py-3 shadow-sm backdrop-blur sm:px-4">
+          <header className="mb-3 rounded-2xl border border-slate-200 bg-white/95 px-3 py-3 shadow-sm backdrop-blur sm:px-4">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
             <label className="relative min-w-0 flex-1">
               <Search
@@ -221,7 +231,7 @@ export default function BooksPage() {
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Buscar en Arias Suite..."
-                className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:bg-white"
+                className="h-9 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:bg-white"
               />
             </label>
 
@@ -249,7 +259,7 @@ export default function BooksPage() {
               </button>
               <button
                 type="button"
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md active:translate-y-0"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md active:translate-y-0"
                 title="Ayuda"
                 aria-label="Ayuda"
               >
@@ -376,13 +386,16 @@ export default function BooksPage() {
         </div>
 
         <main>
-          <div className="mx-auto grid w-full grid-cols-3 justify-center gap-2 px-2 sm:grid-cols-4 sm:px-3 md:grid-cols-5 md:px-5 lg:grid-cols-7 lg:gap-3 lg:px-[clamp(48px,5.5vw,90px)]">
+          <div className="mx-auto grid w-full grid-cols-3 justify-center gap-2 px-2 sm:grid-cols-4 sm:px-3 md:grid-cols-5 md:px-5 lg:grid-cols-7 lg:gap-2.5 lg:px-[clamp(48px,5.5vw,90px)]">
             {filteredRegisters.map((register) => (
               <button
                 key={register.name}
                 type="button"
-                onClick={() => navigate(register.path)}
-                className="group flex min-h-[98px] flex-col items-stretch overflow-hidden rounded-2xl border border-slate-200 bg-white text-left shadow-[0_8px_18px_rgba(15,23,42,0.08)] transition-all duration-200 hover:-translate-y-2 hover:scale-[1.025] hover:border-slate-300 hover:shadow-[0_18px_32px_rgba(15,23,42,0.18)] active:translate-y-0 active:scale-[0.99]"
+                onClick={() => {
+                  if (register.path) navigate(register.path)
+                }}
+                disabled={register.comingSoon}
+                className="group flex min-h-[92px] flex-col items-stretch overflow-hidden rounded-2xl border border-slate-200 bg-white text-left shadow-[0_8px_18px_rgba(15,23,42,0.08)] transition-all duration-200 hover:-translate-y-2 hover:scale-[1.025] hover:border-slate-300 hover:shadow-[0_18px_32px_rgba(15,23,42,0.18)] active:translate-y-0 active:scale-[0.99]"
               >
                 <div className="flex min-h-[66px] flex-1 flex-col items-center justify-center px-2 py-1.5">
                   <span className="text-[34px] leading-none transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:scale-110">
@@ -394,7 +407,7 @@ export default function BooksPage() {
                 </div>
 
                 <div className="border-t border-slate-200 px-2.5 py-1.5 text-center text-[9px] text-slate-400">
-                  Abrir módulo
+                  {register.comingSoon ? 'En preparación' : 'Abrir módulo'}
                 </div>
               </button>
             ))}
@@ -405,7 +418,7 @@ export default function BooksPage() {
               No se encontraron módulos para «{search}».
             </div>
           )}
-          <div className="mx-auto mt-3 w-full px-2 sm:mt-4 sm:px-3 md:px-5 lg:px-[clamp(48px,5.5vw,90px)]">
+          <div className="mx-auto mt-2 w-full px-2 sm:mt-3 sm:px-3 md:px-5 lg:px-[clamp(48px,5.5vw,90px)]">
             <section
               ref={alertsGridRef}
               className="w-full scroll-mt-4 rounded-2xl border border-slate-200 bg-white shadow-lg"

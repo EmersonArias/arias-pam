@@ -52,6 +52,7 @@ function moduleLabel(module: string) {
     apparatusregistry: 'Relación de aparatos',
     electricalpanels: 'Cuadros eléctricos',
     assets: 'Activos',
+    reports: 'Informes',
   }
 
   return labels[module] ?? module
@@ -63,6 +64,7 @@ function actionLabel(action: string) {
     create: 'Crear',
     update: 'Modificar',
     delete: 'Eliminar',
+    print: 'Imprimir',
   }
 
   return labels[action] ?? action
@@ -458,6 +460,8 @@ export default function RolesPage() {
                       <h3 className="text-sm font-semibold text-slate-700">Permisos</h3>
                       <p className="mt-1 text-xs text-slate-400">
                         Activa o desactiva cada permiso para este rol.
+                        {selectedRole.code === 'VIEWER' &&
+                          ' Este rol está limitado a consulta e impresión.'}
                       </p>
                     </div>
                     <span className="text-xs text-slate-400">
@@ -498,14 +502,28 @@ export default function RolesPage() {
                                 item.permission_id === permission.id,
                             )
                             const busy = permissionBusy === permission.id
+                            const helperReadOnly =
+                              selectedRole.code === 'VIEWER' &&
+                              !['view', 'print'].includes(permission.action)
 
                             return (
                               <button
                                 key={permission.id}
                                 type="button"
                                 onClick={() => void togglePermission(permission)}
-                                disabled={busy}
-                                className="flex w-full items-center justify-between gap-4 px-4 py-3 text-left transition hover:bg-slate-50 disabled:cursor-wait disabled:opacity-60"
+                                disabled={busy || helperReadOnly}
+                                title={
+                                  helperReadOnly
+                                    ? 'El Ayudante de mantenimiento solo puede consultar e imprimir informes.'
+                                    : undefined
+                                }
+                                className={[
+                                  'flex w-full items-center justify-between gap-4 px-4 py-3 text-left transition',
+                                  helperReadOnly
+                                    ? 'cursor-not-allowed bg-slate-50/70 opacity-60'
+                                    : 'hover:bg-slate-50',
+                                  'disabled:cursor-wait disabled:opacity-60',
+                                ].join(' ')}
                               >
                                 <div className="min-w-0">
                                   <div className="text-sm font-medium text-slate-700">

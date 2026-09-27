@@ -32,6 +32,7 @@ import PciReviewPage from './features/fireequipment/pages/PciReviewPage'
 import ApparatusRegistryPage from './features/apparatusregistry/pages/ApparatusRegistryPage'
 import ApparatusRegistryDetailPage from './features/apparatusregistry/pages/ApparatusRegistryDetailPage'
 import ApparatusRegistryReportPage from './features/apparatusregistry/pages/ApparatusRegistryReportPage'
+import MaintenancePage from './features/maintenance/pages/MaintenancePage'
 
 export default function App() {
   return (
@@ -63,6 +64,7 @@ export default function App() {
       <Route path="/electricalpanels/:id" element={<ElectricalPanelDetailPage />} />
 
       <Route path="/apparatusregistry" element={<ApparatusRegistryPage />} />
+      <Route path="/maintenance" element={<MaintenancePage />} />
       <Route path="/apparatusregistry/new" element={<ApparatusRegistryDetailPage />} />
       <Route path="/apparatusregistry/report" element={<ApparatusRegistryReportPage />} />
       <Route path="/apparatusregistry/:id" element={<ApparatusRegistryDetailPage />} />

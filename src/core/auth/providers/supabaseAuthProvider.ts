@@ -19,6 +19,7 @@ function mapSession(session: SupabaseSession | null): AriasSession | null {
         (session.user.user_metadata?.full_name as string | undefined) ??
         (session.user.user_metadata?.name as string | undefined) ??
         null,
+      emailConfirmedAt: session.user.email_confirmed_at ?? null,
     },
     accessToken: session.access_token,
   }
@@ -51,6 +52,34 @@ export const supabaseAuthProvider: AriasAuthService = {
 
     return {
       data: null,
+      error: error ? new Error(error.message) : null,
+    }
+  },
+
+  async requestPasswordReset(email: string): Promise<AuthResult<null>> {
+    const redirectTo = `${window.location.origin}/update-password`
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo })
+
+    return {
+      data: null,
+      error: error ? new Error(error.message) : null,
+    }
+  },
+
+  async updatePassword(password: string): Promise<AuthResult<null>> {
+    const { error } = await supabase.auth.updateUser({ password })
+
+    return {
+      data: null,
+      error: error ? new Error(error.message) : null,
+    }
+  },
+
+  async activateAccount(): Promise<AuthResult<boolean>> {
+    const { data, error } = await supabase.rpc('activate_my_account')
+
+    return {
+      data: data ?? false,
       error: error ? new Error(error.message) : null,
     }
   },

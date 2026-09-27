@@ -49,6 +49,7 @@ const registers: HomeRegister[] = [
   { icon: '🛠️', name: 'Actuaciones', path: null, comingSoon: true },
   { icon: '📦', name: 'Stock', path: null, comingSoon: true },
   { icon: '🗓️', name: 'Planificador horario', path: null, comingSoon: true },
+  { icon: '🏢', name: 'Proveedores', path: '/providers' },
 ]
 
 export default function BooksPage() {

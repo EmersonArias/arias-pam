@@ -7,6 +7,7 @@ import {
   UserRound,
 } from 'lucide-react'
 import BrandLogo from '../../shared/components/branding/BrandLogo'
+import { useAuth } from '../../features/auth/context/AuthProvider'
 
 const registers = [
   {
@@ -118,7 +119,27 @@ const registers = [
 
 export default function BooksPage() {
   const navigate = useNavigate()
+  const { session } = useAuth()
   const [search, setSearch] = useState('')
+  const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const [signingOut, setSigningOut] = useState(false)
+
+  async function handleSignOut() {
+    if (signingOut) return
+
+    setSigningOut(true)
+    const { error } = await import('../../lib/supabase').then(({ supabase }) =>
+      supabase.auth.signOut(),
+    )
+
+    if (error) {
+      setSigningOut(false)
+      return
+    }
+
+    setUserMenuOpen(false)
+    navigate('/login', { replace: true })
+  }
 
   const filteredRegisters = useMemo(() => {
     const query = search.trim().toLocaleLowerCase('es')
@@ -176,14 +197,47 @@ export default function BooksPage() {
               >
                 <CircleHelp size={18} />
               </button>
-              <button
-                type="button"
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md active:translate-y-0"
-                title="Usuario"
-                aria-label="Usuario"
-              >
-                <UserRound size={18} />
-              </button>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setUserMenuOpen((open) => !open)}
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md active:translate-y-0"
+                  title="Usuario"
+                  aria-label="Usuario"
+                  aria-expanded={userMenuOpen}
+                  aria-haspopup="menu"
+                >
+                  <UserRound size={18} />
+                </button>
+
+                {userMenuOpen && (
+                  <div
+                    className="absolute right-0 top-12 z-50 w-64 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.16)]"
+                    role="menu"
+                  >
+                    <div className="border-b border-slate-100 px-4 py-3">
+                      <div className="truncate text-sm font-semibold text-slate-800">
+                        {session?.user.user_metadata?.full_name || 'Usuario'}
+                      </div>
+                      <div className="mt-0.5 truncate text-xs text-slate-500">
+                        {session?.user.email || 'Sin correo'}
+                      </div>
+                    </div>
+
+                    <div className="p-1.5">
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => void handleSignOut()}
+                        disabled={signingOut}
+                        className="flex w-full items-center rounded-xl px-3 py-2.5 text-left text-sm text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {signingOut ? 'Cerrando sesión…' : 'Cerrar sesión'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
           </header>

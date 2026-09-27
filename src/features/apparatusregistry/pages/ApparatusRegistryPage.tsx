@@ -13,7 +13,6 @@ import {
 } from 'lucide-react'
 import IconButton from '../../../shared/components/buttons/IconButton'
 import BrandLogo from '../../../shared/components/branding/BrandLogo'
-import { useSystemDialog } from '../../../shared/components/dialogs/SystemDialogProvider'
 import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
 import GridToolbar from '../../../shared/components/grid/GridToolbar'
 import { supabase } from '../../../lib/supabase'

@@ -51,18 +51,6 @@ const emptyForm: FormState = {
 }
 const emptyControl: Control = { label: "", input_type: "NUMBER", unit: "", min_value: "", max_value: "", required: true }
 
-function firstDueDate(startDate: string, value: string, unit: FormState["periodicity_unit"]) {
-  if (!startDate || unit === "VARIABLE") return startDate || null
-  const amount = Number(value)
-  if (!Number.isInteger(amount) || amount <= 0) return startDate
-  const date = new Date(startDate + "T12:00:00")
-  if (unit === "DAY") date.setDate(date.getDate() + amount)
-  if (unit === "WEEK") date.setDate(date.getDate() + amount * 7)
-  if (unit === "MONTH") date.setMonth(date.getMonth() + amount)
-  if (unit === "YEAR") date.setFullYear(date.getFullYear() + amount)
-  return date.toISOString().slice(0, 10)
-}
-
 export default function MaintenancePage() {
   const navigate = useNavigate()
   const { alert: showAlert } = useSystemDialog()
@@ -72,6 +60,7 @@ export default function MaintenancePage() {
   const [recipients, setRecipients] = useState<Recipient[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [controls, setControls] = useState<Control[]>([])
+  const [originalControlIds, setOriginalControlIds] = useState<string[]>([])
   const [form, setForm] = useState<FormState>(emptyForm)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -97,7 +86,7 @@ export default function MaintenancePage() {
 
   function setField<K extends keyof FormState>(field: K, value: FormState[K]) { setForm((current) => ({ ...current, [field]: value })) }
   function newPlan() {
-    setSelectedId(null); setControls([{ ...emptyControl }]);
+    setSelectedId(null); setOriginalControlIds([]); setControls([{ ...emptyControl }]);
     setForm({ ...emptyForm, start_date: new Date().toISOString().slice(0, 10) }); setError("")
   }
 
@@ -119,7 +108,9 @@ export default function MaintenancePage() {
       recipientIds = (u.data ?? []).map((row) => row.user_id)
       externalEmails = (e.data ?? []).map((row) => row.email).join("\n")
     }
-    setControls(((c.data ?? []) as Array<{ id: string; label: string; input_type: Control["input_type"]; unit: string | null; min_value: number | null; max_value: number | null; required: boolean }>).map((row) => ({
+    const loadedControls = (c.data ?? []) as Array<{ id: string; label: string; input_type: Control["input_type"]; unit: string | null; min_value: number | null; max_value: number | null; required: boolean }>
+    setOriginalControlIds(loadedControls.map((row) => row.id))
+    setControls(loadedControls.map((row) => ({
       id: row.id, label: row.label, input_type: row.input_type, unit: row.unit ?? "",
       min_value: row.min_value?.toString() ?? "", max_value: row.max_value?.toString() ?? "", required: row.required,
     })))
@@ -147,18 +138,21 @@ export default function MaintenancePage() {
     if (form.periodicity_unit !== "VARIABLE" && (!Number.isInteger(Number(form.periodicity_value)) || Number(form.periodicity_value) <= 0)) { setError("La periodicidad debe ser un número entero mayor que cero."); setSaving(false); return }
     const numericControls = controls.filter((control) => control.label.trim() && control.input_type === "NUMBER")
     if (numericControls.some((control) => control.min_value && control.max_value && Number(control.min_value) > Number(control.max_value))) { setError("Hay un rango de control incorrecto."); setSaving(false); return }
-    const planPayload = {
+    const planFields = {
       hotel_id: hotelId, apparatus_registry_id: form.apparatus_registry_id, name: form.name.trim(), description: form.description.trim() || null,
       maintenance_type: form.maintenance_type, external_company: form.maintenance_type === "EXTERNAL" ? form.external_company.trim() : null,
       periodicity_value: form.periodicity_unit === "VARIABLE" ? null : Number(form.periodicity_value), periodicity_unit: form.periodicity_unit,
-      start_date: form.start_date || null, next_due_date: firstDueDate(form.start_date, form.periodicity_value, form.periodicity_unit), active: form.active,
+      start_date: form.start_date || null, active: form.active,
     }
     let planId = selectedId
     if (planId) {
-      const result = await supabase.from("maintenance_plans").update(planPayload).eq("id", planId)
+      const result = await supabase.from("maintenance_plans").update(planFields).eq("id", planId)
       if (result.error) { setError(result.error.message); setSaving(false); return }
     } else {
-      const result = await supabase.from("maintenance_plans").insert(planPayload).select("id").single()
+      const result = await supabase.from("maintenance_plans").insert({
+        ...planFields,
+        next_due_date: form.start_date || null,
+      }).select("id").single()
       if (result.error || !result.data?.id) { setError(result.error?.message ?? "No se ha podido crear el mantenimiento."); setSaving(false); return }
       planId = result.data.id
     }
@@ -169,7 +163,20 @@ export default function MaintenancePage() {
       max_value: control.input_type === "NUMBER" && control.max_value ? Number(control.max_value) : null, required: control.required,
       sort_order: index, active: true, alert_on_out_of_range: control.input_type === "NUMBER",
     }))
-    if (rows.length) { const result = await supabase.from("maintenance_controls").upsert(rows); if (result.error) { setError(result.error.message); setSaving(false); return } }
+    if (rows.length) {
+      const result = await supabase.from("maintenance_controls").upsert(rows)
+      if (result.error) { setError(result.error.message); setSaving(false); return }
+    }
+    const removedControlIds = originalControlIds.filter(
+      (id) => !controls.some((control) => control.id === id),
+    )
+    if (removedControlIds.length) {
+      const result = await supabase
+        .from("maintenance_controls")
+        .update({ active: false })
+        .in("id", removedControlIds)
+      if (result.error) { setError(result.error.message); setSaving(false); return }
+    }
     const config = await supabase.from("maintenance_alert_configs").upsert({
       maintenance_plan_id: planId, email_enabled: form.email_enabled, days_before: Math.max(0, Number(form.days_before) || 0),
       notify_on_due: form.notify_on_due, notify_when_overdue: form.notify_when_overdue, overdue_repeat_days: Math.max(1, Number(form.overdue_repeat_days) || 1),

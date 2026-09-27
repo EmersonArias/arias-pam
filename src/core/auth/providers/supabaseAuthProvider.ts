@@ -41,9 +41,31 @@ export const supabaseAuthProvider: AriasAuthService = {
       password,
     })
 
+    if (error) {
+      return {
+        data: null,
+        error: new Error(error.message),
+      }
+    }
+
+    if (!data.session || !data.user) {
+      return {
+        data: null,
+        error: new Error('No se ha podido establecer la sesión.'),
+      }
+    }
+
+    if (!data.user.email_confirmed_at) {
+      await supabase.auth.signOut()
+      return {
+        data: null,
+        error: new Error('La cuenta todavía no ha sido activada por correo electrónico.'),
+      }
+    }
+
     return {
       data: mapSession(data.session),
-      error: error ? new Error(error.message) : null,
+      error: null,
     }
   },
 

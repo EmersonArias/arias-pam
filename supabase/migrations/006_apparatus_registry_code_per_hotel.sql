@@ -120,7 +120,7 @@ BEGIN
   FROM public.code_sequence_templates t
   ON CONFLICT (hotel_id, module_code) DO NOTHING;
 END;
-$;
+$fn$;
 
 REVOKE ALL ON FUNCTION public.initialize_hotel_code_sequences(uuid) FROM PUBLIC;
 

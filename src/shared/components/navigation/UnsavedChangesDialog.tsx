@@ -1,4 +1,4 @@
-import { AlertTriangle, Save, X } from 'lucide-react'
+import { AlertTriangle, X } from 'lucide-react'
 import ActionButton from '../buttons/ActionButton'
 
 interface UnsavedChangesDialogProps {

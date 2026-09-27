@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import BrandLogo from '../../shared/components/branding/BrandLogo'
 import { useAuth } from '../../features/auth/context/AuthProvider'
+import { supabase } from '../../lib/supabase'
 
 const registers = [
   {
@@ -128,9 +129,7 @@ export default function BooksPage() {
     if (signingOut) return
 
     setSigningOut(true)
-    const { error } = await import('../../lib/supabase').then(({ supabase }) =>
-      supabase.auth.signOut(),
-    )
+    const { error } = await supabase.auth.signOut()
 
     if (error) {
       setSigningOut(false)

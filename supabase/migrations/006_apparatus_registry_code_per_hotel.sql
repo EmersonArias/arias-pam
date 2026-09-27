@@ -80,13 +80,60 @@ VALUES
   ('pumps', 'Bombas', true, 'BM-', 4),
   ('firedoors', 'Puertas Cortafuegos', true, 'PC-', 4),
   ('fireequipment', 'Equipos Contra Incendios', true, 'EC-', 4),
-  ('calibrations', 'Calibraciones', true, 'CA-', 4)
+  ('calibrations', 'Calibraciones', true, 'CA-', 4),
+  ('pools', 'Piscinas', false, NULL, NULL),
+  ('spa', 'SPA', false, NULL, NULL)
 ON CONFLICT (module_code) DO UPDATE
 SET
   module_name = EXCLUDED.module_name;
 
 -- =========================================================
--- 3. CONFIGURAR LAS SERIES DEL HOTEL EXISTENTE
+-- 3. INICIALIZACIÓN AUTOMÁTICA DE NUEVOS HOTELES
+-- =========================================================
+
+CREATE OR REPLACE FUNCTION public.initialize_hotel_code_sequences(
+  target_hotel_id uuid
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, public
+AS $
+BEGIN
+  INSERT INTO public.hotel_code_sequences (
+    hotel_id,
+    module_code,
+    enabled,
+    prefix,
+    digits,
+    last_number,
+    format_locked
+  )
+  SELECT
+    target_hotel_id,
+    t.module_code,
+    t.code_enabled_by_default,
+    t.prefix_default,
+    t.digits_default,
+    0,
+    false
+  FROM public.code_sequence_templates t
+  ON CONFLICT (hotel_id, module_code) DO NOTHING;
+END;
+$;
+
+REVOKE ALL ON FUNCTION public.initialize_hotel_code_sequences(uuid) FROM PUBLIC;
+
+DROP TRIGGER IF EXISTS trg_initialize_hotel_code_sequences
+ON public.hotels;
+
+CREATE TRIGGER trg_initialize_hotel_code_sequences
+AFTER INSERT ON public.hotels
+FOR EACH ROW
+EXECUTE FUNCTION public.initialize_hotel_code_sequences(NEW.id);
+
+-- =========================================================
+-- 4. CONFIGURAR LAS SERIES DE LOS HOTELES EXISTENTES
 -- =========================================================
 
 -- Se copia la configuración por defecto únicamente para hoteles que todavía
@@ -206,6 +253,7 @@ BEGIN
   UPDATE public.hotel_code_sequences
   SET
     last_number = last_number + 1,
+    format_locked = true,
     updated_at = now()
   WHERE hotel_id = target_hotel_id
     AND module_code = target_module_code

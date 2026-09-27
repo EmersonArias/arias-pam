@@ -440,7 +440,7 @@ const path = `${item.id}/${generateId()}.${extension}`
               />
               <div>
                 <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">
-                  Relación de Aparatos
+                  Equipos e instalaciones
                 </h1>
                 <p className="text-sm text-slate-500">
                   {isNew ? 'Nuevo registro' : item.code}

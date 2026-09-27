@@ -439,13 +439,49 @@ export default function MaintenancePage() {
             <div className="border-b border-slate-200 px-4 py-3 text-sm font-semibold">Planes de mantenimiento</div>
             {loading ? <div className="p-8 text-center text-sm text-slate-500">Cargando…</div> : plans.length === 0 ? <div className="p-8 text-center text-sm text-slate-500">Todavía no hay mantenimientos configurados.</div> :
               <div className="max-h-[calc(100vh-220px)] overflow-auto">{plans.map((plan) => <button key={plan.id} type="button" onClick={() => void selectPlan(plan)} className={"w-full border-b border-slate-100 px-4 py-3 text-left transition " + (selectedId === plan.id ? "bg-blue-50" : "hover:bg-slate-50")}>
-                <div className="font-medium">{plan.name}</div><div className="mt-1 text-xs text-slate-500">{plan.apparatus?.code ?? "—"} · {plan.apparatus?.name ?? "Equipo no disponible"}</div><div className="mt-1 text-xs text-slate-500">Próxima: {plan.next_due_date ?? "Sin fecha"}</div>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="truncate font-medium">{plan.name}</div>
+                    <div className="mt-1 text-xs text-slate-500">{plan.apparatus?.code ?? "—"} · {plan.apparatus?.name ?? "Equipo no disponible"}</div>
+                  </div>
+                  <span className={
+                    "shrink-0 rounded-full px-2 py-1 text-[10px] font-semibold " +
+                    (planState(plan.next_due_date, plan.active) === "Vencida"
+                      ? "bg-rose-100 text-rose-700"
+                      : planState(plan.next_due_date, plan.active) === "Hoy"
+                        ? "bg-amber-100 text-amber-700"
+                        : planState(plan.next_due_date, plan.active) === "Próxima"
+                          ? "bg-blue-100 text-blue-700"
+                          : "bg-slate-100 text-slate-600")
+                  }>
+                    {planState(plan.next_due_date, plan.active)}
+                  </span>
+                </div>
+                <div className="mt-1 text-xs text-slate-500">
+                  Próxima: {plan.next_due_date
+                    ? new Date(plan.next_due_date + "T12:00:00").toLocaleDateString("es-ES")
+                    : "Sin fecha"}
+                </div>
               </button>)}</div>
             }
           </section>
           <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             {!form.name ? <div className="flex min-h-[520px] items-center justify-center text-center"><div><Bell className="mx-auto h-10 w-10 text-slate-300" /><h2 className="mt-4 text-lg font-semibold text-slate-700">Configura un mantenimiento</h2><p className="mt-2 max-w-md text-sm text-slate-500">Define el equipo, periodicidad, controles y las personas que deben recibir los avisos.</p></div></div> :
             <form onSubmit={save} className="space-y-6">
+              <div className="flex flex-col gap-3 border-b pb-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className="text-lg font-semibold">{form.name}</h2>
+                  <p className="text-sm text-slate-500">
+                    {selectedId ? "Plan existente" : "Nuevo plan"}
+                  </p>
+                </div>
+                <ActionButton
+                  icon={PlayCircle}
+                  label="Registrar ejecución"
+                  onClick={openExecutionForm}
+                  disabled={!selectedId || !form.active}
+                />
+              </div>
               <div className="grid gap-4 md:grid-cols-2">
                 <label><span className="mb-1 block text-sm font-medium">Equipo / instalación</span><select value={form.apparatus_registry_id} onChange={(e) => setField("apparatus_registry_id", e.target.value)} className="w-full rounded-xl border px-3 py-2"><option value="">Selecciona un equipo…</option>{apparatus.map((item) => <option key={item.id} value={item.id}>{item.code} — {item.name}{item.plant ? " · " + item.plant : ""}{item.location ? " · " + item.location : ""}</option>)}</select></label>
                 <label><span className="mb-1 block text-sm font-medium">Nombre del mantenimiento</span><input value={form.name} onChange={(e) => setField("name", e.target.value)} placeholder="Ej.: Revisión mensual ascensor" className="w-full rounded-xl border px-3 py-2" /></label>
@@ -468,8 +504,238 @@ export default function MaintenancePage() {
                 <label className="mt-5 block"><span className="mb-1 block text-sm font-semibold">Otros destinatarios</span><textarea value={form.external_emails} onChange={(e) => setField("external_emails", e.target.value)} rows={3} placeholder="Uno o varios emails, separados por salto de línea, coma o punto y coma." className="w-full rounded-lg border bg-white px-3 py-2" /></label>
                 </div></div>
               </section>
-              <div className="flex justify-end border-t pt-4"><ActionButton icon={Save} label={saving ? "Guardando…" : "Guardar mantenimiento"} tone="primary" disabled={saving} /></div>
-            </form>}
+              <div className="flex justify-end border-t pt-4"><ActionButton icon={Save} label={saving ? "Guardando…" : "Guardar mantenimiento"} tone="primary" type="submit" disabled={saving} /></div>
+            </form>
+
+            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="flex items-center justify-between gap-3 border-b pb-4">
+                <div>
+                  <h2 className="text-base font-semibold">Ejecuciones reales</h2>
+                  <p className="text-xs text-slate-500">
+                    La ejecución y los controles determinan automáticamente el resultado.
+                  </p>
+                </div>
+                <span className="inline-flex items-center gap-1 text-xs text-slate-500">
+                  <Clock3 size={15} />
+                  {executions.length} registro{executions.length === 1 ? "" : "s"}
+                </span>
+              </div>
+
+              {executionFormOpen && (
+                <form onSubmit={saveExecution} className="mt-4 rounded-2xl border border-blue-100 bg-blue-50/50 p-4">
+                  <div className="mb-4 flex items-center justify-between gap-3">
+                    <div>
+                      <h3 className="font-semibold">Registrar ejecución real</h3>
+                      <p className="text-xs text-slate-500">No se puede marcar «Revisado» manualmente.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setExecutionFormOpen(false)}
+                      className="rounded-lg border bg-white px-3 py-2 text-sm"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <label>
+                      <span className="mb-1 block text-sm font-medium">Fecha programada</span>
+                      <input
+                        type="date"
+                        value={executionForm.scheduled_date}
+                        onChange={(event) => setExecutionForm((current) => ({ ...current, scheduled_date: event.target.value }))}
+                        className="w-full rounded-xl border bg-white px-3 py-2"
+                      />
+                    </label>
+                    <label>
+                      <span className="mb-1 block text-sm font-medium">Fecha y hora real</span>
+                      <input
+                        type="datetime-local"
+                        value={executionForm.executed_at}
+                        onChange={(event) => setExecutionForm((current) => ({ ...current, executed_at: event.target.value }))}
+                        className="w-full rounded-xl border bg-white px-3 py-2"
+                        required
+                      />
+                    </label>
+                    <label>
+                      <span className="mb-1 block text-sm font-medium">Persona que realizó el mantenimiento</span>
+                      <input
+                        value={executionForm.performer_name}
+                        onChange={(event) => setExecutionForm((current) => ({ ...current, performer_name: event.target.value }))}
+                        placeholder="Nombre"
+                        className="w-full rounded-xl border bg-white px-3 py-2"
+                      />
+                    </label>
+                    <label>
+                      <span className="mb-1 block text-sm font-medium">
+                        {form.maintenance_type === "EXTERNAL" ? "Empresa que realizó el mantenimiento" : "Empresa / equipo ejecutor"}
+                      </span>
+                      <input
+                        value={executionForm.performer_company}
+                        onChange={(event) => setExecutionForm((current) => ({ ...current, performer_company: event.target.value }))}
+                        placeholder={form.maintenance_type === "EXTERNAL" ? "Empresa mantenedora" : "Opcional"}
+                        className="w-full rounded-xl border bg-white px-3 py-2"
+                      />
+                    </label>
+                    <label className="md:col-span-2">
+                      <span className="mb-1 block text-sm font-medium">Observaciones</span>
+                      <textarea
+                        value={executionForm.observations}
+                        onChange={(event) => setExecutionForm((current) => ({ ...current, observations: event.target.value }))}
+                        rows={3}
+                        className="w-full rounded-xl border bg-white px-3 py-2"
+                      />
+                    </label>
+                  </div>
+
+                  {controls.length > 0 && (
+                    <div className="mt-5 space-y-3">
+                      <div className="flex items-center gap-2">
+                        <CalendarClock size={18} />
+                        <h3 className="font-semibold">Controles de esta ejecución</h3>
+                      </div>
+
+                      {controls.map((control) => {
+                        if (!control.id) return null
+                        const currentValue =
+                          executionValues.find((item) => item.controlId === control.id)?.value ?? ""
+
+                        return (
+                          <div key={control.id} className="rounded-xl border bg-white p-3">
+                            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                              <label className="text-sm font-medium">
+                                {control.label}
+                                {control.required && <span className="ml-1 text-rose-500">*</span>}
+                              </label>
+
+                              {control.input_type === "NUMBER" && (
+                                <span className="text-xs text-slate-500">
+                                  {control.min_value || control.max_value
+                                    ? "Rango: " + (control.min_value || "—") + " – " + (control.max_value || "—")
+                                    : "Sin rango configurado"}
+                                  {control.unit ? " · " + control.unit : ""}
+                                </span>
+                              )}
+                            </div>
+
+                            {control.input_type === "NUMBER" && (
+                              <input
+                                type="number"
+                                step="any"
+                                value={currentValue}
+                                onChange={(event) => updateExecutionValue(control.id as string, event.target.value)}
+                                className="mt-2 w-full rounded-lg border px-3 py-2"
+                              />
+                            )}
+
+                            {control.input_type === "TEXT" && (
+                              <input
+                                value={currentValue}
+                                onChange={(event) => updateExecutionValue(control.id as string, event.target.value)}
+                                className="mt-2 w-full rounded-lg border px-3 py-2"
+                              />
+                            )}
+
+                            {control.input_type === "BOOLEAN" && (
+                              <select
+                                value={currentValue}
+                                onChange={(event) => updateExecutionValue(control.id as string, event.target.value)}
+                                className="mt-2 w-full rounded-lg border bg-white px-3 py-2"
+                              >
+                                <option value="">Selecciona…</option>
+                                <option value="true">Sí</option>
+                                <option value="false">No</option>
+                              </select>
+                            )}
+
+                            {control.input_type === "DATE" && (
+                              <input
+                                type="date"
+                                value={currentValue}
+                                onChange={(event) => updateExecutionValue(control.id as string, event.target.value)}
+                                className="mt-2 w-full rounded-lg border px-3 py-2"
+                              />
+                            )}
+
+                            {control.input_type === "TIME" && (
+                              <input
+                                type="time"
+                                value={currentValue}
+                                onChange={(event) => updateExecutionValue(control.id as string, event.target.value)}
+                                className="mt-2 w-full rounded-lg border px-3 py-2"
+                              />
+                            )}
+
+                            {control.input_type === "SELECT" && (
+                              <input
+                                value={currentValue}
+                                onChange={(event) => updateExecutionValue(control.id as string, event.target.value)}
+                                placeholder="Valor registrado"
+                                className="mt-2 w-full rounded-lg border px-3 py-2"
+                              />
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+
+                  <div className="mt-5 flex justify-end border-t pt-4">
+                    <ActionButton
+                      icon={Save}
+                      label={executionSaving ? "Registrando…" : "Registrar ejecución"}
+                      tone="primary"
+                      type="submit"
+                      disabled={executionSaving}
+                    />
+                  </div>
+                </form>
+              )}
+
+              {executions.length === 0 ? (
+                <div className="mt-4 rounded-xl border-2 border-dashed border-slate-200 p-8 text-center">
+                  <CheckCircle2 className="mx-auto h-8 w-8 text-slate-300" />
+                  <p className="mt-3 text-sm text-slate-500">Todavía no hay ejecuciones reales registradas.</p>
+                </div>
+              ) : (
+                <div className="mt-4 space-y-2">
+                  {executions.map((execution) => {
+                    const resultClass =
+                      execution.result === "COMPLETED"
+                        ? "bg-emerald-100 text-emerald-700"
+                        : execution.result === "COMPLETED_WITH_ISSUES"
+                          ? "bg-amber-100 text-amber-700"
+                          : execution.result === "NOT_CONFORM"
+                            ? "bg-rose-100 text-rose-700"
+                            : "bg-slate-100 text-slate-600"
+
+                    return (
+                      <div key={execution.id} className="rounded-xl border border-slate-200 px-4 py-3">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                          <div>
+                            <div className="text-sm font-semibold">
+                              {execution.executed_at
+                                ? new Date(execution.executed_at).toLocaleString("es-ES")
+                                : "Sin fecha de ejecución"}
+                            </div>
+                            <div className="mt-1 text-xs text-slate-500">
+                              {execution.performer_name ?? "Persona no indicada"}
+                              {execution.performer_company ? " · " + execution.performer_company : ""}
+                            </div>
+                          </div>
+                          <span className={"inline-flex w-fit rounded-full px-2.5 py-1 text-xs font-semibold " + resultClass}>
+                            {executionResultLabel(execution.result)}
+                          </span>
+                        </div>
+                        {execution.observations && (
+                          <p className="mt-2 text-sm text-slate-600">{execution.observations}</p>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </section>}
           </section>
         </main>
       </div>

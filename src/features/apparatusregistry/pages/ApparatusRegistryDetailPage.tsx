@@ -251,7 +251,7 @@ export default function ApparatusRegistryDetailPage() {
   const onSaveAvailable = mode === 'view' ? undefined : saveAndNavigate
 
   useEscapeAsCancel({
-    enabled: mode !== 'view' || dialogOpen || cancelDialogOpen,
+    enabled: true,
     onCancel: () => {
       if (dialogOpen) {
         cancelNavigation()
@@ -260,6 +260,11 @@ export default function ApparatusRegistryDetailPage() {
 
       if (cancelDialogOpen) {
         setCancelDialogOpen(false)
+        return
+      }
+
+      if (mode === 'view') {
+        navigate('/apparatusregistry')
         return
       }
 

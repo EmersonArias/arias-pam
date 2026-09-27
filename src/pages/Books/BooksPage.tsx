@@ -8,7 +8,7 @@ import {
 } from 'lucide-react'
 import BrandLogo from '../../shared/components/branding/BrandLogo'
 import { useAuth } from '../../features/auth/context/AuthProvider'
-import { supabase } from '../../lib/supabase'
+import { ariasAuth } from '../../core/auth/authService'
 
 const registers = [
   {
@@ -129,7 +129,7 @@ export default function BooksPage() {
     if (signingOut) return
 
     setSigningOut(true)
-    const { error } = await supabase.auth.signOut()
+    const { error } = await ariasAuth.signOut()
 
     if (error) {
       setSigningOut(false)
@@ -216,7 +216,7 @@ export default function BooksPage() {
                   >
                     <div className="border-b border-slate-100 px-4 py-3">
                       <div className="truncate text-sm font-semibold text-slate-800">
-                        {session?.user.user_metadata?.full_name || 'Usuario'}
+                        {session?.user.fullName || 'Usuario'}
                       </div>
                       <div className="mt-0.5 truncate text-xs text-slate-500">
                         {session?.user.email || 'Sin correo'}

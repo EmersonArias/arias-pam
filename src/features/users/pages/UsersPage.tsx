@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { Search, UserPlus, UsersRound, Plus, Trash2, Pencil, Power } from 'lucide-react'
+import { Search, UserPlus, UsersRound, Plus, Trash2, Pencil, Power, Send } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../../lib/supabase'
 import { useAuth } from '../../auth/context/AuthProvider'
@@ -12,6 +12,7 @@ type Profile = {
   full_name: string | null
   email: string | null
   active: boolean
+  account_status: 'PENDING_INVITATION' | 'ACTIVE' | 'INACTIVE'
   created_at?: string
 }
 
@@ -44,7 +45,6 @@ type DraftAssignment = {
 type UserForm = {
   fullName: string
   email: string
-  password: string
   active: boolean
   assignments: DraftAssignment[]
 }
@@ -52,7 +52,6 @@ type UserForm = {
 const emptyForm: UserForm = {
   fullName: '',
   email: '',
-  password: '',
   active: true,
   assignments: [],
 }
@@ -74,6 +73,7 @@ export default function UsersPage() {
   const [form, setForm] = useState<UserForm>(emptyForm)
   const [formBusy, setFormBusy] = useState(false)
   const [formError, setFormError] = useState('')
+  const [resendingInvitation, setResendingInvitation] = useState(false)
 
   async function checkPlatformAccess() {
     if (!session?.user.id) {
@@ -111,7 +111,7 @@ export default function UsersPage() {
     const [profilesResult, hotelsResult, rolesResult, assignmentsResult] = await Promise.all([
       supabase
         .from('profiles')
-        .select('id, full_name, email, active, created_at')
+        .select('id, full_name, email, active, account_status, created_at')
         .order('full_name', { ascending: true }),
       supabase
         .from('hotels')
@@ -218,7 +218,6 @@ export default function UsersPage() {
     setForm({
       fullName: selectedUser.full_name ?? '',
       email: selectedUser.email ?? '',
-      password: '',
       active: activeOverride ?? selectedUser.active,
       assignments: selectedUser.assignments.map((assignment) => ({
         hotelId: assignment.hotelId,
@@ -264,12 +263,56 @@ export default function UsersPage() {
     }))
   }
 
+  function getAccountStatusLabel(status: Profile['account_status']) {
+    if (status === 'PENDING_INVITATION') return 'Pendiente de activación'
+    if (status === 'INACTIVE') return 'Inactivo'
+    return 'Activo'
+  }
+
+  function getAccountStatusClass(status: Profile['account_status']) {
+    if (status === 'PENDING_INVITATION') return 'text-amber-700'
+    if (status === 'INACTIVE') return 'text-slate-400'
+    return 'text-slate-700'
+  }
+
+  async function resendInvitation() {
+    if (!selectedUser || isOwnAccount || selectedUser.account_status !== 'PENDING_INVITATION') return
+    if (resendingInvitation) return
+
+    setResendingInvitation(true)
+    setError('')
+
+    const { data, error: functionError } = await supabase.functions.invoke(
+      'admin-resend-invitation',
+      { body: { user_id: selectedUser.id } },
+    )
+
+    if (functionError || !data?.id) {
+      setError(
+        functionError?.message ??
+          'No se ha podido reenviar la invitación.',
+      )
+      setResendingInvitation(false)
+      return
+    }
+
+    setResendingInvitation(false)
+    await loadData()
+  }
+
   async function submitForm(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (formBusy) return
 
     setFormBusy(true)
     setFormError('')
+
+    const normalizedEmail = form.email.trim().toLowerCase()
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      setFormError('Introduce un correo electrónico válido.')
+      setFormBusy(false)
+      return
+    }
 
     if (form.assignments.length === 0) {
       setFormError('Debes asignar al menos un hotel y un rol.')
@@ -289,8 +332,7 @@ export default function UsersPage() {
       formMode === 'create'
         ? {
             full_name: form.fullName,
-            email: form.email,
-            password: form.password,
+            email: normalizedEmail,
             assignments: form.assignments.map((assignment) => ({
               hotel_id: assignment.hotelId,
               role_id: assignment.roleId,
@@ -299,7 +341,7 @@ export default function UsersPage() {
         : {
             user_id: selectedUser?.id,
             full_name: form.fullName,
-            email: form.email,
+            email: normalizedEmail,
             active: form.active,
             assignments: form.assignments.map((assignment) => ({
               hotel_id: assignment.hotelId,
@@ -447,8 +489,8 @@ export default function UsersPage() {
                             </div>
                           </td>
                           <td className="px-4 py-3">
-                            <span className={row.active ? 'text-slate-700' : 'text-slate-400'}>
-                              {row.active ? 'Activo' : 'Inactivo'}
+                            <span className={getAccountStatusClass(row.account_status)}>
+                              {getAccountStatusLabel(row.account_status)}
                             </span>
                           </td>
                           <td className="px-4 py-3 text-slate-700">{activeAssignments.length}</td>
@@ -488,8 +530,8 @@ export default function UsersPage() {
                   <p className="mt-1 text-sm text-slate-500">
                     {selectedUser.email || 'Sin correo'}
                   </p>
-                  <div className="mt-3 text-xs text-slate-500">
-                    Estado: {selectedUser.active ? 'Activo' : 'Inactivo'}
+                  <div className={`mt-3 text-xs font-medium ${getAccountStatusClass(selectedUser.account_status)}`}>
+                    Estado: {getAccountStatusLabel(selectedUser.account_status)}
                   </div>
                 </div>
 
@@ -524,7 +566,15 @@ export default function UsersPage() {
                 </div>
 
                 {!isOwnAccount && (
-                  <div className="mt-6">
+                  <div className="mt-6 flex flex-wrap gap-2">
+                    {selectedUser.account_status === 'PENDING_INVITATION' && (
+                      <ActionButton
+                        icon={Send}
+                        label={resendingInvitation ? 'Enviando…' : 'Reenviar invitación'}
+                        onClick={() => void resendInvitation()}
+                        disabled={resendingInvitation}
+                      />
+                    )}
                     <ActionButton
                       icon={Power}
                       label={selectedUser.active ? 'Desactivar usuario' : 'Activar usuario'}
@@ -597,25 +647,14 @@ export default function UsersPage() {
                   </label>
 
                   {formMode === 'create' && (
-                    <label className="block sm:col-span-2">
-                      <span className="mb-1.5 block text-sm font-medium text-slate-700">
-                        Contraseña inicial
-                      </span>
-                      <input
-                        type="password"
-                        required
-                        minLength={10}
-                        autoComplete="new-password"
-                        value={form.password}
-                        onChange={(event) =>
-                          setForm((current) => ({ ...current, password: event.target.value }))
-                        }
-                        className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none transition focus:border-sky-300 focus:ring-4 focus:ring-sky-50"
-                      />
-                      <span className="mt-1.5 block text-xs text-slate-400">
-                        Mínimo 10 caracteres.
-                      </span>
-                    </label>
+                    <div className="rounded-xl border border-sky-100 bg-sky-50/60 px-4 py-3 sm:col-span-2">
+                      <div className="flex items-start gap-3">
+                        <Send size={17} className="mt-0.5 text-sky-600" />
+                        <p className="text-xs leading-5 text-slate-600">
+                          No necesitas establecer una contraseña. Arias Suite enviará una invitación al correo indicado y el usuario creará su propia contraseña al activar la cuenta.
+                        </p>
+                      </div>
+                    </div>
                   )}
 
                   {formMode === 'edit' && (

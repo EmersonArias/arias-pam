@@ -108,7 +108,13 @@ export default function UsersPage() {
       return
     }
 
-    const [profilesResult, hotelsResult, rolesResult, assignmentsResult] = await Promise.all([
+    const [
+      profilesResult,
+      hotelsResult,
+      rolesResult,
+      assignmentsResult,
+      platformAdminsResult,
+    ] = await Promise.all([
       supabase
         .from('profiles')
         .select('id, full_name, email, active, account_status, created_at')
@@ -124,13 +130,18 @@ export default function UsersPage() {
       supabase
         .from('user_hotel_roles')
         .select('user_id, hotel_id, role_id, active'),
+      supabase
+        .from('platform_admins')
+        .select('user_id')
+        .eq('active', true),
     ])
 
     const firstError =
       profilesResult.error ??
       hotelsResult.error ??
       rolesResult.error ??
-      assignmentsResult.error
+      assignmentsResult.error ??
+      platformAdminsResult.error
 
     if (firstError) {
       setError('No se han podido cargar los usuarios.')
@@ -138,7 +149,15 @@ export default function UsersPage() {
       return
     }
 
-    setProfiles(profilesResult.data ?? [])
+    const platformAdminIds = new Set(
+      (platformAdminsResult.data ?? []).map((item) => item.user_id),
+    )
+
+    setProfiles(
+      (profilesResult.data ?? []).filter(
+        (profile) => !platformAdminIds.has(profile.id),
+      ),
+    )
     setHotels(hotelsResult.data ?? [])
     setRoles(rolesResult.data ?? [])
     setUserHotelRoles(assignmentsResult.data ?? [])

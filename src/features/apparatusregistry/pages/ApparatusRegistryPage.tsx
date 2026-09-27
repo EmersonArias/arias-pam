@@ -122,7 +122,7 @@ export default function ApparatusRegistryPage() {
 
     row.focus()
     row.scrollIntoView({
-      block: 'nearest',
+      block: 'start',
       inline: 'nearest',
     })
   }, [filteredRecords, selectedId])
@@ -308,8 +308,10 @@ export default function ApparatusRegistryPage() {
                         rowRefs.current[item.id] = row
                       }}
                       tabIndex={0}
-                      onClick={() => setSelectedId(item.id)}
-                      onDoubleClick={() => navigate(`/apparatusregistry/${item.id}`)}
+                      onClick={() => {
+                        setSelectedId(item.id)
+                        navigate(`/apparatusregistry/${item.id}`)
+                      }}
                       onKeyDown={(event) => {
                         if (event.key === 'ArrowDown') {
                           event.preventDefault()
@@ -340,7 +342,7 @@ export default function ApparatusRegistryPage() {
                           navigate(`/apparatusregistry/${item.id}`)
                         }
                       }}
-                      className={`cursor-pointer border-b transition outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-200 ${
+                      className={`scroll-mt-12 cursor-pointer border-b transition outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-200 ${
                         isSelected
                           ? 'bg-blue-50'
                           : item.active

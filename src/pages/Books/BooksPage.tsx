@@ -405,11 +405,12 @@ export default function BooksPage() {
               No se encontraron módulos para «{search}».
             </div>
           )}
-          <section
-            ref={alertsGridRef}
-            className="mx-auto mt-3 w-full scroll-mt-4 rounded-2xl border border-slate-200 bg-white shadow-lg sm:mt-4"
-            aria-label="Avisos"
-          >
+          <div className="mx-auto mt-3 w-full px-2 sm:mt-4 sm:px-3 md:px-5 lg:px-[clamp(48px,5.5vw,90px)]">
+            <section
+              ref={alertsGridRef}
+              className="w-full scroll-mt-4 rounded-2xl border border-slate-200 bg-white shadow-lg"
+              aria-label="Avisos"
+            >
             <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-2.5">
               <div>
                 <h2 className="text-sm font-semibold text-slate-800">Avisos</h2>
@@ -504,7 +505,8 @@ export default function BooksPage() {
                 </tbody>
               </table>
             </div>
-          </section>
+            </section>
+          </div>
 
         </main>
       </div>

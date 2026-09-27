@@ -23,104 +23,20 @@ type MaintenanceAlert = {
 }
 
 const registers = [
-  {
-    icon: '📋',
-    name: 'PAM',
-    path: '/pam',
-    info: '18 trabajos hoy',
-    detail: '4 vencidos',
-  },
-  {
-    icon: '⚙️',
-    name: 'Equipos e instalaciones',
-    path: '/apparatusregistry',
-    info: '6 revisiones pendientes',
-    detail: '2 vencidas',
-  },
-  {
-    icon: '🏊',
-    name: 'Piscinas',
-    path: '/pools',
-    info: '2 controles pendientes',
-    detail: '1 vence hoy',
-  },
-  {
-    icon: '♨️',
-    name: 'Spa',
-    path: '/spa',
-    info: '1 control pendiente',
-    detail: 'sin vencidos',
-  },
-  {
-    icon: '🦠',
-    name: 'Legionella',
-    path: '/legionella',
-    info: '1 control pendiente',
-    detail: 'vence mañana',
-  },
-  {
-    icon: '💧',
-    name: 'Bombas',
-    path: '/pumps',
-    info: '1 incidencia abierta',
-    detail: 'requiere atención',
-  },
-  {
-    icon: '🌬️',
-    name: 'Climatizadores',
-    path: '/climatizers',
-    info: '3 trabajos pendientes',
-    detail: '1 vencido',
-  },
-  {
-    icon: '❄️',
-    name: 'Fancoils',
-    path: '/fancoils',
-    info: '2 revisiones pendientes',
-    detail: 'próxima: hoy',
-  },
-  {
-    icon: '⚡',
-    name: 'Cuadros BT',
-    path: '/electricalpanels',
-    info: '1 revisión pendiente',
-    detail: 'vence en 3 días',
-  },
-  {
-    icon: '💡',
-    name: 'Fotoluminiscentes',
-    path: '/photoluminescent',
-    info: 'sin pendientes',
-    detail: 'todo al día',
-  },
-  {
-    icon: '🔦',
-    name: 'Emergencia',
-    path: '/emergencylights',
-    info: '4 revisiones pendientes',
-    detail: '1 vencida',
-  },
-  {
-    icon: '🚪',
-    name: 'Cortafuegos',
-    path: '/firedoors',
-    info: '2 revisiones pendientes',
-    detail: 'sin vencidos',
-  },
-  {
-    icon: '🧯',
-    name: 'PCI',
-    path: '/fireequipment',
-    info: '3 revisiones pendientes',
-    detail: '1 vence hoy',
-  },
-  {
-    icon: '📏',
-    name: 'Calibraciones',
-    path: '/calibrations',
-    info: '1 calibración próxima',
-    detail: '02/10',
-  },
+  { icon: '📋', name: 'PAM', path: '/pam' },
+  { icon: '⚙️', name: 'Equipos e instalaciones', path: '/apparatusregistry' },
+  { icon: '🏊', name: 'Piscinas', path: '/pools' },
+  { icon: '♨️', name: 'Spa', path: '/spa' },
+  { icon: '🦠', name: 'Legionella', path: '/legionella' },
+  { icon: '💧', name: 'Bombas', path: '/pumps' },
+  { icon: '🌬️', name: 'Climatizadores', path: '/climatizers' },
+  { icon: '❄️', name: 'Fancoils', path: '/fancoils' },
+  { icon: '⚡', name: 'Cuadros BT', path: '/electricalpanels' },
+  { icon: '💡', name: 'Fotoluminiscentes', path: '/photoluminescent' },
+  { icon: '🔦', name: 'Emergencia', path: '/emergencylights' },
+  { icon: '🚪', name: 'Cortafuegos', path: '/firedoors' },
+  { icon: '🧯', name: 'PCI', path: '/fireequipment' },
+  { icon: '📏', name: 'Calibraciones', path: '/calibrations' },
 ]
 
 export default function BooksPage() {
@@ -288,7 +204,7 @@ export default function BooksPage() {
     if (!query) return registers
 
     return registers.filter((register) => {
-      const haystack = [register.name, register.info, register.detail]
+      const haystack = [register.name]
         .join(' ')
         .toLocaleLowerCase('es')
       return haystack.includes(query)
@@ -552,13 +468,8 @@ export default function BooksPage() {
                   </span>
                 </div>
 
-                <div className="flex flex-col items-center justify-center border-t border-slate-200 px-2.5 py-1.5 text-center">
-                  <div className="w-full truncate text-[10px] font-normal leading-tight text-slate-700 text-center">
-                    {register.info}
-                  </div>
-                  <div className="w-full truncate text-[9px] font-normal leading-tight text-slate-400 text-center">
-                    {register.detail}
-                  </div>
+                <div className="border-t border-slate-200 px-2.5 py-1.5 text-center text-[9px] text-slate-400">
+                  Abrir módulo
                 </div>
               </button>
             ))}

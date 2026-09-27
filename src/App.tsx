@@ -6,6 +6,7 @@ import ForgotPasswordPage from './features/auth/pages/ForgotPasswordPage'
 import UpdatePasswordPage from './features/auth/pages/UpdatePasswordPage'
 import ProtectedRoute from './features/auth/components/ProtectedRoute'
 import UsersPage from './features/users/pages/UsersPage'
+import RolesPage from './features/roles/pages/RolesPage'
 import PamPage from './features/registers/pages/PamPage'
 import AssetsPage from './features/registers/pages/AssetsPage'
 import PumpsPage from './features/registers/pages/PumpsPage'
@@ -42,6 +43,7 @@ export default function App() {
         <Route path="/" element={<BooksPage />} />
 
         <Route path="/users" element={<UsersPage />} />
+        <Route path="/roles" element={<RolesPage />} />
         <Route path="/pam" element={<PamPage />} />
       <Route path="/assets" element={<AssetsPage />} />
       <Route path="/pumps" element={<PumpsPage />} />

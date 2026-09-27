@@ -399,31 +399,6 @@ const path = `${item.id}/${generateId()}.${extension}`
     }
   }
 
-  async function handleDelete() {
-    if (isNew || !item.id || mode !== 'view') return
-
-    const confirmed = await confirm({
-      title: 'Eliminar registro',
-      message: `¿Quieres eliminar el registro ${item.code}? Esta acción no se puede deshacer.`,
-      variant: 'warning',
-      confirmLabel: 'Eliminar',
-    })
-
-    if (!confirmed) return
-
-    const { error } = await supabase
-      .from('apparatus_registry')
-      .delete()
-      .eq('id', item.id)
-
-    if (error) {
-      setErrorMessage(`Error eliminando registro: ${error.message}`)
-      return
-    }
-
-    navigate('/apparatusregistry')
-  }
-
   function openReport() {
     if (!item.id) {
       setErrorMessage('El registro todavía no está guardado.')
@@ -486,7 +461,6 @@ const path = `${item.id}/${generateId()}.${extension}`
                 onSave={() => void saveRecord()}
                 onCancel={handleFormCancel}
                 onEdit={() => setMode('edit')}
-                onDelete={() => void handleDelete()}
                 onReport={openReport}
                 saving={saving || uploadingPhotos}
               />
@@ -691,9 +665,6 @@ const path = `${item.id}/${generateId()}.${extension}`
           </label>
         </form>
 
-        <div className="mt-4 text-right text-xs text-slate-400">
-          Arias_PAM / Emerson Arias
-        </div>
 
         <UnsavedChangesDialog
           open={cancelDialogOpen}

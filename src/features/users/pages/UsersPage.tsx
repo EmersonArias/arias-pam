@@ -474,6 +474,42 @@ export default function UsersPage() {
           </div>
         </div>
 
+        {accessCodeNotice && (
+          <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 shadow-sm">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-semibold text-amber-900">
+                  Código de acceso para {accessCodeNotice.userName}
+                </p>
+                <p className="mt-1 text-xs text-amber-800">
+                  Identificador: {accessCodeNotice.identifier}. Comunica este código al trabajador por un medio seguro. Caduca en 24 horas.
+                </p>
+                <code className="mt-2 inline-block rounded-lg border border-amber-200 bg-white px-3 py-2 font-mono text-sm tracking-[0.18em] text-slate-800">
+                  {accessCodeNotice.code}
+                </code>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    void navigator.clipboard?.writeText(accessCodeNotice.code)
+                  }}
+                  className="rounded-xl border border-amber-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-amber-50"
+                >
+                  Copiar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAccessCodeNotice(null)}
+                  className="rounded-xl bg-slate-800 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-700"
+                >
+                  Ocultar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         <header className="rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
@@ -745,11 +781,10 @@ export default function UsersPage() {
                       }
                       className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none transition focus:border-sky-300 focus:ring-4 focus:ring-sky-50 read-only:bg-slate-50 read-only:text-slate-500"
                     />
-                    {formMode === 'edit' && (
-                      <span className="mt-1.5 block text-xs text-slate-400">
-                        El correo es opcional. Con email: invitación por correo. Sin email: activación mediante código.
-                      </span>
-                    )}
+                    <span className="mt-1.5 block text-xs text-slate-400">
+                      Opcional. Con email: invitación por correo. Sin email: activación mediante código.
+                      {formMode === 'edit' && ' El correo de una cuenta existente no se modifica desde esta pantalla.'}
+                    </span>
                   </label>
 
                   {formMode === 'create' && (
@@ -757,7 +792,9 @@ export default function UsersPage() {
                       <div className="flex items-start gap-3">
                         <Send size={17} className="mt-0.5 text-sky-600" />
                         <p className="text-xs leading-5 text-slate-600">
-                          No necesitas establecer una contraseña. Arias Suite enviará una invitación al correo indicado y el usuario creará su propia contraseña al activar la cuenta.
+                          {form.email.trim()
+                            ? 'No necesitas establecer una contraseña. Arias Suite enviará una invitación al correo indicado y el usuario creará su propia contraseña al activarla.'
+                            : 'No necesitas establecer una contraseña. Generaremos un código de activación para que el trabajador cree su propia contraseña.'}
                         </p>
                       </div>
                     </div>

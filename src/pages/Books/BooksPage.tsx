@@ -171,19 +171,6 @@ export default function BooksPage() {
     setNotificationsLoading(false)
   }
 
-  function alertSeverityClass(severity: MaintenanceAlert['severity']) {
-    if (severity === 'CRITICAL') return 'border-rose-200 bg-rose-50 text-rose-800'
-    if (severity === 'WARNING') return 'border-amber-200 bg-amber-50 text-amber-800'
-    return 'border-slate-200 bg-slate-50 text-slate-700'
-  }
-
-  function alertTypeLabel(type: MaintenanceAlert['alert_type']) {
-    if (type === 'OUT_OF_RANGE') return 'Fuera de rango'
-    if (type === 'OVERDUE_REVIEW') return 'Vencido'
-    if (type === 'DUE_TODAY') return 'Vence hoy'
-    return 'Próximo'
-  }
-
   async function handleSignOut() {
     if (signingOut) return
 

@@ -311,6 +311,30 @@ export default function ApparatusRegistryPage() {
                       onClick={() => setSelectedId(item.id)}
                       onDoubleClick={() => navigate(`/apparatusregistry/${item.id}`)}
                       onKeyDown={(event) => {
+                        if (event.key === 'ArrowDown') {
+                          event.preventDefault()
+                          moveSelection(currentIndex + 1)
+                          return
+                        }
+
+                        if (event.key === 'ArrowUp') {
+                          event.preventDefault()
+                          moveSelection(currentIndex - 1)
+                          return
+                        }
+
+                        if (event.key === 'Home') {
+                          event.preventDefault()
+                          moveSelection(0)
+                          return
+                        }
+
+                        if (event.key === 'End') {
+                          event.preventDefault()
+                          moveSelection(filteredRecords.length - 1)
+                          return
+                        }
+
                         if (event.key === 'Enter') {
                           event.preventDefault()
                           navigate(`/apparatusregistry/${item.id}`)

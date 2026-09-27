@@ -63,20 +63,15 @@ export default function ProtectedRoute() {
               ? 'No se ha podido comprobar tu autorización en este momento.'
               : 'Tu cuenta no tiene un acceso activo a Arias Suite. Contacta con el administrador de la aplicación.'}
           </p>
-          <div className="mt-6 flex justify-center gap-2">
+          <div className="mt-6 flex justify-center">
             <button
               type="button"
-              onClick={() => void ariasAuth.signOut()}
-              className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-            >
-              Cerrar sesión
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate('/login', { replace: true })}
+              onClick={() =>
+                void ariasAuth.signOut().then(() => navigate('/login', { replace: true }))
+              }
               className="rounded-xl bg-slate-800 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-700"
             >
-              Ir al login
+              Cerrar sesión
             </button>
           </div>
         </section>

@@ -1,5 +1,6 @@
-import { ArrowLeft, House } from 'lucide-react'
+import { CornerUpLeft, House } from 'lucide-react'
 import IconButton from '../buttons/IconButton'
+import ActionButton from '../buttons/ActionButton'
 
 interface NavigationButtonsProps {
   onBack: () => void
@@ -11,7 +12,14 @@ export function BackButton({
   onBack,
   disabled = false,
 }: Pick<NavigationButtonsProps, 'onBack' | 'disabled'>) {
-  return <IconButton icon={ArrowLeft} label="Volver" title="Volver" onClick={onBack} disabled={disabled} />
+  return (
+    <ActionButton
+      icon={CornerUpLeft}
+      label="Volver"
+      onClick={onBack}
+      disabled={disabled}
+    />
+  )
 }
 
 export function HomeButton({

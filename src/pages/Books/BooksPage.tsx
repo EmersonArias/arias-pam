@@ -116,6 +116,13 @@ const registers = [
     info: 'Administración de usuarios',
     detail: 'Accesos y roles',
   },
+  {
+    icon: '🛡️',
+    name: 'Roles',
+    path: '/roles',
+    info: 'Roles y permisos',
+    detail: 'Configuración de accesos',
+  },
 ]
 
 export default function BooksPage() {

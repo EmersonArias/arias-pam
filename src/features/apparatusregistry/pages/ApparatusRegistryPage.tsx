@@ -244,10 +244,11 @@ export default function ApparatusRegistryPage() {
             </div>
           </div>
 
-          <div className="overflow-x-auto">
+          <div className="max-h-[calc(100vh-360px)] min-h-[300px] overflow-auto">
             <table className="w-full min-w-[900px] border-collapse text-sm">
+
               <thead>
-                <tr className="border-b bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+                <tr className="sticky top-0 z-10 border-b bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500 shadow-[0_1px_0_rgba(148,163,184,0.4)]">
                   <th className="px-4 py-3 font-semibold">Código</th>
                   <th className="px-4 py-3 font-semibold">Descripción</th>
                   <th className="px-4 py-3 font-semibold">Planta</th>

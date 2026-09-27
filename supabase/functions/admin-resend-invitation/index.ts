@@ -13,9 +13,12 @@ function json(body: unknown, status = 200) {
   })
 }
 
-function invitationRedirectUrl() {
-  const appUrl = (Deno.env.get('ARIAS_APP_URL') ?? '').trim().replace(/\/$/, '')
-  return appUrl ? `${appUrl}/activate` : undefined
+function invitationRedirectUrl(req: Request) {
+  const configuredUrl = (Deno.env.get('ARIAS_APP_URL') ?? '').trim().replace(/\/$/, '')
+  if (configuredUrl) return `${configuredUrl}/activate`
+
+  const origin = (req.headers.get('origin') ?? '').trim().replace(/\/$/, '')
+  return origin ? `${origin}/activate` : undefined
 }
 
 Deno.serve(async (req) => {
@@ -84,7 +87,7 @@ Deno.serve(async (req) => {
     data: {
       full_name: profile.full_name ?? targetAuth.user.user_metadata?.full_name ?? '',
     },
-    redirectTo: invitationRedirectUrl(),
+    redirectTo: invitationRedirectUrl(req),
   })
 
   if (inviteError) return json({ error: inviteError.message }, 400)

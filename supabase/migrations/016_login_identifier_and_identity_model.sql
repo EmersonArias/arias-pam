@@ -97,6 +97,7 @@ AS $$
 $$;
 
 REVOKE ALL ON FUNCTION public.user_has_suite_access(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.user_has_suite_access(uuid) TO service_role;
 
 CREATE OR REPLACE FUNCTION public.has_suite_access()
 RETURNS boolean

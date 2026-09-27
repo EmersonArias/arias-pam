@@ -52,6 +52,7 @@ Deno.serve(async (req) => {
     user_id?: string
     full_name?: string
     email?: string
+    login_identifier?: string
     active?: boolean
     assignments?: Assignment[]
   }
@@ -65,11 +66,16 @@ Deno.serve(async (req) => {
   const userId = payload.user_id?.trim() ?? ''
   const fullName = payload.full_name?.trim() ?? ''
   const requestedEmail = payload.email?.trim().toLowerCase() ?? ''
+  const loginIdentifier = payload.login_identifier?.trim().toUpperCase() ?? ''
   const active = payload.active !== false
   const assignments = Array.isArray(payload.assignments) ? payload.assignments : []
 
-  if (!userId || !fullName) {
-    return json({ error: 'Usuario y nombre son obligatorios.' }, 400)
+  if (!userId || !fullName || !loginIdentifier) {
+    return json({ error: 'Usuario, nombre e identificador de acceso son obligatorios.' }, 400)
+  }
+
+  if (!/^[A-Z0-9._-]{3,64}$/.test(loginIdentifier)) {
+    return json({ error: 'El identificador de acceso no es válido.' }, 400)
   }
 
   const [
@@ -106,7 +112,24 @@ Deno.serve(async (req) => {
     return json({ error: 'Esta cuenta no puede modificarse desde Usuarios.' }, 403)
   }
 
-  const currentEmail = (targetProfile.email ?? targetAuthUser.user.email ?? '').trim().toLowerCase()
+  const currentEmail = (targetProfile.email ?? '').trim().toLowerCase()
+
+  if (loginIdentifier !== targetProfile.login_identifier) {
+    const { data: existingIdentifier, error: identifierError } = await admin
+      .from('profiles')
+      .select('id')
+      .eq('login_identifier', loginIdentifier)
+      .neq('id', userId)
+      .maybeSingle()
+
+    if (identifierError) {
+      return json({ error: 'No se ha podido validar el identificador.' }, 500)
+    }
+
+    if (existingIdentifier) {
+      return json({ error: 'Ese identificador de acceso ya está en uso.' }, 409)
+    }
+  }
   if (requestedEmail && requestedEmail !== currentEmail) {
     return json({
       error: 'El correo identifica la cuenta y no puede modificarse desde esta pantalla.',
@@ -164,6 +187,7 @@ Deno.serve(async (req) => {
     email: targetProfile.email,
     active: targetProfile.active,
     account_status: targetProfile.account_status,
+    login_identifier: targetProfile.login_identifier,
   }
 
   const nextAccountStatus = active
@@ -177,6 +201,7 @@ Deno.serve(async (req) => {
     user_metadata: {
       ...targetAuthUser.user.user_metadata,
       full_name: fullName,
+      login_identifier: loginIdentifier,
     },
   })
 
@@ -186,6 +211,7 @@ Deno.serve(async (req) => {
     .from('profiles')
     .update({
       full_name: fullName,
+      login_identifier: loginIdentifier,
       active,
       account_status: nextAccountStatus,
       updated_at: new Date().toISOString(),

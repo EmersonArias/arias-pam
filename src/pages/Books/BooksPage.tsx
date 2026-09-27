@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import {
   Bell,
   CircleHelp,
+  Maximize2,
+  Minimize2,
   Search,
   Settings,
   UserRound,
@@ -60,6 +62,30 @@ export default function BooksPage() {
   const [maintenanceAlerts, setMaintenanceAlerts] = useState<MaintenanceAlert[]>([])
   const alertsGridRef = useRef<HTMLElement | null>(null)
   const [notificationsLoading, setNotificationsLoading] = useState(false)
+  const [isFullscreen, setIsFullscreen] = useState(false)
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(document.fullscreenElement === document.documentElement)
+    }
+
+    handleFullscreenChange()
+    document.addEventListener('fullscreenchange', handleFullscreenChange)
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
+  }, [])
+
+  async function toggleFullscreen() {
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen()
+        return
+      }
+
+      await document.documentElement.requestFullscreen()
+    } catch {
+      // Fullscreen can be denied by the browser or platform policy.
+    }
+  }
 
   useEffect(() => {
     let mounted = true
@@ -236,6 +262,18 @@ export default function BooksPage() {
             </label>
 
             <div className="flex items-center justify-center gap-2 sm:justify-end">
+              <button
+                type="button"
+                onClick={() => void toggleFullscreen()}
+                className="inline-flex h-9 items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md active:translate-y-0"
+                title={isFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'}
+                aria-label={isFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'}
+              >
+                {isFullscreen ? <Minimize2 size={17} /> : <Maximize2 size={17} />}
+                <span className="hidden text-xs font-medium sm:inline">
+                  {isFullscreen ? 'Salir' : 'Pantalla completa'}
+                </span>
+              </button>
               <button
                 type="button"
                 onClick={() => {

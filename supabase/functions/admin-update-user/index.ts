@@ -281,8 +281,9 @@ Deno.serve(async (req) => {
 
   return json({
     id: userId,
-    email: currentEmail,
+    email: currentEmail || null,
     full_name: fullName,
+    login_identifier: loginIdentifier,
     active,
     account_status: nextAccountStatus,
     assignments: normalizedAssignments.length,

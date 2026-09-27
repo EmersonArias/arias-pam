@@ -1,6 +1,15 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FileText, Pencil, Plus, RefreshCw } from 'lucide-react'
+import {
+  ChevronDown,
+  ChevronUp,
+  ChevronsDown,
+  ChevronsUp,
+  FileText,
+  Pencil,
+  Plus,
+  RefreshCw,
+} from 'lucide-react'
 import IconButton from '../../../shared/components/buttons/IconButton'
 import BrandLogo from '../../../shared/components/branding/BrandLogo'
 import { useSystemDialog } from '../../../shared/components/dialogs/SystemDialogProvider'
@@ -24,6 +33,7 @@ export default function ApparatusRegistryPage() {
   const [reportScope, setReportScope] = useState<'SELECTED' | 'FILTERED' | 'ALL'>('FILTERED')
   const [loading, setLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
+  const rowRefs = useRef<Record<string, HTMLTableRowElement | null>>({})
 
   async function loadRecords(selectId?: string) {
     setLoading(true)
@@ -95,6 +105,37 @@ export default function ApparatusRegistryPage() {
   }, [records, search, plantFilter, activeFilter])
 
   const selected = records.find((item) => item.id === selectedId) ?? null
+  const selectedIndex = filteredRecords.findIndex((item) => item.id === selectedId)
+  const currentIndex = selectedIndex >= 0 ? selectedIndex : 0
+
+  useEffect(() => {
+    if (filteredRecords.length === 0) return
+
+    const selectedStillVisible = filteredRecords.some((item) => item.id === selectedId)
+    if (!selectedStillVisible) {
+      setSelectedId(filteredRecords[0].id)
+      return
+    }
+
+    const row = rowRefs.current[selectedId]
+    if (!row) return
+
+    row.focus()
+    row.scrollIntoView({
+      block: 'nearest',
+      inline: 'nearest',
+    })
+  }, [filteredRecords, selectedId])
+
+  function moveSelection(nextIndex: number) {
+    if (filteredRecords.length === 0) return
+
+    const boundedIndex = Math.max(
+      0,
+      Math.min(nextIndex, filteredRecords.length - 1),
+    )
+    setSelectedId(filteredRecords[boundedIndex].id)
+  }
 
   function openNew() {
     navigate('/apparatusregistry/new')
@@ -263,11 +304,19 @@ export default function ApparatusRegistryPage() {
                   return (
                     <tr
                       key={item.id}
-                      onClick={() => {
-                        setSelectedId(item.id)
-                        navigate(`/apparatusregistry/${item.id}`)
+                      ref={(row) => {
+                        rowRefs.current[item.id] = row
                       }}
-                      className={`cursor-pointer border-b transition ${
+                      tabIndex={0}
+                      onClick={() => setSelectedId(item.id)}
+                      onDoubleClick={() => navigate(`/apparatusregistry/${item.id}`)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') {
+                          event.preventDefault()
+                          navigate(`/apparatusregistry/${item.id}`)
+                        }
+                      }}
+                      className={`cursor-pointer border-b transition outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-200 ${
                         isSelected
                           ? 'bg-blue-50'
                           : item.active
@@ -322,6 +371,51 @@ export default function ApparatusRegistryPage() {
                 )}
               </tbody>
             </table>
+          </div>
+
+          <div className="flex items-center justify-between gap-3 border-t border-slate-200 px-4 py-3">
+            <div className="text-xs text-slate-500">
+              {filteredRecords.length === 0
+                ? 'Sin registros'
+                : `Registro ${currentIndex + 1} de ${filteredRecords.length}`}
+            </div>
+
+            <div className="flex items-center gap-2" aria-label="Navegación de registros">
+              <IconButton
+                icon={ChevronsUp}
+                label="Ir al primer registro"
+                title="Primer registro"
+                onClick={() => moveSelection(0)}
+                disabled={filteredRecords.length === 0 || currentIndex === 0}
+              />
+              <IconButton
+                icon={ChevronUp}
+                label="Registro anterior"
+                title="Registro anterior"
+                onClick={() => moveSelection(currentIndex - 1)}
+                disabled={filteredRecords.length === 0 || currentIndex === 0}
+              />
+              <IconButton
+                icon={ChevronDown}
+                label="Registro siguiente"
+                title="Registro siguiente"
+                onClick={() => moveSelection(currentIndex + 1)}
+                disabled={
+                  filteredRecords.length === 0 ||
+                  currentIndex === filteredRecords.length - 1
+                }
+              />
+              <IconButton
+                icon={ChevronsDown}
+                label="Ir al último registro"
+                title="Último registro"
+                onClick={() => moveSelection(filteredRecords.length - 1)}
+                disabled={
+                  filteredRecords.length === 0 ||
+                  currentIndex === filteredRecords.length - 1
+                }
+              />
+            </div>
           </div>
         </div>
       </div>

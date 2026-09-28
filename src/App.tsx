@@ -52,6 +52,8 @@ export default function App() {
         <Route path="/profile" element={<MyProfilePage />} />
         <Route path="/reports" element={<ReportsPage />} />
         <Route path="/pam" element={<PamPage />} />
+        <Route path="/providers" element={<ProvidersPage />} />
+        <Route path="/actions" element={<ActionsPage />} />
       <Route path="/assets" element={<AssetsPage />} />
       <Route path="/pumps" element={<PumpsPage />} />
       <Route path="/pools" element={<PoolsPage />} />

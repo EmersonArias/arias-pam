@@ -297,6 +297,7 @@ export default function PamPage() {
   const [year, setYear] = useState(currentYear)
   const [plans, setPlans] = useState<PamPlan[]>([])
   const [executions, setExecutions] = useState<HistoryExecution[]>([])
+  const [hotelId, setHotelId] = useState('')
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState<'ALL' | MaintenanceType>('ALL')
   const [tab, setTab] = useState<PamTab>('ANNUAL')
@@ -305,21 +306,36 @@ export default function PamPage() {
   const [historyLoading, setHistoryLoading] = useState(false)
   const [error, setError] = useState('')
 
+  async function resolveHotelId() {
+    if (hotelId) return hotelId
+
+    const assignment = await supabase
+      .from('user_hotel_roles')
+      .select('hotel_id')
+      .eq('active', true)
+      .order('hotel_id')
+      .limit(1)
+      .maybeSingle()
+
+    if (assignment.error || !assignment.data?.hotel_id) {
+      throw new Error(assignment.error?.message ?? 'No se ha podido determinar el hotel activo.')
+    }
+
+    const id = assignment.data.hotel_id as string
+    setHotelId(id)
+    return id
+  }
+
   async function loadPam() {
     setLoading(true)
     setError('')
 
-    const hotel = await supabase
-      .from('hotels')
-      .select('id')
-      .eq('active', true)
-      .order('name')
-      .limit(1)
-      .maybeSingle()
-
-    if (hotel.error || !hotel.data?.id) {
+    let currentHotelId = ''
+    try {
+      currentHotelId = await resolveHotelId()
+    } catch (hotelError) {
       setPlans([])
-      setError(hotel.error?.message ?? 'No se ha podido determinar el hotel activo.')
+      setError(hotelError instanceof Error ? hotelError.message : 'No se ha podido determinar el hotel activo.')
       setLoading(false)
       return
     }
@@ -329,7 +345,7 @@ export default function PamPage() {
       .select(
         'id, code, name, description, apparatus_registry_id, maintenance_type, external_company, periodicity_value, periodicity_unit, next_due_date, active, apparatus_registry(code, name)',
       )
-      .eq('hotel_id', hotel.data.id)
+      .eq('hotel_id', currentHotelId)
       .order('next_due_date', { ascending: true, nullsFirst: false })
       .order('name', { ascending: true })
 
@@ -346,21 +362,28 @@ export default function PamPage() {
   async function loadHistory() {
     setHistoryLoading(true)
 
-    const result = await supabase
-      .from('maintenance_executions')
+    try {
+      const currentHotelId = await resolveHotelId()
+      const result = await supabase
+        .from('maintenance_executions')
       .select(
         'id, scheduled_date, executed_at, performer_name, performer_company, result, observations, maintenance_plan:maintenance_plans!inner(name, hotel_id, apparatus_registry(code, name))',
-      )
-      .order('executed_at', { ascending: false })
+        )
+        .eq('maintenance_plan.hotel_id', currentHotelId)
+        .order('executed_at', { ascending: false })
 
-    if (result.error) {
+      if (result.error) {
+        setExecutions([])
+        setError(result.error.message)
+      } else {
+        setExecutions((result.data ?? []) as unknown as HistoryExecution[])
+      }
+    } catch (historyError) {
       setExecutions([])
-      setError(result.error.message)
-    } else {
-      setExecutions((result.data ?? []) as unknown as HistoryExecution[])
+      setError(historyError instanceof Error ? historyError.message : 'No se ha podido cargar el histórico.')
+    } finally {
+      setHistoryLoading(false)
     }
-
-    setHistoryLoading(false)
   }
 
   useEffect(() => {

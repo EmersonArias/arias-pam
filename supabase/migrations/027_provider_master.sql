@@ -209,7 +209,7 @@ CREATE OR REPLACE FUNCTION public.create_provider_for_hotel(
 RETURNS uuid
 LANGUAGE plpgsql
 SET search_path = pg_catalog, public
-AS $
+AS $$
 DECLARE
   target_tenant_id uuid;
   new_provider_id uuid;
@@ -280,7 +280,7 @@ BEGIN
 
   RETURN new_provider_id;
 END;
-$;
+$$;
 
 REVOKE ALL ON FUNCTION public.create_provider_for_hotel(
   uuid,

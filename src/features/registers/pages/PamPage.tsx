@@ -251,64 +251,6 @@ type EquipmentGroup = {
   plans: PamPlan[]
 }
 
-function groupKey(plan: PamPlan) {
-  return [
-    plan.name.trim().toLocaleLowerCase('es'),
-    plan.maintenance_type,
-    plan.external_company?.trim().toLocaleLowerCase('es') || '',
-    plan.periodicity_value ?? '',
-    plan.periodicity_unit ?? '',
-  ].join('|')
-}
-
-function groupPlans(plans: PamPlan[]): PamGroup[] {
-  const groups = new Map<string, PamGroup>()
-
-  for (const plan of plans) {
-    const key = groupKey(plan)
-    const existing = groups.get(key)
-
-    if (!existing) {
-      groups.set(key, {
-        key,
-        name: plan.name,
-        description: plan.description,
-        maintenance_type: plan.maintenance_type,
-        external_company: plan.external_company,
-        periodicity_value: plan.periodicity_value,
-        periodicity_unit: plan.periodicity_unit,
-        next_due_date: plan.next_due_date,
-        plans: [plan],
-      })
-      continue
-    }
-
-    existing.plans.push(plan)
-    if (plan.next_due_date && (!existing.next_due_date || plan.next_due_date < existing.next_due_date)) {
-      existing.next_due_date = plan.next_due_date
-    }
-    if (!existing.description && plan.description) {
-      existing.description = plan.description
-    }
-  }
-
-  return Array.from(groups.values()).sort((a, b) => {
-    const aDate = a.next_due_date || '9999-12-31'
-    const bDate = b.next_due_date || '9999-12-31'
-    if (aDate !== bDate) return aDate.localeCompare(bDate)
-    return a.name.localeCompare(b.name, 'es')
-  })
-}
-
-function groupState(group: PamGroup) {
-  const states = group.plans.map((plan) => planState(plan.next_due_date, plan.active))
-  if (states.includes('Vencido')) return 'Vencido'
-  if (states.includes('Hoy')) return 'Hoy'
-  if (states.includes('Próximo')) return 'Próximo'
-  if (states.includes('Sin programación')) return 'Sin programación'
-  return 'Programado'
-}
-
 function groupEquipment(plans: PamPlan[]): EquipmentGroup[] {
   const groups = new Map<string, EquipmentGroup>()
 

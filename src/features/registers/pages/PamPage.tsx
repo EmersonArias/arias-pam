@@ -453,7 +453,7 @@ export default function PamPage() {
 
         <div className="mb-3 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
           <div>
-            <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Mantenimientos</div>
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Equipos con mantenimiento</div>
             <div className="text-base font-bold text-slate-900">{allEquipmentGroups.length}</div>
           </div>
           <div className="hidden h-8 w-px bg-slate-200 sm:block" />

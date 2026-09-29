@@ -151,80 +151,6 @@ function typeLabel(plan: PamPlan) {
 }
 
 
-type PamGroup = {
-  key: string
-  name: string
-  description: string | null
-  maintenance_type: MaintenanceType
-  external_company: string | null
-  periodicity_value: number | null
-  periodicity_unit: PeriodicityUnit | null
-  next_due_date: string | null
-  plans: PamPlan[]
-}
-
-function groupKey(plan: PamPlan) {
-  return [
-    plan.name.trim().toLocaleLowerCase('es'),
-    plan.maintenance_type,
-    plan.external_company?.trim().toLocaleLowerCase('es') || '',
-    plan.periodicity_value ?? '',
-    plan.periodicity_unit ?? '',
-  ].join('|')
-}
-
-function groupPlans(plans: PamPlan[]): PamGroup[] {
-  const groups = new Map<string, PamGroup>()
-
-  for (const plan of plans) {
-    const key = groupKey(plan)
-    const existing = groups.get(key)
-
-    if (!existing) {
-      groups.set(key, {
-        key,
-        name: plan.name,
-        description: plan.description,
-        maintenance_type: plan.maintenance_type,
-        external_company: plan.external_company,
-        periodicity_value: plan.periodicity_value,
-        periodicity_unit: plan.periodicity_unit,
-        next_due_date: plan.next_due_date,
-        plans: [plan],
-      })
-      continue
-    }
-
-    existing.plans.push(plan)
-    if (
-      plan.next_due_date &&
-      (!existing.next_due_date || plan.next_due_date < existing.next_due_date)
-    ) {
-      existing.next_due_date = plan.next_due_date
-    }
-    if (!existing.description && plan.description) {
-      existing.description = plan.description
-    }
-  }
-
-  return Array.from(groups.values()).sort((a, b) => {
-    const aDate = a.next_due_date || '9999-12-31'
-    const bDate = b.next_due_date || '9999-12-31'
-    if (aDate !== bDate) return aDate.localeCompare(bDate)
-    return a.name.localeCompare(b.name, 'es')
-  })
-}
-
-function groupState(group: PamGroup) {
-  const states = group.plans.map((plan) => planState(plan.next_due_date, plan.active))
-  if (states.includes('Vencido')) return 'Vencido'
-  if (states.includes('Hoy')) return 'Hoy'
-  if (states.includes('Próximo')) return 'Próximo'
-  if (states.includes('Sin programación')) return 'Sin programación'
-  return 'Programado'
-}
-
-
 type PamTab = 'ANNUAL' | 'CALENDAR' | 'HISTORY'
 
 type HistoryExecution = {
@@ -274,6 +200,15 @@ function groupEquipment(plans: PamPlan[]): EquipmentGroup[] {
   return Array.from(groups.values()).sort((a, b) =>
     a.code.localeCompare(b.code, 'es'),
   )
+}
+
+function equipmentState(plans: PamPlan[]) {
+  const states = plans.map((plan) => planState(plan.next_due_date, plan.active))
+  if (states.includes('Vencido')) return 'Vencido'
+  if (states.includes('Hoy')) return 'Hoy'
+  if (states.includes('Próximo')) return 'Próximo'
+  if (states.includes('Sin programación')) return 'Sin programación'
+  return 'Programado'
 }
 
 function executionResultLabel(result: string) {
@@ -624,21 +559,7 @@ export default function PamPage() {
             <div className="md:hidden">
               <div className="space-y-2 p-2">
                 {equipmentGroups.map((equipment) => {
-                  const state = groupState({
-                    key: equipment.id,
-                    name: equipment.name,
-                    description: null,
-                    maintenance_type: equipment.plans[0]?.maintenance_type ?? 'INTERNAL',
-                    external_company: equipment.plans[0]?.external_company ?? null,
-                    periodicity_value: equipment.plans[0]?.periodicity_value ?? null,
-                    periodicity_unit: equipment.plans[0]?.periodicity_unit ?? null,
-                    next_due_date: equipment.plans.reduce<string | null>((nearest, plan) => {
-                      if (!plan.next_due_date) return nearest
-                      if (!nearest || plan.next_due_date < nearest) return plan.next_due_date
-                      return nearest
-                    }, null),
-                    plans: equipment.plans,
-                  })
+                  const state = equipmentState(equipment.plans)
                   const isExpanded = expandedGroup === equipment.id
                   return (
                     <div key={equipment.id} className="overflow-hidden rounded-xl border border-slate-200 bg-white">
@@ -720,17 +641,7 @@ export default function PamPage() {
                         if (!nearest || plan.next_due_date < nearest) return plan.next_due_date
                         return nearest
                       }, null)
-                      const state = groupState({
-                        key: equipment.id,
-                        name: equipment.name,
-                        description: null,
-                        maintenance_type: equipment.plans[0]?.maintenance_type ?? 'INTERNAL',
-                        external_company: equipment.plans[0]?.external_company ?? null,
-                        periodicity_value: equipment.plans[0]?.periodicity_value ?? null,
-                        periodicity_unit: equipment.plans[0]?.periodicity_unit ?? null,
-                        next_due_date: nearestDate,
-                        plans: equipment.plans,
-                      })
+                      const state = equipmentState(equipment.plans)
                       const isExpanded = expandedGroup === equipment.id
 
                       return (

@@ -425,7 +425,7 @@ export default function BooksPage() {
         </div>
 
         <main>
-          <div className="mx-auto grid w-full grid-cols-3 justify-center gap-2 px-2 sm:grid-cols-4 sm:px-3 md:grid-cols-5 md:px-5 lg:grid-cols-7 lg:gap-2.5 lg:px-[clamp(48px,5.5vw,90px)]">
+          <div className="mx-auto grid w-full grid-cols-2 justify-center gap-2 px-2 sm:grid-cols-4 sm:px-3 md:grid-cols-5 md:px-5 lg:grid-cols-7 lg:gap-2.5 lg:px-[clamp(48px,5.5vw,90px)]">
             {filteredRegisters.map((register) => (
               <button
                 key={register.name}
@@ -434,7 +434,7 @@ export default function BooksPage() {
                   if (register.path) navigate(register.path)
                 }}
                 disabled={register.comingSoon}
-                className="group flex min-h-[92px] flex-col items-stretch overflow-hidden rounded-2xl border border-slate-200 bg-white text-left shadow-[0_8px_18px_rgba(15,23,42,0.08)] transition-all duration-200 hover:-translate-y-2 hover:scale-[1.025] hover:border-slate-300 hover:shadow-[0_18px_32px_rgba(15,23,42,0.18)] active:translate-y-0 active:scale-[0.99]"
+                className="group flex min-h-[100px] flex-col items-stretch overflow-hidden rounded-2xl border border-slate-200 bg-white text-left shadow-[0_8px_18px_rgba(15,23,42,0.08)] transition-all duration-200 hover:-translate-y-2 hover:scale-[1.025] hover:border-slate-300 hover:shadow-[0_18px_32px_rgba(15,23,42,0.18)] active:translate-y-0 active:scale-[0.99]"
               >
                 <div className="flex min-h-[66px] flex-1 flex-col items-center justify-center px-2 py-1.5">
                   <span className="text-[34px] leading-none transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:scale-110">
@@ -480,7 +480,60 @@ export default function BooksPage() {
               </button>
             </div>
 
-            <div className="h-[220px] overflow-y-auto">
+            <div className="h-[220px] overflow-y-auto p-2 md:hidden">
+              <div className="space-y-2">
+                {maintenanceAlerts.map((alert) => {
+                  const statusClass =
+                    alert.severity === 'CRITICAL'
+                      ? 'bg-rose-100 text-rose-700'
+                      : alert.severity === 'WARNING'
+                        ? 'bg-amber-100 text-amber-700'
+                        : 'bg-slate-100 text-slate-600'
+
+                  const statusLabel =
+                    alert.alert_type === 'OUT_OF_RANGE'
+                      ? 'Fuera de rango'
+                      : alert.alert_type === 'OVERDUE_REVIEW'
+                        ? 'Vencido'
+                        : alert.alert_type === 'DUE_TODAY'
+                          ? 'Vence hoy'
+                          : 'Próximo'
+
+                  return (
+                    <button
+                      key={alert.id}
+                      type="button"
+                      onClick={() => navigate('/maintenance')}
+                      className="w-full rounded-xl border border-slate-200 bg-white p-3 text-left shadow-sm"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="truncate text-xs font-semibold text-slate-800">{alert.title}</div>
+                          <div className="mt-1 line-clamp-2 text-[10px] text-slate-500">{alert.message}</div>
+                        </div>
+                        <span className={`shrink-0 rounded-full px-2 py-1 text-[9px] font-semibold ${statusClass}`}>{statusLabel}</span>
+                      </div>
+                      <div className="mt-2 flex gap-3 text-[9px] text-slate-400">
+                        <span>Prevista: {alert.due_date ? new Date(alert.due_date + 'T12:00:00').toLocaleDateString('es-ES') : '—'}</span>
+                        <span>Generado: {new Date(alert.triggered_at).toLocaleDateString('es-ES')}</span>
+                      </div>
+                    </button>
+                  )
+                })}
+
+                {!notificationsLoading && maintenanceAlerts.length === 0 && (
+                  <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-xs text-slate-400">
+                    No hay avisos activos.
+                  </div>
+                )}
+
+                {notificationsLoading && (
+                  <div className="p-8 text-center text-xs text-slate-400">Cargando avisos…</div>
+                )}
+              </div>
+            </div>
+
+            <div className="hidden md:block h-[220px] overflow-y-auto">
               <table className="w-full min-w-[720px] border-collapse text-xs">
                 <thead>
                   <tr className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50 text-left text-[10px] uppercase tracking-wide text-slate-500">

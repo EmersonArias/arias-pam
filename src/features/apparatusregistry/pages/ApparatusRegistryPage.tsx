@@ -165,14 +165,14 @@ export default function ApparatusRegistryPage() {
     <div className="min-h-screen bg-slate-100 p-3 sm:p-5">
       <div className="mx-auto max-w-7xl">
         <div className="mb-4 rounded-2xl bg-white p-3 shadow-lg sm:p-4">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-col gap-3 sm:gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex min-w-0 items-center gap-3">
               <BrandLogo
                 onActivate={() => navigate('/')}
-                className="h-11 w-auto shrink-0 object-contain sm:h-13"
+                className="h-9 w-auto shrink-0 object-contain sm:h-13"
               />
               <div className="min-w-0">
-                <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">
+                <h1 className="text-xl font-bold leading-tight text-slate-900 sm:text-3xl">
                   Equipos e instalaciones
                 </h1>
                 <p className="text-sm text-slate-500">
@@ -181,7 +181,7 @@ export default function ApparatusRegistryPage() {
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
               <BackButton onBack={() => navigate('/')} />
               <HomeButton onHome={() => navigate('/')} />
               <GridToolbar
@@ -203,9 +203,9 @@ export default function ApparatusRegistryPage() {
         )}
 
         <div className="mb-4 rounded-2xl bg-white p-3 shadow-lg sm:p-4">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5 lg:items-end">
+          <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-5 lg:items-end">
             <label className="block">
-              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                 Buscar
               </span>
               <input
@@ -286,7 +286,83 @@ export default function ApparatusRegistryPage() {
             </div>
           </div>
 
-          <div className="max-h-[calc(100vh-360px)] min-h-[300px] overflow-auto">
+          <div className="md:hidden">
+            <div className="max-h-[calc(100vh-390px)] min-h-[280px] space-y-2 overflow-auto p-2">
+              {filteredRecords.map((item) => {
+                const isSelected = item.id === selectedId
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedId(item.id)
+                      navigate(`/apparatusregistry/${item.id}`)
+                    }}
+                    className={`w-full rounded-xl border p-3 text-left shadow-sm transition ${
+                      isSelected
+                        ? 'border-blue-200 bg-blue-50'
+                        : item.active
+                          ? 'border-slate-200 bg-white'
+                          : 'border-slate-200 bg-slate-100'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-bold text-slate-900">{item.code}</div>
+                        <div className="mt-0.5 text-sm text-slate-700">{item.name}</div>
+                      </div>
+                      <span
+                        className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-semibold ${
+                          item.active
+                            ? 'bg-green-100 text-green-700'
+                            : 'bg-slate-200 text-slate-600'
+                        }`}
+                      >
+                        {item.active ? 'Activo' : 'Inactivo'}
+                      </span>
+                    </div>
+                    <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-slate-500">
+                      <div><span className="font-semibold text-slate-600">Planta:</span> {item.plant || '—'}</div>
+                      <div><span className="font-semibold text-slate-600">Ubicación:</span> {item.location || '—'}</div>
+                      <div className="col-span-2"><span className="font-semibold text-slate-600">Mantenimiento:</span> {item.maintenance || '—'}</div>
+                    </div>
+                  </button>
+                )
+              })}
+
+              {!loading && filteredRecords.length === 0 && (
+                <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500">
+                  No hay registros que coincidan con los filtros.
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-between gap-2 border-t border-slate-200 px-3 py-2.5">
+              <div className="text-[11px] text-slate-500">
+                {filteredRecords.length === 0
+                  ? 'Sin registros'
+                  : `${currentIndex + 1} / ${filteredRecords.length}`}
+              </div>
+              <div className="flex items-center gap-1" aria-label="Navegación de registros">
+                <IconButton
+                  icon={ChevronUp}
+                  label="Registro anterior"
+                  title="Anterior"
+                  onClick={() => moveSelection(currentIndex - 1)}
+                  disabled={filteredRecords.length === 0 || currentIndex === 0}
+                />
+                <IconButton
+                  icon={ChevronDown}
+                  label="Registro siguiente"
+                  title="Siguiente"
+                  onClick={() => moveSelection(currentIndex + 1)}
+                  disabled={filteredRecords.length === 0 || currentIndex === filteredRecords.length - 1}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="hidden md:block max-h-[calc(100vh-360px)] min-h-[300px] overflow-auto">
             <table className="w-full min-w-[900px] border-collapse text-sm">
 
               <thead>
@@ -400,7 +476,7 @@ export default function ApparatusRegistryPage() {
             </table>
           </div>
 
-          <div className="flex items-center justify-between gap-3 border-t border-slate-200 px-4 py-3">
+          <div className="hidden md:flex items-center justify-between gap-3 border-t border-slate-200 px-4 py-3">
             <div className="text-xs text-slate-500">
               {filteredRecords.length === 0
                 ? 'Sin registros'

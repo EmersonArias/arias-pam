@@ -490,19 +490,18 @@ export default function ProvidersPage() {
     <div className="min-h-screen bg-slate-100 p-3 sm:p-5">
       <div className="mx-auto max-w-7xl">
         <div className="mb-4 rounded-2xl bg-white p-3 shadow-lg sm:p-4">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-col gap-2.5 sm:gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex min-w-0 items-center gap-3">
-              <BrandLogo onActivate={() => navigate('/')} className="h-11 w-auto shrink-0 object-contain sm:h-13" />
+              <BrandLogo onActivate={() => navigate('/')} className="h-9 w-auto shrink-0 object-contain sm:h-13" />
               <div className="min-w-0">
-                <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">Proveedores</h1>
+                <h1 className="text-xl font-bold leading-tight text-slate-900 sm:text-3xl">Proveedores</h1>
                 <p className="text-sm text-slate-500">
                   Empresas externas, contactos y servicios · {hotelName || 'Hotel activo'}
                 </p>
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <BackButton onBack={() => navigate('/')} />
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center onBack={() => navigate('/')} />
               <HomeButton onHome={() => navigate('/')} />
               <button
                 type="button"
@@ -574,7 +573,48 @@ export default function ProvidersPage() {
             <div className="border-b px-4 py-3 text-sm font-semibold text-slate-800">
               Empresas
             </div>
-            <div className="max-h-[calc(100vh-360px)] min-h-[320px] overflow-auto">
+            <div className="p-2 md:hidden">
+              <div className="max-h-[calc(100vh-390px)] space-y-2 overflow-auto">
+                {filteredRecords.map((item) => {
+                  const isSelected = item.id === selectedId
+                  const primaryContact = contacts.find((contact) => contact.is_primary)?.full_name ?? '—'
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => setSelectedId(item.id)}
+                      className={`w-full rounded-xl border p-3 text-left ${
+                        isSelected ? 'border-blue-200 bg-blue-50' : 'border-slate-200 bg-white'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="text-sm font-semibold text-slate-800">{item.trade_name || item.legal_name}</div>
+                          {item.trade_name && <div className="text-[10px] text-slate-500">{item.legal_name}</div>}
+                        </div>
+                        <span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-semibold ${
+                          item.active ? 'bg-green-100 text-green-700' : 'bg-slate-200 text-slate-600'
+                        }`}>
+                          {item.active ? 'Activo' : 'Inactivo'}
+                        </span>
+                      </div>
+                      <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[10px] text-slate-500">
+                        <div><span className="font-semibold">Contacto:</span> {primaryContact}</div>
+                        <div><span className="font-semibold">Teléfono:</span> {item.phone_main || '—'}</div>
+                        <div className="col-span-2"><span className="font-semibold">Ciudad:</span> {item.city || '—'}</div>
+                      </div>
+                    </button>
+                  )
+                })}
+                {!loading && filteredRecords.length === 0 && (
+                  <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500">
+                    No hay proveedores registrados.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="hidden md:block max-h-[calc(100vh-360px)] min-h-[320px] overflow-auto">
               <table className="w-full min-w-[760px] border-collapse text-sm">
                 <thead>
                   <tr className="sticky top-0 z-10 border-b bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">

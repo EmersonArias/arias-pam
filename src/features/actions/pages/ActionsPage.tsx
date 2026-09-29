@@ -306,18 +306,18 @@ export default function ActionsPage() {
     <div className="min-h-screen bg-slate-100 p-3 sm:p-5">
       <div className="mx-auto max-w-[1500px]">
         <div className="mb-4 rounded-2xl bg-white p-3 shadow-lg sm:p-4">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-col gap-2.5 sm:gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex min-w-0 items-center gap-3">
-              <BrandLogo onActivate={() => navigate('/')} className="h-11 w-auto shrink-0 object-contain sm:h-13" />
+              <BrandLogo onActivate={() => navigate('/')} className="h-9 w-auto shrink-0 object-contain sm:h-13" />
               <div className="min-w-0">
-                <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">Actuaciones</h1>
+                <h1 className="text-xl font-bold leading-tight text-slate-900 sm:text-3xl">Actuaciones</h1>
                 <p className="text-sm text-slate-500">
                   Intervenciones relevantes, reparaciones y trabajos especiales · {hotelName || 'Hotel activo'}
                 </p>
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
               <BackButton onBack={() => navigate('/')} />
               <HomeButton onHome={() => navigate('/')} />
               <button
@@ -385,7 +385,48 @@ export default function ActionsPage() {
             <div className="border-b px-4 py-3 text-sm font-semibold text-slate-800">
               Registro histórico
             </div>
-            <div className="max-h-[calc(100vh-360px)] min-h-[320px] overflow-auto">
+            <div className="p-2 md:hidden">
+              <div className="max-h-[calc(100vh-390px)] space-y-2 overflow-auto">
+                {filteredRecords.map((item) => {
+                  const providerName = providers.find((provider) => provider.id === item.provider_id)?.name ?? '—'
+                  const isSelected = item.id === selectedId
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => setSelectedId(item.id)}
+                      className={`w-full rounded-xl border p-3 text-left ${
+                        isSelected ? 'border-blue-200 bg-blue-50' : 'border-slate-200 bg-white'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="text-sm font-semibold text-slate-800">{item.title}</div>
+                          <div className="mt-0.5 text-[10px] text-slate-500">
+                            {new Date(item.occurred_at).toLocaleDateString('es-ES')} · {ACTION_LABELS[item.action_type]}
+                          </div>
+                        </div>
+                        <span className="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-600">
+                          {item.cost_amount == null ? '—' : `${item.cost_amount.toFixed(2)} €`}
+                        </span>
+                      </div>
+                      <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[10px] text-slate-500">
+                        <div><span className="font-semibold">Empresa:</span> {providerName}</div>
+                        <div><span className="font-semibold">Estado:</span> {item.active ? 'Activa' : 'Inactiva'}</div>
+                        {item.external_reference && <div className="col-span-2"><span className="font-semibold">Referencia:</span> {item.external_reference}</div>}
+                      </div>
+                    </button>
+                  )
+                })}
+                {!loading && filteredRecords.length === 0 && (
+                  <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500">
+                    No hay actuaciones registradas.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="hidden md:block max-h-[calc(100vh-360px)] min-h-[320px] overflow-auto">
               <table className="w-full min-w-[900px] border-collapse text-sm">
                 <thead>
                   <tr className="sticky top-0 z-10 border-b bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">

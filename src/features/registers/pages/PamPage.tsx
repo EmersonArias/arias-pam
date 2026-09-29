@@ -636,11 +636,6 @@ export default function PamPage() {
                   </thead>
                   <tbody>
                     {equipmentGroups.map((equipment) => {
-                      const nearestDate = equipment.plans.reduce<string | null>((nearest, plan) => {
-                        if (!plan.next_due_date) return nearest
-                        if (!nearest || plan.next_due_date < nearest) return plan.next_due_date
-                        return nearest
-                      }, null)
                       const state = equipmentState(equipment.plans)
                       const isExpanded = expandedGroup === equipment.id
 

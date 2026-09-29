@@ -355,7 +355,7 @@ export default function PamPage() {
   }, [plans, search, typeFilter])
 
   const activePlans = useMemo(() => plans.filter((plan) => plan.active), [plans])
-  const allAnnualGroups = useMemo(() => groupPlans(activePlans), [activePlans])
+  const allEquipmentGroups = useMemo(() => groupEquipment(activePlans), [activePlans])
   const equipmentGroups = useMemo(() => groupEquipment(filteredPlans.filter((plan) => plan.active)), [filteredPlans])
 
   const months = useMemo(() => MONTHS.map((month) => ({
@@ -367,8 +367,8 @@ export default function PamPage() {
   })), [activePlans, year])
 
   const annualLoad = months.reduce((sum, month) => sum + month.count, 0)
-  const overdueCount = allAnnualGroups.filter((group) => groupState(group) === 'Vencido').length
-  const unprogrammedCount = allAnnualGroups.filter((group) => groupState(group) === 'Sin programación').length
+  const overdueCount = allEquipmentGroups.filter((equipment) => equipmentState(equipment.plans) === 'Vencido').length
+  const unprogrammedCount = allEquipmentGroups.filter((equipment) => equipmentState(equipment.plans) === 'Sin programación').length
   const peakMonth = months.reduce(
     (peak, month) => (month.count > peak.count ? month : peak),
     months[0],

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { CalendarDays, RefreshCw, Search } from 'lucide-react'
+import { CalendarDays, ChevronDown, RefreshCw, Search } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../../lib/supabase'
 import BrandLogo from '../../../shared/components/branding/BrandLogo'
@@ -225,7 +225,7 @@ function groupState(group: PamGroup) {
 }
 
 
-type PamTab = 'ANNUAL' | 'EQUIPMENT' | 'CALENDAR' | 'HISTORY'
+type PamTab = 'ANNUAL' | 'CALENDAR' | 'HISTORY'
 
 type HistoryExecution = {
   id: string
@@ -420,7 +420,6 @@ export default function PamPage() {
   }, [plans, search, typeFilter])
 
   const activePlans = useMemo(() => plans.filter((plan) => plan.active), [plans])
-  const annualGroups = useMemo(() => groupPlans(filteredPlans.filter((plan) => plan.active)), [filteredPlans])
   const allAnnualGroups = useMemo(() => groupPlans(activePlans), [activePlans])
   const equipmentGroups = useMemo(() => groupEquipment(filteredPlans.filter((plan) => plan.active)), [filteredPlans])
 
@@ -477,28 +476,38 @@ export default function PamPage() {
     <div className="min-h-screen bg-slate-100 p-3 sm:p-5">
       <div className="mx-auto max-w-[1600px]">
         <div className="mb-3 rounded-2xl bg-white p-3 shadow-lg sm:p-4">
-          <div className="flex flex-col gap-2.5 sm:gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex min-w-0 items-center gap-3">
-              <BrandLogo onActivate={() => navigate('/')} className="h-9 w-auto shrink-0 object-contain sm:h-12" />
+              <BrandLogo onActivate={() => navigate('/')} className="h-9 w-auto shrink-0 object-contain sm:h-11" />
               <div className="min-w-0">
-                <h1 className="text-xl font-bold leading-tight text-slate-900 sm:text-3xl">Plan Anual de Mantenimiento</h1>
-                <p className="text-sm text-slate-500">PAM vivo: mantenimiento, equipos, calendario e histórico</p>
+                <h1 className="text-xl font-bold leading-tight text-slate-900 sm:text-2xl">Plan Anual de Mantenimiento</h1>
+                <p className="mt-0.5 text-xs text-slate-500 sm:text-sm">Matriz anual por equipo · planificación preventiva del hotel</p>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
               <BackButton onBack={() => navigate('/')} />
               <HomeButton onHome={() => navigate('/')} />
-              <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm">
+              <label className="col-span-2 flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm sm:col-span-1">
                 <CalendarDays size={16} className="text-slate-500" />
                 <span className="font-semibold text-slate-600">Año</span>
-                <select value={year} onChange={(event) => setYear(Number(event.target.value))} className="bg-transparent font-semibold text-slate-800 outline-none">
+                <select
+                  value={year}
+                  onChange={(event) => setYear(Number(event.target.value))}
+                  className="bg-transparent font-semibold text-slate-800 outline-none"
+                >
                   {[currentYear - 1, currentYear, currentYear + 1, currentYear + 2].map((optionYear) => (
                     <option key={optionYear} value={optionYear}>{optionYear}</option>
                   ))}
                 </select>
               </label>
-              <IconButton icon={RefreshCw} label="Actualizar PAM" title="Actualizar" onClick={() => void loadPam()} disabled={loading} />
+              <IconButton
+                icon={RefreshCw}
+                label="Actualizar PAM"
+                title="Actualizar"
+                onClick={() => void loadPam()}
+                disabled={loading}
+              />
             </div>
           </div>
         </div>
@@ -507,310 +516,370 @@ export default function PamPage() {
           <div className="mb-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</div>
         )}
 
-        <div className="mb-3 grid grid-cols-2 gap-2.5 sm:grid-cols-2 sm:gap-3 lg:grid-cols-5">
-          {[
-            ['Mantenimientos', allAnnualGroups.length],
-            [`Trabajos previstos ${year}`, annualLoad],
-            ['Vencidos', overdueCount],
-            ['Sin programación', unprogrammedCount],
-            ['Pico mensual', peakMonth?.count ? `${peakMonth.long} · ${peakMonth.count}` : '—'],
-          ].map(([label, value]) => (
-            <div key={String(label)} className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-              <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{label}</div>
-              <div className="mt-1 text-xl font-bold text-slate-900">{value}</div>
+        <div className="mb-3 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
+          <div>
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Mantenimientos</div>
+            <div className="text-base font-bold text-slate-900">{allAnnualGroups.length}</div>
+          </div>
+          <div className="hidden h-8 w-px bg-slate-200 sm:block" />
+          <div>
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Trabajos previstos {year}</div>
+            <div className="text-base font-bold text-slate-900">{annualLoad}</div>
+          </div>
+          <div className="hidden h-8 w-px bg-slate-200 sm:block" />
+          <div className="flex items-center gap-2">
+            <span className="h-2.5 w-2.5 rounded-full bg-rose-500" />
+            <div>
+              <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Vencidos</div>
+              <div className="text-base font-bold text-slate-900">{overdueCount}</div>
             </div>
-          ))}
+          </div>
+          <div className="hidden h-8 w-px bg-slate-200 sm:block" />
+          <div className="flex items-center gap-2">
+            <span className="h-2.5 w-2.5 rounded-full bg-amber-400" />
+            <div>
+              <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Sin programación</div>
+              <div className="text-base font-bold text-slate-900">{unprogrammedCount}</div>
+            </div>
+          </div>
+          <div className="ml-auto hidden sm:block">
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Mayor carga</div>
+            <div className="text-sm font-bold text-slate-800">{peakMonth?.count ? `${peakMonth.long} · ${peakMonth.count}` : '—'}</div>
+          </div>
         </div>
 
-        <div className="mb-3 flex flex-wrap items-center gap-1.5 rounded-2xl bg-white p-2 shadow-lg">
-          <div className="flex gap-1.5 overflow-x-auto pb-1">
-          {[
-            ['ANNUAL', 'Plan anual'],
-            ['EQUIPMENT', 'Por equipo'],
-            ['CALENDAR', 'Calendario'],
-            ['HISTORY', 'Histórico'],
-          ].map(([value, label]) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => setTab(value as PamTab)}
-              className={`shrink-0 whitespace-nowrap rounded-xl px-3 py-2 text-xs font-semibold transition ${
-                tab === value ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-          </div>
-          <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
-              <input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder={tab === 'HISTORY' ? 'Buscar histórico…' : 'Buscar mantenimiento o equipo…'}
-                className="w-full rounded-lg sm:w-[240px] border border-slate-300 py-2 pl-9 pr-3 text-xs outline-none focus:border-blue-500"
-              />
+        <div className="mb-3 rounded-2xl bg-white p-2 shadow-lg">
+          <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
+            <div className="flex gap-1.5 overflow-x-auto">
+              {[
+                ['ANNUAL', 'PAM anual'],
+                ['CALENDAR', 'Calendario'],
+                ['HISTORY', 'Histórico'],
+              ].map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setTab(value as PamTab)}
+                  className={`shrink-0 whitespace-nowrap rounded-xl px-3 py-2 text-xs font-semibold transition ${
+                    tab === value ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
-            {tab !== 'HISTORY' && (
-              <select
-                value={typeFilter}
-                onChange={(event) => setTypeFilter(event.target.value as 'ALL' | MaintenanceType)}
-                className="rounded-lg border border-slate-300 px-3 py-2 text-xs"
-              >
-                <option value="ALL">Todos</option>
-                <option value="INTERNAL">Interno</option>
-                <option value="EXTERNAL">Externo</option>
-              </select>
-            )}
+
+            <div className="flex flex-1 flex-col gap-2 sm:flex-row sm:justify-end">
+              <div className="relative min-w-0 flex-1 sm:max-w-[320px]">
+                <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                <input
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder={tab === 'HISTORY' ? 'Buscar histórico…' : 'Buscar equipo o mantenimiento…'}
+                  className="w-full rounded-lg border border-slate-300 py-2 pl-9 pr-3 text-xs outline-none focus:border-blue-500"
+                />
+              </div>
+              {tab !== 'HISTORY' && (
+                <select
+                  value={typeFilter}
+                  onChange={(event) => setTypeFilter(event.target.value as 'ALL' | MaintenanceType)}
+                  className="rounded-lg border border-slate-300 px-3 py-2 text-xs text-slate-700"
+                >
+                  <option value="ALL">Todos los tipos</option>
+                  <option value="INTERNAL">Interno</option>
+                  <option value="EXTERNAL">Externo</option>
+                </select>
+              )}
+            </div>
           </div>
         </div>
 
         {tab === 'ANNUAL' && (
-          <div className="rounded-2xl bg-white shadow-lg">
-            <div className="border-b px-4 py-3 md:hidden">
-              <div className="text-sm font-semibold text-slate-800">Plan anual · {year}</div>
-              <div className="text-xs text-slate-500">Resumen por mantenimiento y mes.</div>
-            </div>
-            <div className="space-y-2 p-2 md:hidden">
-              {annualGroups.map((group) => {
-                const state = groupState(group)
-                return (
-                  <details key={group.key} className="rounded-xl border border-slate-200 bg-white">
-                    <summary className="cursor-pointer list-none p-3">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <div className="font-semibold text-slate-800">{group.name.replace(/^_+/, '')}</div>
-                          <div className="mt-1 text-[11px] text-slate-500">
-                            {group.plans.length} equipo{group.plans.length === 1 ? '' : 's'} · {periodicityLabel(group.plans[0])}
-                          </div>
-                        </div>
-                        <span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-semibold ${stateClass(state)}`}>{state}</span>
-                      </div>
-                      <div className="mt-2 flex gap-1.5 overflow-x-auto pb-1">
-                        {months.map((month) => {
-                          const count = group.plans.reduce((total, plan) => total + monthOccurrences(plan, year, Number(month.key) - 1), 0)
-                          return (
-                            <span key={month.key} className="min-w-[52px] rounded-lg bg-slate-50 px-2 py-1 text-center">
-                              <span className="block text-[9px] uppercase text-slate-400">{month.short}</span>
-                              <span className="text-xs font-semibold text-slate-700">{count || '·'}</span>
-                            </span>
-                          )
-                        })}
-                      </div>
-                    </summary>
-                    <div className="border-t bg-slate-50 px-3 py-2">
-                      <div className="grid grid-cols-1 gap-1.5">
-                        {group.plans.map((plan) => (
-                          <button
-                            key={plan.id}
-                            type="button"
-                            onClick={() => navigate(plan.apparatus_registry_id ? `/apparatusregistry/${plan.apparatus_registry_id}` : '/apparatusregistry')}
-                            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-left"
-                          >
-                            <div className="text-xs font-semibold text-slate-800">{plan.apparatus?.code || 'Equipo sin código'}</div>
-                            <div className="truncate text-[10px] text-slate-500">{plan.apparatus?.name || 'Equipo no indicado'}</div>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </details>
-                )
-              })}
-              {!loading && annualGroups.length === 0 && (
-                <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500">No hay mantenimientos que mostrar.</div>
-              )}
-            </div>
-            <div className="hidden md:block">
-            <div className="flex items-center justify-between gap-3 border-b px-4 py-3">
-              <div>
-                <div className="text-sm font-semibold text-slate-800">Plan anual · {year}</div>
-                <div className="text-xs text-slate-500">Una fila representa un mantenimiento y permite desplegar los equipos afectados.</div>
+          <div className="overflow-hidden rounded-2xl bg-white shadow-lg">
+            <div className="border-b border-slate-200 px-4 py-3">
+              <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+                    <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-slate-900 text-xs font-bold text-white">PAM</span>
+                    Matriz de planificación · {year}
+                  </div>
+                  <div className="mt-1 text-xs text-slate-500">
+                    Cada fila es un equipo. Las celdas muestran la carga preventiva prevista en cada mes.
+                  </div>
+                </div>
+                <div className="text-xs text-slate-400">{equipmentGroups.length} equipos con mantenimiento</div>
               </div>
-              <div className="text-xs text-slate-500">{annualGroups.length} mantenimientos</div>
             </div>
 
-            <div className="max-h-[calc(100vh-365px)] min-h-[320px] overflow-auto">
-              <table className="w-full min-w-[1560px] border-collapse text-sm">
-                <thead>
-                  <tr className="sticky top-0 z-20 border-b bg-slate-50 text-left text-[10px] uppercase tracking-wide text-slate-500">
-                    <th className="sticky left-0 z-30 w-[360px] bg-slate-50 px-3 py-3 font-semibold">Mantenimiento</th>
-                    <th className="w-[90px] px-3 py-3 font-semibold">Equipos</th>
-                    <th className="w-[95px] px-3 py-3 font-semibold">Tipo</th>
-                    <th className="w-[130px] px-3 py-3 font-semibold">Periodicidad</th>
-                    <th className="w-[170px] px-3 py-3 font-semibold">Empresa</th>
-                    <th className="w-[110px] px-3 py-3 font-semibold">Próxima</th>
-                    <th className="w-[125px] px-3 py-3 font-semibold">Estado</th>
-                    {months.map((month) => <th key={month.key} className="min-w-[58px] px-2 py-3 text-center font-semibold">{month.short}</th>)}
-                  </tr>
-                </thead>
-                <tbody>
-                  {annualGroups.map((group) => {
-                    const state = groupState(group)
-                    const isExpanded = expandedGroup === group.key
-                    return (
-                      <tr key={group.key} className="border-b border-slate-100">
-                        <td colSpan={20} className="p-0">
-                          <div className="grid grid-cols-[minmax(360px,1.8fr)_90px_95px_130px_170px_110px_125px_repeat(12,58px)]">
-                            <button
-                              type="button"
-                              onClick={() => setExpandedGroup(isExpanded ? null : group.key)}
-                              className="sticky left-0 z-10 min-w-0 border-r border-slate-100 bg-white px-3 py-3 text-left hover:bg-slate-50"
-                            >
-                              <div className="flex items-center gap-2">
-                                <span className="text-slate-400">{isExpanded ? '▾' : '▸'}</span>
-                                <div className="min-w-0">
-                                  <div className="truncate font-semibold text-slate-800">{group.name.replace(/^_+/, '')}</div>
-                                  {group.description && <div className="truncate text-[10px] text-slate-500">{group.description}</div>}
+            <div className="border-b border-slate-100 bg-slate-50/70 px-4 py-2.5">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[10px] text-slate-500">
+                <span className="font-semibold uppercase tracking-wide text-slate-400">Lectura</span>
+                <span className="inline-flex items-center gap-1.5"><span className="font-bold text-slate-700">●</span> Trabajo previsto</span>
+                <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-rose-500" /> Equipo con vencimiento</span>
+                <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-amber-400" /> Próximo / hoy</span>
+                <span className="ml-auto hidden sm:inline">Toca un equipo para ver sus mantenimientos.</span>
+              </div>
+            </div>
+
+            <div className="md:hidden">
+              <div className="space-y-2 p-2">
+                {equipmentGroups.map((equipment) => {
+                  const state = groupState({
+                    key: equipment.id,
+                    name: equipment.name,
+                    description: null,
+                    maintenance_type: equipment.plans[0]?.maintenance_type ?? 'INTERNAL',
+                    external_company: equipment.plans[0]?.external_company ?? null,
+                    periodicity_value: equipment.plans[0]?.periodicity_value ?? null,
+                    periodicity_unit: equipment.plans[0]?.periodicity_unit ?? null,
+                    next_due_date: equipment.plans.reduce<string | null>((nearest, plan) => {
+                      if (!plan.next_due_date) return nearest
+                      if (!nearest || plan.next_due_date < nearest) return plan.next_due_date
+                      return nearest
+                    }, null),
+                    plans: equipment.plans,
+                  })
+                  const isExpanded = expandedGroup === equipment.id
+                  return (
+                    <div key={equipment.id} className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+                      <button
+                        type="button"
+                        onClick={() => setExpandedGroup(isExpanded ? null : equipment.id)}
+                        className="w-full p-3 text-left"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <div className="truncate font-semibold text-slate-900">{equipment.code}</div>
+                              <ChevronDown size={15} className={`shrink-0 text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                            </div>
+                            <div className="mt-0.5 truncate text-[11px] text-slate-500">{equipment.name}</div>
+                          </div>
+                          <span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-semibold ${stateClass(state)}`}>{state}</span>
+                        </div>
+                        <div className="mt-2 flex gap-1 overflow-x-auto pb-1">
+                          {months.map((month) => {
+                            const count = equipment.plans.reduce((total, plan) => total + monthOccurrences(plan, year, Number(month.key) - 1), 0)
+                            return (
+                              <span key={month.key} className={`min-w-[48px] rounded-lg border px-1.5 py-1 text-center ${count ? 'border-slate-200 bg-slate-50' : 'border-transparent bg-slate-50/40'}`}>
+                                <span className="block text-[8px] uppercase tracking-wide text-slate-400">{month.short}</span>
+                                <span className={`text-xs font-bold ${count ? 'text-slate-800' : 'text-slate-300'}`}>{count || '·'}</span>
+                              </span>
+                            )
+                          })}
+                        </div>
+                      </button>
+
+                      {isExpanded && (
+                        <div className="border-t bg-slate-50 px-3 py-2.5">
+                          <div className="space-y-1.5">
+                            {equipment.plans.map((plan) => (
+                              <button
+                                key={plan.id}
+                                type="button"
+                                onClick={() => navigate(plan.apparatus_registry_id ? `/apparatusregistry/${plan.apparatus_registry_id}` : '/apparatusregistry')}
+                                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-left"
+                              >
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="min-w-0">
+                                    <div className="truncate text-xs font-semibold text-slate-800">{plan.name.replace(/^_+/, '')}</div>
+                                    <div className="mt-0.5 truncate text-[10px] text-slate-500">{periodicityLabel(plan)} · {typeLabel(plan)}</div>
+                                  </div>
+                                  <div className="shrink-0 text-[10px] text-slate-500">{plan.next_due_date ? new Date(plan.next_due_date + 'T12:00:00').toLocaleDateString('es-ES') : '—'}</div>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+                {!loading && equipmentGroups.length === 0 && (
+                  <div className="rounded-xl border border-dashed border-slate-300 p-10 text-center text-sm text-slate-500">No hay equipos con mantenimiento configurado.</div>
+                )}
+              </div>
+            </div>
+
+            <div className="hidden md:block">
+              <div className="max-h-[calc(100vh-340px)] min-h-[360px] overflow-auto">
+                <table className="w-full min-w-[1180px] border-collapse text-sm">
+                  <thead>
+                    <tr className="sticky top-0 z-20 border-b border-slate-200 bg-slate-50 text-left text-[10px] uppercase tracking-wide text-slate-500">
+                      <th className="sticky left-0 z-30 w-[340px] border-r border-slate-200 bg-slate-50 px-4 py-3 font-semibold">Equipo</th>
+                      <th className="w-[110px] border-r border-slate-200 bg-slate-50 px-3 py-3 font-semibold">Mantenimientos</th>
+                      {months.map((month) => (
+                        <th key={month.key} className="min-w-[62px] px-2 py-3 text-center font-semibold">{month.short}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {equipmentGroups.map((equipment) => {
+                      const nearestDate = equipment.plans.reduce<string | null>((nearest, plan) => {
+                        if (!plan.next_due_date) return nearest
+                        if (!nearest || plan.next_due_date < nearest) return plan.next_due_date
+                        return nearest
+                      }, null)
+                      const state = groupState({
+                        key: equipment.id,
+                        name: equipment.name,
+                        description: null,
+                        maintenance_type: equipment.plans[0]?.maintenance_type ?? 'INTERNAL',
+                        external_company: equipment.plans[0]?.external_company ?? null,
+                        periodicity_value: equipment.plans[0]?.periodicity_value ?? null,
+                        periodicity_unit: equipment.plans[0]?.periodicity_unit ?? null,
+                        next_due_date: nearestDate,
+                        plans: equipment.plans,
+                      })
+                      const isExpanded = expandedGroup === equipment.id
+
+                      return (
+                        <tr key={equipment.id} className="border-b border-slate-100 align-top">
+                          <td colSpan={14} className="p-0">
+                            <div className="grid grid-cols-[340px_110px_repeat(12,minmax(62px,1fr))]">
+                              <button
+                                type="button"
+                                onClick={() => setExpandedGroup(isExpanded ? null : equipment.id)}
+                                className="sticky left-0 z-10 min-w-0 border-r border-slate-100 bg-white px-4 py-3 text-left hover:bg-slate-50"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <ChevronDown size={16} className={`shrink-0 text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                                  <div className="min-w-0">
+                                    <div className="truncate font-semibold text-slate-900">{equipment.code}</div>
+                                    <div className="truncate text-[11px] text-slate-500">{equipment.name}</div>
+                                  </div>
+                                  <span className={`ml-auto shrink-0 rounded-full px-2 py-1 text-[10px] font-semibold ${stateClass(state)}`}>{state}</span>
+                                </div>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => setExpandedGroup(isExpanded ? null : equipment.id)}
+                                className="border-r border-slate-100 bg-white px-3 py-3 text-center hover:bg-slate-50"
+                              >
+                                <div className="text-base font-bold text-slate-800">{equipment.plans.length}</div>
+                                <div className="text-[9px] text-slate-400">planes</div>
+                              </button>
+
+                              {months.map((month) => {
+                                const count = equipment.plans.reduce((total, plan) => total + monthOccurrences(plan, year, Number(month.key) - 1), 0)
+                                const width = Math.min(count, 5)
+                                return (
+                                  <button
+                                    key={month.key}
+                                    type="button"
+                                    onClick={() => navigate('/maintenance')}
+                                    title={`${month.long}: ${count} trabajos previstos`}
+                                    className={`border-r border-slate-100 px-2 py-3 text-center transition hover:bg-slate-50 ${count ? 'bg-white' : 'bg-slate-50/30'}`}
+                                  >
+                                    <div className="flex min-h-[18px] items-center justify-center gap-0.5">
+                                      {count > 0 ? Array.from({ length: width }, (_, index) => (
+                                        <span key={index} className="text-[11px] leading-none text-slate-700">●</span>
+                                      )) : <span className="text-slate-300">·</span>}
+                                    </div>
+                                    {count > 5 && <div className="text-[9px] font-semibold text-slate-500">+{count - 5}</div>}
+                                    <div className="mt-0.5 text-[9px] font-semibold text-slate-400">{count || ''}</div>
+                                  </button>
+                                )
+                              })}
+                            </div>
+
+                            {isExpanded && (
+                              <div className="border-t bg-slate-50 px-4 py-3">
+                                <div className="mb-2 flex items-center justify-between gap-3">
+                                  <div>
+                                    <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Mantenimientos del equipo · {equipment.plans.length}</div>
+                                    <div className="mt-0.5 text-[10px] text-slate-400">{equipment.name}</div>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => navigate(`/apparatusregistry/${equipment.id}`)}
+                                    className="rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-[10px] font-semibold text-slate-600 hover:bg-slate-100"
+                                  >
+                                    Ver ficha del equipo
+                                  </button>
+                                </div>
+                                <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                                  {equipment.plans.map((plan) => (
+                                    <button
+                                      key={plan.id}
+                                      type="button"
+                                      onClick={() => navigate('/maintenance')}
+                                      className="rounded-xl border border-slate-200 bg-white p-3 text-left shadow-sm hover:shadow-md"
+                                    >
+                                      <div className="flex items-start justify-between gap-2">
+                                        <div className="min-w-0">
+                                          <div className="truncate font-semibold text-slate-800">{plan.name.replace(/^_+/, '')}</div>
+                                          <div className="mt-1 text-[10px] text-slate-500">{periodicityLabel(plan)}</div>
+                                        </div>
+                                        <span className="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-[9px] font-semibold text-slate-600">{typeLabel(plan)}</span>
+                                      </div>
+                                      <div className="mt-2 flex items-center justify-between border-t border-slate-100 pt-2 text-[10px] text-slate-500">
+                                        <span>Próxima</span>
+                                        <span className="font-semibold text-slate-700">{plan.next_due_date ? new Date(plan.next_due_date + 'T12:00:00').toLocaleDateString('es-ES') : 'Sin fecha'}</span>
+                                      </div>
+                                    </button>
+                                  ))}
                                 </div>
                               </div>
-                            </button>
-                            <div className="px-3 py-3 text-center font-semibold text-slate-700">{group.plans.length}</div>
-                            <div className="px-3 py-3"><span className="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-700">{typeLabel(group.plans[0])}</span></div>
-                            <div className="px-3 py-3 whitespace-nowrap text-slate-600">{periodicityLabel(group.plans[0])}</div>
-                            <div className="truncate px-3 py-3 text-slate-600">{group.external_company || 'SSTT'}</div>
-                            <div className="whitespace-nowrap px-3 py-3 text-slate-600">{group.next_due_date ? new Date(group.next_due_date + 'T12:00:00').toLocaleDateString('es-ES') : '—'}</div>
-                            <div className="whitespace-nowrap px-3 py-3"><span className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-semibold ${stateClass(state)}`}>{state}</span></div>
-                            {months.map((month) => {
-                              const count = group.plans.reduce((total, plan) => total + monthOccurrences(plan, year, Number(month.key) - 1), 0)
-                              return <button key={month.key} type="button" onClick={() => navigate('/maintenance')} className="px-2 py-3 text-center font-semibold text-slate-700 hover:bg-slate-50" title={`${month.long}: ${count} trabajos previstos`}>{count || '·'}</button>
-                            })}
-                          </div>
-                          {isExpanded && (
-                            <div className="border-t bg-slate-50 px-4 py-3">
-                              <div className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-slate-500">Equipos afectados · {group.plans.length}</div>
-                              <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-                                {group.plans.map((plan) => (
-                                  <button
-                                    key={plan.id}
-                                    type="button"
-                                    onClick={() => navigate(plan.apparatus_registry_id ? `/apparatusregistry/${plan.apparatus_registry_id}` : '/apparatusregistry')}
-                                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-left shadow-sm hover:shadow-md"
-                                  >
-                                    <div className="font-semibold text-slate-800">{plan.apparatus?.code || 'Equipo sin código'}</div>
-                                    <div className="truncate text-[11px] text-slate-500">{plan.apparatus?.name || 'Equipo no indicado'}</div>
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </td>
-                      </tr>
-                    )
-                  })}
-                  {!loading && annualGroups.length === 0 && <tr><td colSpan={20} className="px-4 py-14 text-center"><div className="text-sm font-semibold text-slate-600">No hay mantenimientos que mostrar.</div><div className="mt-1 text-xs text-slate-400">El PAM no muestra datos ficticios.</div></td></tr>}
-                </tbody>
-              </table>
-            </div>
-          </div>
-            </div>
-        )}
-
-        {tab === 'EQUIPMENT' && (
-          <div className="rounded-2xl bg-white shadow-lg">
-            <div className="border-b px-4 py-3 md:hidden">
-              <div className="text-sm font-semibold text-slate-800">PAM por equipo · {year}</div>
-              <div className="text-xs text-slate-500">Equipo, mantenimientos y carga mensual.</div>
-            </div>
-            <div className="space-y-2 p-2 md:hidden">
-              {equipmentGroups.map((equipment) => (
-                <button
-                  key={equipment.id}
-                  type="button"
-                  onClick={() => navigate(`/apparatusregistry/${equipment.id}`)}
-                  className="w-full rounded-xl border border-slate-200 bg-white p-3 text-left"
-                >
-                  <div className="font-semibold text-slate-800">{equipment.code}</div>
-                  <div className="text-[11px] text-slate-500">{equipment.name}</div>
-                  <div className="mt-2 flex gap-1.5 overflow-x-auto pb-1">
-                    {months.map((month) => {
-                      const count = equipment.plans.reduce((total, plan) => total + monthOccurrences(plan, year, Number(month.key) - 1), 0)
-                      return (
-                        <span key={month.key} className="min-w-[52px] rounded-lg bg-slate-50 px-2 py-1 text-center">
-                          <span className="block text-[9px] uppercase text-slate-400">{month.short}</span>
-                          <span className="text-xs font-semibold text-slate-700">{count || '·'}</span>
-                        </span>
+                            )}
+                          </td>
+                        </tr>
                       )
                     })}
-                  </div>
-                </button>
-              ))}
-              {!loading && equipmentGroups.length === 0 && (
-                <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500">No hay equipos con mantenimiento configurado.</div>
-              )}
-            </div>
-            <div className="hidden md:block">
-            <div className="flex items-center justify-between gap-3 border-b px-4 py-3">
-              <div>
-                <div className="text-sm font-semibold text-slate-800">PAM por equipo · {year}</div>
-                <div className="text-xs text-slate-500">Vista inspirada en el PAM original: el equipo queda a la izquierda y el año se lee de un vistazo.</div>
+                    {!loading && equipmentGroups.length === 0 && (
+                      <tr>
+                        <td colSpan={14} className="px-4 py-16 text-center">
+                          <div className="text-sm font-semibold text-slate-600">No hay equipos con mantenimiento configurado.</div>
+                          <div className="mt-1 text-xs text-slate-400">El PAM no muestra datos ficticios.</div>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
-              <div className="text-xs text-slate-500">{equipmentGroups.length} equipos con mantenimiento</div>
-            </div>
-            <div className="max-h-[calc(100vh-365px)] min-h-[320px] overflow-auto">
-              <table className="w-full min-w-[1250px] border-collapse text-sm">
-                <thead>
-                  <tr className="sticky top-0 z-20 border-b bg-slate-50 text-left text-[10px] uppercase tracking-wide text-slate-500">
-                    <th className="sticky left-0 z-30 w-[300px] bg-slate-50 px-3 py-3 font-semibold">Equipo</th>
-                    <th className="w-[220px] px-3 py-3 font-semibold">Mantenimientos</th>
-                    {months.map((month) => <th key={month.key} className="min-w-[62px] px-2 py-3 text-center font-semibold">{month.short}</th>)}
-                  </tr>
-                </thead>
-                <tbody>
-                  {equipmentGroups.map((equipment) => (
-                    <tr key={equipment.id} className="border-b border-slate-100 hover:bg-slate-50">
-                      <td className="sticky left-0 z-10 bg-white px-3 py-3">
-                        <button type="button" onClick={() => navigate(`/apparatusregistry/${equipment.id}`)} className="text-left">
-                          <div className="font-semibold text-slate-800">{equipment.code}</div>
-                          <div className="max-w-[270px] truncate text-[11px] text-slate-500">{equipment.name}</div>
-                        </button>
-                      </td>
-                      <td className="px-3 py-3">
-                        <div className="flex max-w-[215px] flex-wrap gap-1">
-                          {equipment.plans.slice(0, 3).map((plan) => <span key={plan.id} className="rounded-full bg-slate-100 px-2 py-1 text-[9px] font-semibold text-slate-600">{plan.name}</span>)}
-                          {equipment.plans.length > 3 && <span className="rounded-full bg-slate-100 px-2 py-1 text-[9px] text-slate-500">+{equipment.plans.length - 3}</span>}
-                        </div>
-                      </td>
-                      {months.map((month) => {
-                        const count = equipment.plans.reduce((total, plan) => total + monthOccurrences(plan, year, Number(month.key) - 1), 0)
-                        return <td key={month.key} className={`px-2 py-3 text-center font-semibold ${count ? 'text-slate-800' : 'text-slate-300'}`}>{count || '·'}</td>
-                      })}
-                    </tr>
-                  ))}
-                  {!loading && equipmentGroups.length === 0 && <tr><td colSpan={14} className="px-4 py-14 text-center text-sm text-slate-400">No hay equipos con mantenimiento configurado.</td></tr>}
-                </tbody>
-              </table>
             </div>
           </div>
-            </div>
         )}
 
         {tab === 'CALENDAR' && (
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.3fr)_minmax(360px,0.7fr)]">
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
             <div className="rounded-2xl bg-white shadow-lg">
-              <div className="border-b px-4 py-3">
-                <div className="text-sm font-semibold text-slate-800">Calendario de carga · {year}</div>
-                <div className="text-xs text-slate-500">La carga se calcula con las reglas disponibles; cuando el motor PAM esté conectado, estas serán las fechas reales de Trabajos Programados.</div>
+              <div className="border-b border-slate-200 px-4 py-3">
+                <div className="text-sm font-semibold text-slate-800">Carga anual · {year}</div>
+                <div className="mt-0.5 text-xs text-slate-500">Vista de carga mensual del PAM.</div>
               </div>
               <div className="divide-y">
                 {months.map((month) => (
-                  <button key={month.key} type="button" onClick={() => navigate('/maintenance')} className="grid w-full grid-cols-[110px_1fr_90px] items-center gap-3 px-4 py-3 text-left hover:bg-slate-50">
+                  <button
+                    key={month.key}
+                    type="button"
+                    onClick={() => navigate('/maintenance')}
+                    className="grid w-full grid-cols-[86px_1fr_76px] items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 sm:grid-cols-[110px_1fr_90px]"
+                  >
                     <div className="font-semibold text-slate-800">{month.long}</div>
-                    <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-                      <div className="h-full rounded-full bg-slate-700" style={{ width: `${peakMonth.count ? Math.round((month.count / peakMonth.count) * 100) : 0}%` }} />
+                    <div>
+                      <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                        <div
+                          className="h-full rounded-full bg-slate-700 transition-all"
+                          style={{ width: `${peakMonth.count ? Math.round((month.count / peakMonth.count) * 100) : 0}%` }}
+                        />
+                      </div>
+                      <div className="mt-1 text-[9px] text-slate-400">{month.count ? 'Carga programada' : 'Sin carga calculada'}</div>
                     </div>
-                    <div className="text-right text-sm font-semibold text-slate-700">{month.count} trabajos</div>
+                    <div className="text-right text-sm font-semibold text-slate-700">{month.count}</div>
                   </button>
                 ))}
               </div>
             </div>
+
             <div className="rounded-2xl bg-white p-4 shadow-lg">
-              <div className="text-sm font-semibold text-slate-800">Resumen</div>
-              <div className="mt-3 space-y-3 text-sm text-slate-600">
-                <div className="flex justify-between"><span>Trabajos del año</span><strong className="text-slate-900">{annualLoad}</strong></div>
-                <div className="flex justify-between"><span>Mes de mayor carga</span><strong className="text-slate-900">{peakMonth?.long || '—'}</strong></div>
-                <div className="flex justify-between"><span>Vencidos</span><strong className="text-slate-900">{overdueCount}</strong></div>
-                <div className="flex justify-between"><span>Sin programación</span><strong className="text-slate-900">{unprogrammedCount}</strong></div>
+              <div className="text-sm font-semibold text-slate-800">Resumen del año</div>
+              <div className="mt-3 divide-y divide-slate-100 text-sm">
+                <div className="flex items-center justify-between py-2.5"><span className="text-slate-500">Trabajos previstos</span><strong className="text-slate-900">{annualLoad}</strong></div>
+                <div className="flex items-center justify-between py-2.5"><span className="text-slate-500">Mes de mayor carga</span><strong className="text-slate-900">{peakMonth?.long || '—'}</strong></div>
+                <div className="flex items-center justify-between py-2.5"><span className="text-slate-500">Vencidos</span><strong className="text-slate-900">{overdueCount}</strong></div>
+                <div className="flex items-center justify-between py-2.5"><span className="text-slate-500">Sin programación</span><strong className="text-slate-900">{unprogrammedCount}</strong></div>
               </div>
             </div>
           </div>
@@ -818,75 +887,93 @@ export default function PamPage() {
 
         {tab === 'HISTORY' && (
           <div className="rounded-2xl bg-white shadow-lg">
-            <div className="border-b px-4 py-3 md:hidden">
-              <div className="text-sm font-semibold text-slate-800">Histórico de ejecuciones</div>
-              <div className="text-xs text-slate-500">{filteredHistory.length} registros</div>
-            </div>
-            <div className="space-y-2 p-2 md:hidden">
-              {filteredHistory.map((execution) => (
-                <button
-                  key={execution.id}
-                  type="button"
-                  onClick={() => navigate('/maintenance')}
-                  className="w-full rounded-xl border border-slate-200 bg-white p-3 text-left"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <div className="text-xs font-semibold text-slate-800">{execution.maintenance_plan?.name || '—'}</div>
-                      <div className="mt-0.5 text-[10px] text-slate-500">{execution.maintenance_plan?.apparatus_registry?.code || '—'}</div>
-                    </div>
-                    <span className="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-700">{executionResultLabel(execution.result)}</span>
-                  </div>
-                  <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[10px] text-slate-500">
-                    <div><span className="font-semibold">Prevista:</span> {execution.scheduled_date ? new Date(execution.scheduled_date + 'T12:00:00').toLocaleDateString('es-ES') : '—'}</div>
-                    <div><span className="font-semibold">Realizada:</span> {execution.executed_at ? new Date(execution.executed_at).toLocaleDateString('es-ES') : '—'}</div>
-                    <div className="col-span-2"><span className="font-semibold">Empresa / técnico:</span> {execution.performer_company || execution.performer_name || 'SSTT'}</div>
-                  </div>
-                </button>
-              ))}
-              {!historyLoading && filteredHistory.length === 0 && (
-                <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500">No hay ejecuciones históricas registradas.</div>
-              )}
-              {historyLoading && <div className="p-8 text-center text-sm text-slate-400">Cargando histórico…</div>}
-            </div>
-            <div className="hidden md:block">
-            <div className="flex items-center justify-between gap-3 border-b px-4 py-3">
-              <div>
-                <div className="text-sm font-semibold text-slate-800">Histórico de ejecuciones</div>
-                <div className="text-xs text-slate-500">Las ejecuciones reales son la evidencia del mantenimiento realizado.</div>
+            <div className="border-b border-slate-200 px-4 py-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-sm font-semibold text-slate-800">Histórico de ejecuciones</div>
+                  <div className="mt-0.5 text-xs text-slate-500">Las ejecuciones reales son la evidencia del mantenimiento realizado.</div>
+                </div>
+                <div className="text-xs text-slate-400">{filteredHistory.length} registros</div>
               </div>
-              <div className="text-xs text-slate-500">{filteredHistory.length} registros</div>
             </div>
-            <div className="max-h-[calc(100vh-365px)] min-h-[320px] overflow-auto">
-              <table className="w-full min-w-[980px] border-collapse text-sm">
-                <thead>
-                  <tr className="sticky top-0 z-10 border-b bg-slate-50 text-left text-[10px] uppercase tracking-wide text-slate-500">
-                    <th className="px-3 py-3 font-semibold">Fecha prevista</th>
-                    <th className="px-3 py-3 font-semibold">Realizada</th>
-                    <th className="px-3 py-3 font-semibold">Equipo</th>
-                    <th className="px-3 py-3 font-semibold">Mantenimiento</th>
-                    <th className="px-3 py-3 font-semibold">Empresa / técnico</th>
-                    <th className="px-3 py-3 font-semibold">Resultado</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredHistory.map((execution) => (
-                    <tr key={execution.id} onClick={() => navigate('/maintenance')} className="cursor-pointer border-b border-slate-100 hover:bg-slate-50">
-                      <td className="whitespace-nowrap px-3 py-3 text-slate-600">{execution.scheduled_date ? new Date(execution.scheduled_date + 'T12:00:00').toLocaleDateString('es-ES') : '—'}</td>
-                      <td className="whitespace-nowrap px-3 py-3 text-slate-600">{execution.executed_at ? new Date(execution.executed_at).toLocaleString('es-ES') : '—'}</td>
-                      <td className="px-3 py-3"><div className="font-semibold text-slate-700">{execution.maintenance_plan?.apparatus_registry?.code || '—'}</div><div className="text-[10px] text-slate-500">{execution.maintenance_plan?.apparatus_registry?.name || '—'}</div></td>
-                      <td className="px-3 py-3 font-semibold text-slate-700">{execution.maintenance_plan?.name || '—'}</td>
-                      <td className="px-3 py-3 text-slate-600">{execution.performer_company || execution.performer_name || 'SSTT'}</td>
-                      <td className="px-3 py-3"><span className="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-700">{executionResultLabel(execution.result)}</span></td>
+
+            <div className="md:hidden">
+              <div className="space-y-2 p-2">
+                {filteredHistory.map((execution) => (
+                  <button
+                    key={execution.id}
+                    type="button"
+                    onClick={() => navigate('/maintenance')}
+                    className="w-full rounded-xl border border-slate-200 bg-white p-3 text-left hover:bg-slate-50"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="truncate text-xs font-semibold text-slate-800">{execution.maintenance_plan?.name || '—'}</div>
+                        <div className="mt-0.5 text-[10px] text-slate-500">{execution.maintenance_plan?.apparatus_registry?.code || '—'}</div>
+                      </div>
+                      <span className="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-700">{executionResultLabel(execution.result)}</span>
+                    </div>
+                    <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[10px] text-slate-500">
+                      <div><span className="font-semibold">Prevista:</span> {execution.scheduled_date ? new Date(execution.scheduled_date + 'T12:00:00').toLocaleDateString('es-ES') : '—'}</div>
+                      <div><span className="font-semibold">Realizada:</span> {execution.executed_at ? new Date(execution.executed_at).toLocaleDateString('es-ES') : '—'}</div>
+                      <div className="col-span-2"><span className="font-semibold">Empresa / técnico:</span> {execution.performer_company || execution.performer_name || 'SSTT'}</div>
+                    </div>
+                  </button>
+                ))}
+                {!historyLoading && filteredHistory.length === 0 && (
+                  <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500">No hay ejecuciones históricas registradas.</div>
+                )}
+                {historyLoading && <div className="p-8 text-center text-sm text-slate-400">Cargando histórico…</div>}
+              </div>
+            </div>
+
+            <div className="hidden md:block">
+              <div className="max-h-[calc(100vh-340px)] min-h-[360px] overflow-auto">
+                <table className="w-full min-w-[980px] border-collapse text-sm">
+                  <thead>
+                    <tr className="sticky top-0 z-10 border-b bg-slate-50 text-left text-[10px] uppercase tracking-wide text-slate-500">
+                      <th className="px-3 py-3 font-semibold">Fecha prevista</th>
+                      <th className="px-3 py-3 font-semibold">Realizada</th>
+                      <th className="px-3 py-3 font-semibold">Equipo</th>
+                      <th className="px-3 py-3 font-semibold">Mantenimiento</th>
+                      <th className="px-3 py-3 font-semibold">Empresa / técnico</th>
+                      <th className="px-3 py-3 font-semibold">Resultado</th>
                     </tr>
-                  ))}
-                  {!historyLoading && filteredHistory.length === 0 && <tr><td colSpan={6} className="px-4 py-14 text-center"><div className="text-sm font-semibold text-slate-600">No hay ejecuciones históricas registradas.</div><div className="mt-1 text-xs text-slate-400">El histórico aparecerá cuando existan ejecuciones reales.</div></td></tr>}
-                  {historyLoading && <tr><td colSpan={6} className="px-4 py-14 text-center text-sm text-slate-400">Cargando histórico…</td></tr>}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {filteredHistory.map((execution) => (
+                      <tr
+                        key={execution.id}
+                        onClick={() => navigate('/maintenance')}
+                        className="cursor-pointer border-b border-slate-100 hover:bg-slate-50"
+                      >
+                        <td className="whitespace-nowrap px-3 py-3 text-slate-600">{execution.scheduled_date ? new Date(execution.scheduled_date + 'T12:00:00').toLocaleDateString('es-ES') : '—'}</td>
+                        <td className="whitespace-nowrap px-3 py-3 text-slate-600">{execution.executed_at ? new Date(execution.executed_at).toLocaleString('es-ES') : '—'}</td>
+                        <td className="px-3 py-3">
+                          <div className="font-semibold text-slate-700">{execution.maintenance_plan?.apparatus_registry?.code || '—'}</div>
+                          <div className="text-[10px] text-slate-500">{execution.maintenance_plan?.apparatus_registry?.name || '—'}</div>
+                        </td>
+                        <td className="px-3 py-3 font-semibold text-slate-700">{execution.maintenance_plan?.name || '—'}</td>
+                        <td className="px-3 py-3 text-slate-600">{execution.performer_company || execution.performer_name || 'SSTT'}</td>
+                        <td className="px-3 py-3">
+                          <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-700">{executionResultLabel(execution.result)}</span>
+                        </td>
+                      </tr>
+                    ))}
+                    {!historyLoading && filteredHistory.length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="px-4 py-14 text-center">
+                          <div className="text-sm font-semibold text-slate-600">No hay ejecuciones históricas registradas.</div>
+                          <div className="mt-1 text-xs text-slate-400">El histórico aparecerá cuando existan ejecuciones reales.</div>
+                        </td>
+                      </tr>
+                    )}
+                    {historyLoading && <tr><td colSpan={6} className="px-4 py-14 text-center text-sm text-slate-400">Cargando histórico…</td></tr>}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
-            </div>
         )}
       </div>
     </div>

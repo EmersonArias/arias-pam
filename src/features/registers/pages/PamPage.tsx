@@ -477,16 +477,16 @@ export default function PamPage() {
     <div className="min-h-screen bg-slate-100 p-3 sm:p-5">
       <div className="mx-auto max-w-[1600px]">
         <div className="mb-3 rounded-2xl bg-white p-3 shadow-lg sm:p-4">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-col gap-2.5 sm:gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex min-w-0 items-center gap-3">
-              <BrandLogo onActivate={() => navigate('/')} className="h-10 w-auto shrink-0 object-contain sm:h-12" />
+              <BrandLogo onActivate={() => navigate('/')} className="h-9 w-auto shrink-0 object-contain sm:h-12" />
               <div className="min-w-0">
-                <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">Plan Anual de Mantenimiento</h1>
+                <h1 className="text-xl font-bold leading-tight text-slate-900 sm:text-3xl">Plan Anual de Mantenimiento</h1>
                 <p className="text-sm text-slate-500">PAM vivo: mantenimiento, equipos, calendario e histórico</p>
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
               <BackButton onBack={() => navigate('/')} />
               <HomeButton onHome={() => navigate('/')} />
               <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm">
@@ -507,7 +507,7 @@ export default function PamPage() {
           <div className="mb-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</div>
         )}
 
-        <div className="mb-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="mb-3 grid grid-cols-2 gap-2.5 sm:grid-cols-2 sm:gap-3 lg:grid-cols-5">
           {[
             ['Mantenimientos', allAnnualGroups.length],
             [`Trabajos previstos ${year}`, annualLoad],
@@ -523,6 +523,7 @@ export default function PamPage() {
         </div>
 
         <div className="mb-3 flex flex-wrap items-center gap-1.5 rounded-2xl bg-white p-2 shadow-lg">
+          <div className="flex gap-1.5 overflow-x-auto pb-1">
           {[
             ['ANNUAL', 'Plan anual'],
             ['EQUIPMENT', 'Por equipo'],
@@ -533,21 +534,22 @@ export default function PamPage() {
               key={value}
               type="button"
               onClick={() => setTab(value as PamTab)}
-              className={`rounded-xl px-3 py-2 text-xs font-semibold transition ${
+              className={`shrink-0 whitespace-nowrap rounded-xl px-3 py-2 text-xs font-semibold transition ${
                 tab === value ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'
               }`}
             >
               {label}
             </button>
           ))}
-          <div className="ml-auto flex flex-wrap items-center gap-2">
+          </div>
+          <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
               <input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder={tab === 'HISTORY' ? 'Buscar histórico…' : 'Buscar mantenimiento o equipo…'}
-                className="w-[240px] rounded-lg border border-slate-300 py-2 pl-9 pr-3 text-xs outline-none focus:border-blue-500"
+                className="w-full rounded-lg sm:w-[240px] border border-slate-300 py-2 pl-9 pr-3 text-xs outline-none focus:border-blue-500"
               />
             </div>
             {tab !== 'HISTORY' && (
@@ -566,6 +568,60 @@ export default function PamPage() {
 
         {tab === 'ANNUAL' && (
           <div className="rounded-2xl bg-white shadow-lg">
+            <div className="border-b px-4 py-3 md:hidden">
+              <div className="text-sm font-semibold text-slate-800">Plan anual · {year}</div>
+              <div className="text-xs text-slate-500">Resumen por mantenimiento y mes.</div>
+            </div>
+            <div className="space-y-2 p-2 md:hidden">
+              {annualGroups.map((group) => {
+                const state = groupState(group)
+                return (
+                  <details key={group.key} className="rounded-xl border border-slate-200 bg-white">
+                    <summary className="cursor-pointer list-none p-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="font-semibold text-slate-800">{group.name.replace(/^_+/, '')}</div>
+                          <div className="mt-1 text-[11px] text-slate-500">
+                            {group.plans.length} equipo{group.plans.length === 1 ? '' : 's'} · {periodicityLabel(group.plans[0])}
+                          </div>
+                        </div>
+                        <span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-semibold ${stateClass(state)}`}>{state}</span>
+                      </div>
+                      <div className="mt-2 flex gap-1.5 overflow-x-auto pb-1">
+                        {months.map((month) => {
+                          const count = group.plans.reduce((total, plan) => total + monthOccurrences(plan, year, Number(month.key) - 1), 0)
+                          return (
+                            <span key={month.key} className="min-w-[52px] rounded-lg bg-slate-50 px-2 py-1 text-center">
+                              <span className="block text-[9px] uppercase text-slate-400">{month.short}</span>
+                              <span className="text-xs font-semibold text-slate-700">{count || '·'}</span>
+                            </span>
+                          )
+                        })}
+                      </div>
+                    </summary>
+                    <div className="border-t bg-slate-50 px-3 py-2">
+                      <div className="grid grid-cols-1 gap-1.5">
+                        {group.plans.map((plan) => (
+                          <button
+                            key={plan.id}
+                            type="button"
+                            onClick={() => navigate(plan.apparatus_registry_id ? `/apparatusregistry/${plan.apparatus_registry_id}` : '/apparatusregistry')}
+                            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-left"
+                          >
+                            <div className="text-xs font-semibold text-slate-800">{plan.apparatus?.code || 'Equipo sin código'}</div>
+                            <div className="truncate text-[10px] text-slate-500">{plan.apparatus?.name || 'Equipo no indicado'}</div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </details>
+                )
+              })}
+              {!loading && annualGroups.length === 0 && (
+                <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500">No hay mantenimientos que mostrar.</div>
+              )}
+            </div>
+            <div className="hidden md:block">
             <div className="flex items-center justify-between gap-3 border-b px-4 py-3">
               <div>
                 <div className="text-sm font-semibold text-slate-800">Plan anual · {year}</div>
@@ -647,10 +703,43 @@ export default function PamPage() {
               </table>
             </div>
           </div>
+            </div>
         )}
 
         {tab === 'EQUIPMENT' && (
           <div className="rounded-2xl bg-white shadow-lg">
+            <div className="border-b px-4 py-3 md:hidden">
+              <div className="text-sm font-semibold text-slate-800">PAM por equipo · {year}</div>
+              <div className="text-xs text-slate-500">Equipo, mantenimientos y carga mensual.</div>
+            </div>
+            <div className="space-y-2 p-2 md:hidden">
+              {equipmentGroups.map((equipment) => (
+                <button
+                  key={equipment.id}
+                  type="button"
+                  onClick={() => navigate(`/apparatusregistry/${equipment.id}`)}
+                  className="w-full rounded-xl border border-slate-200 bg-white p-3 text-left"
+                >
+                  <div className="font-semibold text-slate-800">{equipment.code}</div>
+                  <div className="text-[11px] text-slate-500">{equipment.name}</div>
+                  <div className="mt-2 flex gap-1.5 overflow-x-auto pb-1">
+                    {months.map((month) => {
+                      const count = equipment.plans.reduce((total, plan) => total + monthOccurrences(plan, year, Number(month.key) - 1), 0)
+                      return (
+                        <span key={month.key} className="min-w-[52px] rounded-lg bg-slate-50 px-2 py-1 text-center">
+                          <span className="block text-[9px] uppercase text-slate-400">{month.short}</span>
+                          <span className="text-xs font-semibold text-slate-700">{count || '·'}</span>
+                        </span>
+                      )
+                    })}
+                  </div>
+                </button>
+              ))}
+              {!loading && equipmentGroups.length === 0 && (
+                <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500">No hay equipos con mantenimiento configurado.</div>
+              )}
+            </div>
+            <div className="hidden md:block">
             <div className="flex items-center justify-between gap-3 border-b px-4 py-3">
               <div>
                 <div className="text-sm font-semibold text-slate-800">PAM por equipo · {year}</div>
@@ -693,6 +782,7 @@ export default function PamPage() {
               </table>
             </div>
           </div>
+            </div>
         )}
 
         {tab === 'CALENDAR' && (
@@ -728,6 +818,38 @@ export default function PamPage() {
 
         {tab === 'HISTORY' && (
           <div className="rounded-2xl bg-white shadow-lg">
+            <div className="border-b px-4 py-3 md:hidden">
+              <div className="text-sm font-semibold text-slate-800">Histórico de ejecuciones</div>
+              <div className="text-xs text-slate-500">{filteredHistory.length} registros</div>
+            </div>
+            <div className="space-y-2 p-2 md:hidden">
+              {filteredHistory.map((execution) => (
+                <button
+                  key={execution.id}
+                  type="button"
+                  onClick={() => navigate('/maintenance')}
+                  className="w-full rounded-xl border border-slate-200 bg-white p-3 text-left"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="text-xs font-semibold text-slate-800">{execution.maintenance_plan?.name || '—'}</div>
+                      <div className="mt-0.5 text-[10px] text-slate-500">{execution.maintenance_plan?.apparatus_registry?.code || '—'}</div>
+                    </div>
+                    <span className="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-700">{executionResultLabel(execution.result)}</span>
+                  </div>
+                  <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[10px] text-slate-500">
+                    <div><span className="font-semibold">Prevista:</span> {execution.scheduled_date ? new Date(execution.scheduled_date + 'T12:00:00').toLocaleDateString('es-ES') : '—'}</div>
+                    <div><span className="font-semibold">Realizada:</span> {execution.executed_at ? new Date(execution.executed_at).toLocaleDateString('es-ES') : '—'}</div>
+                    <div className="col-span-2"><span className="font-semibold">Empresa / técnico:</span> {execution.performer_company || execution.performer_name || 'SSTT'}</div>
+                  </div>
+                </button>
+              ))}
+              {!historyLoading && filteredHistory.length === 0 && (
+                <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500">No hay ejecuciones históricas registradas.</div>
+              )}
+              {historyLoading && <div className="p-8 text-center text-sm text-slate-400">Cargando histórico…</div>}
+            </div>
+            <div className="hidden md:block">
             <div className="flex items-center justify-between gap-3 border-b px-4 py-3">
               <div>
                 <div className="text-sm font-semibold text-slate-800">Histórico de ejecuciones</div>
@@ -764,6 +886,7 @@ export default function PamPage() {
               </table>
             </div>
           </div>
+            </div>
         )}
       </div>
     </div>

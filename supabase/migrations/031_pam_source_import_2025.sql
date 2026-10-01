@@ -78,7 +78,7 @@ CREATE POLICY pam_source_groups_select
 DO $$
 DECLARE
   v_hotel_id uuid;
-  v_group_row record;
+  v_group_row jsonb;
   v_group_rows constant jsonb := $json$
 [
   {"source_row":6,"source_apparatus_expression":"8-93-(168-180)-218-224-266-298-299-332","maintenance_name":"_PREVENTIVO DIARIO/SEMANAL","slot_spec":"1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48:F"},

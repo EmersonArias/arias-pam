@@ -164,6 +164,12 @@ BEGIN
 END;
 $$;
 
+-- El documento usa dos convenciones:
+--   * grupos cortos como 60-62 representan rangos;
+--   * cadenas largas como 264-334 representan dos IDs separados por guion;
+--     los rangos largos están explícitamente entre paréntesis.
+-- Se conserva esa semántica del documento para no convertir IDs en equipos
+-- inexistentes.
 CREATE OR REPLACE FUNCTION public.expand_pam_source_ids(source_expression text)
 RETURNS TABLE(source_apparatus_id integer)
 LANGUAGE sql
@@ -179,8 +185,7 @@ AS $fn$
   prepared AS (
     SELECT
       segment,
-      regexp_replace(segment, '\(\d+-\d+\)', ' ', 'g') AS plain_segment,
-      segment ~ '^\s*\d+\s*-\s*\d+\s*$' AS is_plain_range
+      regexp_replace(segment, '\(\d+-\d+\)', ' ', 'g') AS plain_segment
     FROM segments
   ),
   parenthesized_ranges AS (
@@ -194,7 +199,7 @@ AS $fn$
       'g'
     ) AS m
   ),
-  plain_ranges AS (
+  short_plain_ranges AS (
     SELECT
       m[1]::integer AS first_id,
       m[2]::integer AS last_id
@@ -203,7 +208,7 @@ AS $fn$
       p.plain_segment,
       '^\s*(\d+)\s*-\s*(\d+)\s*$'
     ) AS m
-    WHERE p.is_plain_range
+    WHERE (m[2]::integer - m[1]::integer) BETWEEN 0 AND 10
   ),
   bare_ids AS (
     SELECT
@@ -214,7 +219,14 @@ AS $fn$
       '(\d+)',
       'g'
     ) AS m
-    WHERE NOT p.is_plain_range
+    WHERE NOT EXISTS (
+      SELECT 1
+      FROM regexp_matches(
+        p.plain_segment,
+        '^\s*(\d+)\s*-\s*(\d+)\s*$'
+      ) AS r
+      WHERE (r[2]::integer - r[1]::integer) BETWEEN 0 AND 10
+    )
   )
   SELECT generate_series(first_id, last_id)::integer
   FROM parenthesized_ranges
@@ -223,7 +235,7 @@ AS $fn$
   UNION ALL
 
   SELECT generate_series(first_id, last_id)::integer
-  FROM plain_ranges
+  FROM short_plain_ranges
   WHERE first_id <= last_id
 
   UNION ALL

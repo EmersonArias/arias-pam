@@ -170,21 +170,639 @@ LANGUAGE sql
 IMMUTABLE
 PARALLEL SAFE
 SET search_path = pg_catalog, public
-AS $$
-  WITH tokens AS (
+AS $
+  WITH segments AS (
+    SELECT btrim(segment) AS segment
+    FROM regexp_split_to_table(COALESCE(source_expression, ''), ',') AS segment
+    WHERE btrim(segment) <> ''
+  ),
+  prepared AS (
     SELECT
-      match[1]::integer AS first_id,
-      COALESCE(NULLIF(match[2], ''), match[1])::integer AS last_id
-    FROM regexp_matches(
-      COALESCE(source_expression, ''),
-      '([0-9]+)(?:-([0-9]+))?',
+      segment,
+      regexp_replace(segment, '\\(\\d+-\\d+\\)', ' ', 'g') AS plain_segment,
+      segment ~ '^\\s*\\d+\\s*-\\s*\\d+\\s*
+
+REVOKE ALL ON FUNCTION public.expand_pam_source_ids(text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.expand_pam_source_ids(text) TO authenticated;
+
+DO $$
+DECLARE
+  v_hotel_id uuid;
+BEGIN
+  SELECT h.id
+    INTO v_hotel_id
+  FROM public.tenants t
+  JOIN public.hotels h
+    ON h.tenant_id = t.id
+  WHERE t.code = 'SBH'
+    AND t.active = true
+    AND h.code = 'SB-DZ'
+    AND h.active = true
+  LIMIT 1;
+
+  IF v_hotel_id IS NULL THEN
+    RAISE EXCEPTION 'No existe un hotel activo SB-DZ dentro del tenant SBH.';
+  END IF;
+
+  INSERT INTO public.pam_source_marks (
+    hotel_id,
+    source_version,
+    source_sheet,
+    source_row,
+    source_column,
+    source_apparatus_id,
+    apparatus_registry_id,
+    plan_year,
+    month_number,
+    week_slot,
+    mark_code
+  )
+  SELECT
+    v_hotel_id,
+    'R-SSTT-01-01_PLAN_ANUAL_2025_v20260927',
+    'PAM',
+    g.source_row,
+    3 + s.slot_number,
+    ids.source_apparatus_id,
+    ar.id,
+    2025,
+    ((s.slot_number - 1) / 4) + 1,
+    ((s.slot_number - 1) % 4) + 1,
+    s.mark_code
+  FROM (
+    VALUES
+      (6,'8-93-(168-180)-218-224-266-298-299-332','1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48:F'),
+      (7,'264-334','1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48:F'),
+      (8,'144-145-149-335','1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48:F'),
+      (9,'156(168-172)(216-217)(251-256)','1,5,9,13,17,21,25,29,33,37,41,45:F'),
+      (10,'145-(181-185)-214','1,25:F'),
+      (11,'22,25,34,60-62,75-79,97-107,134,199-203,269,276-277','1,25:F'),
+      (12,'7','1:F'),
+      (13,'8-16-173-174-192-222-223-316-324-325','1:F'),
+      (14,'09','1:F'),
+      (15,'11','1,13,25,37:F'),
+      (16,'9','1,13,25,37:F'),
+      (17,'12','1,13,25,37:F'),
+      (18,'29-(35-40)-43-46-56-57-(63-65)-71-274-278-288','1,13,25,37:F'),
+      (19,'1','45:RG'),
+      (20,'2-7','2,6,10,14,18,22,26,30,34,38,42,46:EXT'),
+      (21,'15','1,25:L'),
+      (22,'8-87','17:L'),
+      (23,'40-43-56-35-(36-39)-72-74-249-275-290','1,13,25,37:LF'),
+      (24,'338','17:EXT'),
+      (25,'187','1,13,25,37:RG;17:L'),
+      (26,'195-196','14:EXT'),
+      (27,'206','1,5,9,13,17,21,25,29,33,37,41,45:EXT'),
+      (28,'242,270','2,6,10,14,18,22,26,30,34,38,42,46:EXT'),
+      (29,'190,192,239,244','4:EXT;9,13,17,21,25,29,33,37,41,45:RG'),
+      (30,'(175-180)-257-258','17:L'),
+      (31,'125-133','1,25:RG'),
+      (32,'221-271','2:EXT'),
+      (33,'140-297','1,25:E'),
+      (34,'73-83-152','3,7,11,15,19,23,27,31,35,39,43,47:RG'),
+      (35,'113-120,124,226,229,232,236,246,250','1,25:RG;2,26:L'),
+      (37,'141','1,13,25,37:L'),
+      (38,'224','1:L;2,5,9,13,17,21,25,29,33,37,41,45:DE'),
+      (39,'329','17:CP')
+  ) AS g(source_row, source_apparatus_expression, slot_spec)
+  CROSS JOIN LATERAL public.expand_pam_source_ids(g.source_apparatus_expression) ids
+  CROSS JOIN LATERAL (
+    SELECT
+      regexp_split_to_table(split_part(part, ':', 1), ',')::integer AS slot_number,
+      split_part(part, ':', 2) AS mark_code
+    FROM regexp_split_to_table(g.slot_spec, ';') AS part
+  ) s
+  LEFT JOIN public.apparatus_registry ar
+    ON ar.source_id = ids.source_apparatus_id
+  WHERE g.slot_spec <> ''
+  ON CONFLICT (
+    hotel_id,
+    source_version,
+    source_sheet,
+    source_apparatus_id,
+    plan_year,
+    month_number,
+    week_slot,
+    mark_code
+  ) DO NOTHING;
+END;
+$$;
+
+CREATE OR REPLACE VIEW public.pam_plan_candidates AS
+WITH grouped AS (
+  SELECT
+    psm.hotel_id,
+    psm.source_version,
+    psm.source_sheet,
+    psm.source_row,
+    psm.source_apparatus_id,
+    psm.apparatus_registry_id,
+    psm.plan_year,
+    psm.mark_code,
+    COUNT(*)::integer AS mark_count,
+    COUNT(DISTINCT psm.month_number)::integer AS month_count,
+    MIN(psm.month_number)::integer AS first_month,
+    MIN(psm.week_slot)::integer AS first_week_slot,
+    ARRAY_AGG(DISTINCT psm.month_number ORDER BY psm.month_number) AS months,
+    ARRAY_AGG(DISTINCT psm.week_slot ORDER BY psm.week_slot) AS week_slots
+  FROM public.pam_source_marks psm
+  GROUP BY
+    psm.hotel_id,
+    psm.source_version,
+    psm.source_sheet,
+    psm.source_row,
+    psm.source_apparatus_id,
+    psm.apparatus_registry_id,
+    psm.plan_year,
+    psm.mark_code
+)
+SELECT
+  g.hotel_id,
+  g.source_version,
+  g.source_sheet,
+  g.source_row,
+  psg.maintenance_name,
+  g.source_apparatus_id,
+  g.apparatus_registry_id,
+  ar.code AS apparatus_code,
+  ar.name AS apparatus_name,
+  ar.plant,
+  ar.location,
+  g.plan_year,
+  g.mark_code,
+  pac.name AS action_name,
+  pac.definition_status,
+  g.mark_count,
+  g.month_count,
+  g.months,
+  g.week_slots,
+  g.first_month AS anchor_month,
+  g.first_week_slot AS anchor_week_slot,
+  CASE
+    WHEN g.mark_count = 48 AND g.month_count = 12 THEN 'WEEK'
+    WHEN g.mark_count = 12 AND g.month_count = 12 THEN 'MONTH'
+    WHEN g.mark_count = 6 AND g.month_count = 6 THEN 'MONTH'
+    WHEN g.mark_count = 4 AND g.month_count = 4 THEN 'MONTH'
+    WHEN g.mark_count = 3 AND g.month_count = 3 THEN 'MONTH'
+    WHEN g.mark_count = 2 AND g.month_count = 2 THEN 'MONTH'
+    WHEN g.mark_count = 1 AND g.month_count = 1 THEN 'YEAR'
+    ELSE 'VARIABLE'
+  END AS derived_periodicity_unit,
+  CASE
+    WHEN g.mark_count = 48 AND g.month_count = 12 THEN 1
+    WHEN g.mark_count = 12 AND g.month_count = 12 THEN 1
+    WHEN g.mark_count = 6 AND g.month_count = 6 THEN 2
+    WHEN g.mark_count = 4 AND g.month_count = 4 THEN 3
+    WHEN g.mark_count = 3 AND g.month_count = 3 THEN 4
+    WHEN g.mark_count = 2 AND g.month_count = 2 THEN 6
+    WHEN g.mark_count = 1 AND g.month_count = 1 THEN 1
+    ELSE NULL
+  END AS derived_periodicity_value
+FROM grouped g
+LEFT JOIN public.pam_source_groups psg
+  ON psg.hotel_id = g.hotel_id
+ AND psg.source_version = g.source_version
+ AND psg.source_sheet = g.source_sheet
+ AND psg.source_row = g.source_row
+LEFT JOIN public.apparatus_registry ar
+  ON ar.id = g.apparatus_registry_id
+JOIN public.pam_action_codes pac
+  ON pac.code = g.mark_code;
+
+COMMIT;
+ AS is_plain_range
+    FROM segments
+  ),
+  parenthesized_ranges AS (
+    SELECT
+      (match[1])::integer AS first_id,
+      (match[2])::integer AS last_id
+    FROM prepared
+    CROSS JOIN LATERAL regexp_matches(
+      segment,
+      '\\((\\d+)-(\\d+)\\)',
       'g'
     ) AS match
+  ),
+  plain_ranges AS (
+    SELECT
+      (regexp_matches(
+        plain_segment,
+        '^\\s*(\\d+)\\s*-\\s*(\\d+)\\s*
+
+REVOKE ALL ON FUNCTION public.expand_pam_source_ids(text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.expand_pam_source_ids(text) TO authenticated;
+
+DO $$
+DECLARE
+  v_hotel_id uuid;
+BEGIN
+  SELECT h.id
+    INTO v_hotel_id
+  FROM public.tenants t
+  JOIN public.hotels h
+    ON h.tenant_id = t.id
+  WHERE t.code = 'SBH'
+    AND t.active = true
+    AND h.code = 'SB-DZ'
+    AND h.active = true
+  LIMIT 1;
+
+  IF v_hotel_id IS NULL THEN
+    RAISE EXCEPTION 'No existe un hotel activo SB-DZ dentro del tenant SBH.';
+  END IF;
+
+  INSERT INTO public.pam_source_marks (
+    hotel_id,
+    source_version,
+    source_sheet,
+    source_row,
+    source_column,
+    source_apparatus_id,
+    apparatus_registry_id,
+    plan_year,
+    month_number,
+    week_slot,
+    mark_code
+  )
+  SELECT
+    v_hotel_id,
+    'R-SSTT-01-01_PLAN_ANUAL_2025_v20260927',
+    'PAM',
+    g.source_row,
+    3 + s.slot_number,
+    ids.source_apparatus_id,
+    ar.id,
+    2025,
+    ((s.slot_number - 1) / 4) + 1,
+    ((s.slot_number - 1) % 4) + 1,
+    s.mark_code
+  FROM (
+    VALUES
+      (6,'8-93-(168-180)-218-224-266-298-299-332','1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48:F'),
+      (7,'264-334','1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48:F'),
+      (8,'144-145-149-335','1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48:F'),
+      (9,'156(168-172)(216-217)(251-256)','1,5,9,13,17,21,25,29,33,37,41,45:F'),
+      (10,'145-(181-185)-214','1,25:F'),
+      (11,'22,25,34,60-62,75-79,97-107,134,199-203,269,276-277','1,25:F'),
+      (12,'7','1:F'),
+      (13,'8-16-173-174-192-222-223-316-324-325','1:F'),
+      (14,'09','1:F'),
+      (15,'11','1,13,25,37:F'),
+      (16,'9','1,13,25,37:F'),
+      (17,'12','1,13,25,37:F'),
+      (18,'29-(35-40)-43-46-56-57-(63-65)-71-274-278-288','1,13,25,37:F'),
+      (19,'1','45:RG'),
+      (20,'2-7','2,6,10,14,18,22,26,30,34,38,42,46:EXT'),
+      (21,'15','1,25:L'),
+      (22,'8-87','17:L'),
+      (23,'40-43-56-35-(36-39)-72-74-249-275-290','1,13,25,37:LF'),
+      (24,'338','17:EXT'),
+      (25,'187','1,13,25,37:RG;17:L'),
+      (26,'195-196','14:EXT'),
+      (27,'206','1,5,9,13,17,21,25,29,33,37,41,45:EXT'),
+      (28,'242,270','2,6,10,14,18,22,26,30,34,38,42,46:EXT'),
+      (29,'190,192,239,244','4:EXT;9,13,17,21,25,29,33,37,41,45:RG'),
+      (30,'(175-180)-257-258','17:L'),
+      (31,'125-133','1,25:RG'),
+      (32,'221-271','2:EXT'),
+      (33,'140-297','1,25:E'),
+      (34,'73-83-152','3,7,11,15,19,23,27,31,35,39,43,47:RG'),
+      (35,'113-120,124,226,229,232,236,246,250','1,25:RG;2,26:L'),
+      (37,'141','1,13,25,37:L'),
+      (38,'224','1:L;2,5,9,13,17,21,25,29,33,37,41,45:DE'),
+      (39,'329','17:CP')
+  ) AS g(source_row, source_apparatus_expression, slot_spec)
+  CROSS JOIN LATERAL public.expand_pam_source_ids(g.source_apparatus_expression) ids
+  CROSS JOIN LATERAL (
+    SELECT
+      regexp_split_to_table(split_part(part, ':', 1), ',')::integer AS slot_number,
+      split_part(part, ':', 2) AS mark_code
+    FROM regexp_split_to_table(g.slot_spec, ';') AS part
+  ) s
+  LEFT JOIN public.apparatus_registry ar
+    ON ar.source_id = ids.source_apparatus_id
+  WHERE g.slot_spec <> ''
+  ON CONFLICT (
+    hotel_id,
+    source_version,
+    source_sheet,
+    source_apparatus_id,
+    plan_year,
+    month_number,
+    week_slot,
+    mark_code
+  ) DO NOTHING;
+END;
+$$;
+
+CREATE OR REPLACE VIEW public.pam_plan_candidates AS
+WITH grouped AS (
+  SELECT
+    psm.hotel_id,
+    psm.source_version,
+    psm.source_sheet,
+    psm.source_row,
+    psm.source_apparatus_id,
+    psm.apparatus_registry_id,
+    psm.plan_year,
+    psm.mark_code,
+    COUNT(*)::integer AS mark_count,
+    COUNT(DISTINCT psm.month_number)::integer AS month_count,
+    MIN(psm.month_number)::integer AS first_month,
+    MIN(psm.week_slot)::integer AS first_week_slot,
+    ARRAY_AGG(DISTINCT psm.month_number ORDER BY psm.month_number) AS months,
+    ARRAY_AGG(DISTINCT psm.week_slot ORDER BY psm.week_slot) AS week_slots
+  FROM public.pam_source_marks psm
+  GROUP BY
+    psm.hotel_id,
+    psm.source_version,
+    psm.source_sheet,
+    psm.source_row,
+    psm.source_apparatus_id,
+    psm.apparatus_registry_id,
+    psm.plan_year,
+    psm.mark_code
+)
+SELECT
+  g.hotel_id,
+  g.source_version,
+  g.source_sheet,
+  g.source_row,
+  psg.maintenance_name,
+  g.source_apparatus_id,
+  g.apparatus_registry_id,
+  ar.code AS apparatus_code,
+  ar.name AS apparatus_name,
+  ar.plant,
+  ar.location,
+  g.plan_year,
+  g.mark_code,
+  pac.name AS action_name,
+  pac.definition_status,
+  g.mark_count,
+  g.month_count,
+  g.months,
+  g.week_slots,
+  g.first_month AS anchor_month,
+  g.first_week_slot AS anchor_week_slot,
+  CASE
+    WHEN g.mark_count = 48 AND g.month_count = 12 THEN 'WEEK'
+    WHEN g.mark_count = 12 AND g.month_count = 12 THEN 'MONTH'
+    WHEN g.mark_count = 6 AND g.month_count = 6 THEN 'MONTH'
+    WHEN g.mark_count = 4 AND g.month_count = 4 THEN 'MONTH'
+    WHEN g.mark_count = 3 AND g.month_count = 3 THEN 'MONTH'
+    WHEN g.mark_count = 2 AND g.month_count = 2 THEN 'MONTH'
+    WHEN g.mark_count = 1 AND g.month_count = 1 THEN 'YEAR'
+    ELSE 'VARIABLE'
+  END AS derived_periodicity_unit,
+  CASE
+    WHEN g.mark_count = 48 AND g.month_count = 12 THEN 1
+    WHEN g.mark_count = 12 AND g.month_count = 12 THEN 1
+    WHEN g.mark_count = 6 AND g.month_count = 6 THEN 2
+    WHEN g.mark_count = 4 AND g.month_count = 4 THEN 3
+    WHEN g.mark_count = 3 AND g.month_count = 3 THEN 4
+    WHEN g.mark_count = 2 AND g.month_count = 2 THEN 6
+    WHEN g.mark_count = 1 AND g.month_count = 1 THEN 1
+    ELSE NULL
+  END AS derived_periodicity_value
+FROM grouped g
+LEFT JOIN public.pam_source_groups psg
+  ON psg.hotel_id = g.hotel_id
+ AND psg.source_version = g.source_version
+ AND psg.source_sheet = g.source_sheet
+ AND psg.source_row = g.source_row
+LEFT JOIN public.apparatus_registry ar
+  ON ar.id = g.apparatus_registry_id
+JOIN public.pam_action_codes pac
+  ON pac.code = g.mark_code;
+
+COMMIT;
+
+      ))[1]::integer AS first_id,
+      (regexp_matches(
+        plain_segment,
+        '^\\s*(\\d+)\\s*-\\s*(\\d+)\\s*
+
+REVOKE ALL ON FUNCTION public.expand_pam_source_ids(text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.expand_pam_source_ids(text) TO authenticated;
+
+DO $$
+DECLARE
+  v_hotel_id uuid;
+BEGIN
+  SELECT h.id
+    INTO v_hotel_id
+  FROM public.tenants t
+  JOIN public.hotels h
+    ON h.tenant_id = t.id
+  WHERE t.code = 'SBH'
+    AND t.active = true
+    AND h.code = 'SB-DZ'
+    AND h.active = true
+  LIMIT 1;
+
+  IF v_hotel_id IS NULL THEN
+    RAISE EXCEPTION 'No existe un hotel activo SB-DZ dentro del tenant SBH.';
+  END IF;
+
+  INSERT INTO public.pam_source_marks (
+    hotel_id,
+    source_version,
+    source_sheet,
+    source_row,
+    source_column,
+    source_apparatus_id,
+    apparatus_registry_id,
+    plan_year,
+    month_number,
+    week_slot,
+    mark_code
+  )
+  SELECT
+    v_hotel_id,
+    'R-SSTT-01-01_PLAN_ANUAL_2025_v20260927',
+    'PAM',
+    g.source_row,
+    3 + s.slot_number,
+    ids.source_apparatus_id,
+    ar.id,
+    2025,
+    ((s.slot_number - 1) / 4) + 1,
+    ((s.slot_number - 1) % 4) + 1,
+    s.mark_code
+  FROM (
+    VALUES
+      (6,'8-93-(168-180)-218-224-266-298-299-332','1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48:F'),
+      (7,'264-334','1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48:F'),
+      (8,'144-145-149-335','1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48:F'),
+      (9,'156(168-172)(216-217)(251-256)','1,5,9,13,17,21,25,29,33,37,41,45:F'),
+      (10,'145-(181-185)-214','1,25:F'),
+      (11,'22,25,34,60-62,75-79,97-107,134,199-203,269,276-277','1,25:F'),
+      (12,'7','1:F'),
+      (13,'8-16-173-174-192-222-223-316-324-325','1:F'),
+      (14,'09','1:F'),
+      (15,'11','1,13,25,37:F'),
+      (16,'9','1,13,25,37:F'),
+      (17,'12','1,13,25,37:F'),
+      (18,'29-(35-40)-43-46-56-57-(63-65)-71-274-278-288','1,13,25,37:F'),
+      (19,'1','45:RG'),
+      (20,'2-7','2,6,10,14,18,22,26,30,34,38,42,46:EXT'),
+      (21,'15','1,25:L'),
+      (22,'8-87','17:L'),
+      (23,'40-43-56-35-(36-39)-72-74-249-275-290','1,13,25,37:LF'),
+      (24,'338','17:EXT'),
+      (25,'187','1,13,25,37:RG;17:L'),
+      (26,'195-196','14:EXT'),
+      (27,'206','1,5,9,13,17,21,25,29,33,37,41,45:EXT'),
+      (28,'242,270','2,6,10,14,18,22,26,30,34,38,42,46:EXT'),
+      (29,'190,192,239,244','4:EXT;9,13,17,21,25,29,33,37,41,45:RG'),
+      (30,'(175-180)-257-258','17:L'),
+      (31,'125-133','1,25:RG'),
+      (32,'221-271','2:EXT'),
+      (33,'140-297','1,25:E'),
+      (34,'73-83-152','3,7,11,15,19,23,27,31,35,39,43,47:RG'),
+      (35,'113-120,124,226,229,232,236,246,250','1,25:RG;2,26:L'),
+      (37,'141','1,13,25,37:L'),
+      (38,'224','1:L;2,5,9,13,17,21,25,29,33,37,41,45:DE'),
+      (39,'329','17:CP')
+  ) AS g(source_row, source_apparatus_expression, slot_spec)
+  CROSS JOIN LATERAL public.expand_pam_source_ids(g.source_apparatus_expression) ids
+  CROSS JOIN LATERAL (
+    SELECT
+      regexp_split_to_table(split_part(part, ':', 1), ',')::integer AS slot_number,
+      split_part(part, ':', 2) AS mark_code
+    FROM regexp_split_to_table(g.slot_spec, ';') AS part
+  ) s
+  LEFT JOIN public.apparatus_registry ar
+    ON ar.source_id = ids.source_apparatus_id
+  WHERE g.slot_spec <> ''
+  ON CONFLICT (
+    hotel_id,
+    source_version,
+    source_sheet,
+    source_apparatus_id,
+    plan_year,
+    month_number,
+    week_slot,
+    mark_code
+  ) DO NOTHING;
+END;
+$$;
+
+CREATE OR REPLACE VIEW public.pam_plan_candidates AS
+WITH grouped AS (
+  SELECT
+    psm.hotel_id,
+    psm.source_version,
+    psm.source_sheet,
+    psm.source_row,
+    psm.source_apparatus_id,
+    psm.apparatus_registry_id,
+    psm.plan_year,
+    psm.mark_code,
+    COUNT(*)::integer AS mark_count,
+    COUNT(DISTINCT psm.month_number)::integer AS month_count,
+    MIN(psm.month_number)::integer AS first_month,
+    MIN(psm.week_slot)::integer AS first_week_slot,
+    ARRAY_AGG(DISTINCT psm.month_number ORDER BY psm.month_number) AS months,
+    ARRAY_AGG(DISTINCT psm.week_slot ORDER BY psm.week_slot) AS week_slots
+  FROM public.pam_source_marks psm
+  GROUP BY
+    psm.hotel_id,
+    psm.source_version,
+    psm.source_sheet,
+    psm.source_row,
+    psm.source_apparatus_id,
+    psm.apparatus_registry_id,
+    psm.plan_year,
+    psm.mark_code
+)
+SELECT
+  g.hotel_id,
+  g.source_version,
+  g.source_sheet,
+  g.source_row,
+  psg.maintenance_name,
+  g.source_apparatus_id,
+  g.apparatus_registry_id,
+  ar.code AS apparatus_code,
+  ar.name AS apparatus_name,
+  ar.plant,
+  ar.location,
+  g.plan_year,
+  g.mark_code,
+  pac.name AS action_name,
+  pac.definition_status,
+  g.mark_count,
+  g.month_count,
+  g.months,
+  g.week_slots,
+  g.first_month AS anchor_month,
+  g.first_week_slot AS anchor_week_slot,
+  CASE
+    WHEN g.mark_count = 48 AND g.month_count = 12 THEN 'WEEK'
+    WHEN g.mark_count = 12 AND g.month_count = 12 THEN 'MONTH'
+    WHEN g.mark_count = 6 AND g.month_count = 6 THEN 'MONTH'
+    WHEN g.mark_count = 4 AND g.month_count = 4 THEN 'MONTH'
+    WHEN g.mark_count = 3 AND g.month_count = 3 THEN 'MONTH'
+    WHEN g.mark_count = 2 AND g.month_count = 2 THEN 'MONTH'
+    WHEN g.mark_count = 1 AND g.month_count = 1 THEN 'YEAR'
+    ELSE 'VARIABLE'
+  END AS derived_periodicity_unit,
+  CASE
+    WHEN g.mark_count = 48 AND g.month_count = 12 THEN 1
+    WHEN g.mark_count = 12 AND g.month_count = 12 THEN 1
+    WHEN g.mark_count = 6 AND g.month_count = 6 THEN 2
+    WHEN g.mark_count = 4 AND g.month_count = 4 THEN 3
+    WHEN g.mark_count = 3 AND g.month_count = 3 THEN 4
+    WHEN g.mark_count = 2 AND g.month_count = 2 THEN 6
+    WHEN g.mark_count = 1 AND g.month_count = 1 THEN 1
+    ELSE NULL
+  END AS derived_periodicity_value
+FROM grouped g
+LEFT JOIN public.pam_source_groups psg
+  ON psg.hotel_id = g.hotel_id
+ AND psg.source_version = g.source_version
+ AND psg.source_sheet = g.source_sheet
+ AND psg.source_row = g.source_row
+LEFT JOIN public.apparatus_registry ar
+  ON ar.id = g.apparatus_registry_id
+JOIN public.pam_action_codes pac
+  ON pac.code = g.mark_code;
+
+COMMIT;
+
+      ))[2]::integer AS last_id
+    FROM prepared
+    WHERE is_plain_range
+  ),
+  bare_ids AS (
+    SELECT
+      (match[1])::integer AS source_apparatus_id
+    FROM prepared
+    CROSS JOIN LATERAL regexp_matches(
+      plain_segment,
+      '(\\d+)',
+      'g'
+    ) AS match
+    WHERE NOT is_plain_range
   )
   SELECT generate_series(first_id, last_id)::integer
-  FROM tokens
-  WHERE first_id <= last_id;
-$$;
+  FROM parenthesized_ranges
+  WHERE first_id <= last_id
+
+  UNION ALL
+
+  SELECT generate_series(first_id, last_id)::integer
+  FROM plain_ranges
+  WHERE first_id <= last_id
+
+  UNION ALL
+
+  SELECT source_apparatus_id
+  FROM bare_ids;
+$;
 
 REVOKE ALL ON FUNCTION public.expand_pam_source_ids(text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.expand_pam_source_ids(text) TO authenticated;

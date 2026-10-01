@@ -341,6 +341,7 @@ BEGIN
     hotel_id,
     source_version,
     source_sheet,
+    source_row,
     source_apparatus_id,
     plan_year,
     month_number,

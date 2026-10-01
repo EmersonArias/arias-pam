@@ -115,7 +115,7 @@ DECLARE
   {"source_row":37,"source_apparatus_expression":"141","maintenance_name":"SECADORA","slot_spec":"1,13,25,37:L"},
   {"source_row":38,"source_apparatus_expression":"224","maintenance_name":"SEPARADOR DE GRASAS/DOSIFICADOR ENCIMAS","slot_spec":"1:L;2,5,9,13,17,21,25,29,33,37,41,45:DE"},
   {"source_row":39,"source_apparatus_expression":"329","maintenance_name":"VASOS DE EXPANSIÓN","slot_spec":"17:CP"}
-]'::jsonb;
+]$json$::jsonb;
 BEGIN
   SELECT h.id
     INTO v_hotel_id

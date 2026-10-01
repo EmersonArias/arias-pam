@@ -170,7 +170,7 @@ LANGUAGE sql
 IMMUTABLE
 PARALLEL SAFE
 SET search_path = pg_catalog, public
-AS $
+AS $fn$
   WITH segments AS (
     SELECT btrim(segment) AS segment
     FROM regexp_split_to_table(COALESCE(source_expression, ''), ',') AS segment
@@ -179,8 +179,58 @@ AS $
   prepared AS (
     SELECT
       segment,
-      regexp_replace(segment, '\\(\\d+-\\d+\\)', ' ', 'g') AS plain_segment,
-      segment ~ '^\\s*\\d+\\s*-\\s*\\d+\\s*
+      regexp_replace(segment, '\(\d+-\d+\)', ' ', 'g') AS plain_segment,
+      segment ~ '^\s*\d+\s*-\s*\d+\s*$' AS is_plain_range
+    FROM segments
+  ),
+  parenthesized_ranges AS (
+    SELECT
+      m[1]::integer AS first_id,
+      m[2]::integer AS last_id
+    FROM prepared p
+    CROSS JOIN LATERAL regexp_matches(
+      p.segment,
+      '\((\d+)-(\d+)\)',
+      'g'
+    ) AS m
+  ),
+  plain_ranges AS (
+    SELECT
+      m[1]::integer AS first_id,
+      m[2]::integer AS last_id
+    FROM prepared p
+    CROSS JOIN LATERAL regexp_matches(
+      p.plain_segment,
+      '^\s*(\d+)\s*-\s*(\d+)\s*$'
+    ) AS m
+    WHERE p.is_plain_range
+  ),
+  bare_ids AS (
+    SELECT
+      m[1]::integer AS source_apparatus_id
+    FROM prepared p
+    CROSS JOIN LATERAL regexp_matches(
+      p.plain_segment,
+      '(\d+)',
+      'g'
+    ) AS m
+    WHERE NOT p.is_plain_range
+  )
+  SELECT generate_series(first_id, last_id)::integer
+  FROM parenthesized_ranges
+  WHERE first_id <= last_id
+
+  UNION ALL
+
+  SELECT generate_series(first_id, last_id)::integer
+  FROM plain_ranges
+  WHERE first_id <= last_id
+
+  UNION ALL
+
+  SELECT source_apparatus_id
+  FROM bare_ids;
+$fn$;
 
 REVOKE ALL ON FUNCTION public.expand_pam_source_ids(text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.expand_pam_source_ids(text) TO authenticated;

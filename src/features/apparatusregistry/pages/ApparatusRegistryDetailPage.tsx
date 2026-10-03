@@ -2,17 +2,21 @@ import { useEffect, useRef, useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
-  ArrowLeft,
   Camera,
-  FileText,
   ImagePlus,
   Maximize2,
   Minimize2,
-  Save,
-  Trash2,
   X,
 } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
+import FormActions, { type FormMode } from '../../../shared/components/forms/FormActions'
+import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
+import UnsavedChangesDialog from '../../../shared/components/navigation/UnsavedChangesDialog'
+import { useGuardedNavigation } from '../../../shared/hooks/useGuardedNavigation'
+import BrandLogo from '../../../shared/components/branding/BrandLogo'
+import IconButton from '../../../shared/components/buttons/IconButton'
+import { useEscapeAsCancel } from '../../../shared/hooks/useEscapeAsCancel'
+import { useSystemDialog } from '../../../shared/components/dialogs/SystemDialogProvider'
 import {
   createEmptyApparatus,
   fromDatabase,
@@ -28,44 +32,6 @@ function generateId(): string {
     Math.random().toString(36).substring(2, 10)
   )
 }
-async function generateNextCode(
-  familyCode: string,
-  subfamilyCode: string,
-): Promise<string> {
-  const family = familyCode.trim().toUpperCase()
-  const subfamily = subfamilyCode.trim().toUpperCase()
-
-  if (!family || !subfamily) return ''
-
-  const prefix = `${family}-${subfamily}-`
-
-  const { data, error } = await supabase
-    .from('apparatus_registry')
-    .select('code')
-    .like('code', `${prefix}%`)
-    .order('code', { ascending: true })
-
-  if (error) {
-    throw new Error(`No se pudo generar el código: ${error.message}`)
-  }
-
-  let maxSequence = 0
-
-  for (const row of data ?? []) {
-    const code = typeof row.code === 'string' ? row.code.toUpperCase() : ''
-    if (!code.startsWith(prefix)) continue
-
-    const suffix = code.slice(prefix.length)
-    const sequence = Number.parseInt(suffix, 10)
-
-    if (Number.isInteger(sequence) && sequence > maxSequence) {
-      maxSequence = sequence
-    }
-  }
-
-  return `${prefix}${String(maxSequence + 1).padStart(2, '0')}`
-}
-
 function getStoragePathFromPublicUrl(url: string): string | null {
   const marker = `/storage/v1/object/public/${PHOTO_BUCKET}/`
   const index = url.indexOf(marker)
@@ -83,23 +49,33 @@ export default function ApparatusRegistryDetailPage() {
   const { id } = useParams<{ id: string }>()
   const isNew = !id || id === 'new'
 
-  const [item, setItem] = useState<ApparatusRegistry>(() =>
-    createEmptyApparatus(),
-  )
+  const [item, setItem] = useState<ApparatusRegistry>(() => createEmptyApparatus())
+  const [baseline, setBaseline] = useState<ApparatusRegistry>(() => createEmptyApparatus())
+  const [mode, setMode] = useState<FormMode>(isNew ? 'create' : 'view')
   const [loading, setLoading] = useState(!isNew)
   const [saving, setSaving] = useState(false)
-  const [generatingCode, setGeneratingCode] = useState(false)
   const [uploadingPhotos, setUploadingPhotos] = useState(false)
   const [message, setMessage] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
   const [viewerPhoto, setViewerPhoto] = useState<string | null>(null)
   const [viewerMaximized, setViewerMaximized] = useState(false)
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false)
+  const { confirm } = useSystemDialog()
 
   const cameraInputRef = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    if (isNew || !id) return
+    if (isNew) {
+      const empty = createEmptyApparatus()
+      setItem(empty)
+      setBaseline(empty)
+      setMode('create')
+
+      return
+    }
+
+    if (!id) return
 
     async function loadRecord() {
       setLoading(true)
@@ -117,7 +93,10 @@ export default function ApparatusRegistryDetailPage() {
         return
       }
 
-      setItem(fromDatabase(data as DatabaseApparatusRegistry))
+      const loaded = fromDatabase(data as DatabaseApparatusRegistry)
+      setItem(loaded)
+      setBaseline(loaded)
+      setMode('view')
       setLoading(false)
     }
 
@@ -133,102 +112,165 @@ export default function ApparatusRegistryDetailPage() {
     setErrorMessage('')
   }
 
-  async function updateClassification(
-    field: 'familyCode' | 'subfamilyCode',
-    value: string,
-  ) {
-    const normalizedValue = value.toUpperCase()
+  async function saveRecord(navigateAfterCreate = true): Promise<boolean> {
+    if (mode === 'view') return true
 
-    const nextFamily =
-      field === 'familyCode' ? normalizedValue : item.familyCode
-    const nextSubfamily =
-      field === 'subfamilyCode' ? normalizedValue : item.subfamilyCode
-
-    setItem((current) => ({
-      ...current,
-      [field]: normalizedValue,
-    }))
-    setMessage('')
-    setErrorMessage('')
-
-    if (!isNew) return
-
-    if (!nextFamily.trim() || !nextSubfamily.trim()) {
-      setItem((current) => ({ ...current, code: '' }))
-      return
-    }
-
-    setGeneratingCode(true)
-
-    try {
-      const code = await generateNextCode(nextFamily, nextSubfamily)
-      setItem((current) => ({
-        ...current,
-        code,
-      }))
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : 'No se pudo generar el código.',
-      )
-    } finally {
-      setGeneratingCode(false)
-    }
-  }
-
-  async function handleSave(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-
-    if (!item.code.trim() || !item.name.trim()) {
-      setErrorMessage('Código y denominación son obligatorios.')
-      return
+    if (!item.name.trim()) {
+      setErrorMessage('La descripción es obligatoria.')
+      return false
     }
 
     setSaving(true)
     setMessage('')
     setErrorMessage('')
 
-    const payload = toDatabase(item)
+    try {
+      const payload = toDatabase({
+        ...item,
+        code: isNew ? '' : item.code,
+      })
 
-    if (isNew) {
+      if (isNew) {
+        const { data, error } = await supabase
+          .from('apparatus_registry')
+          .insert(payload)
+          .select('*')
+          .single()
+
+        if (error) {
+          setErrorMessage(`Error guardando registro: ${error.message}`)
+          return false
+        }
+
+        const saved = fromDatabase(data as DatabaseApparatusRegistry)
+        setItem(saved)
+        setBaseline(saved)
+        setMode('view')
+        setMessage('Registro guardado correctamente.')
+
+        if (navigateAfterCreate) {
+          navigate(`/apparatusregistry/${saved.id}`, { replace: true })
+        }
+
+        return true
+      }
+
       const { data, error } = await supabase
         .from('apparatus_registry')
-        .insert(payload)
+        .update(payload)
+        .eq('id', item.id)
         .select('*')
         .single()
 
       if (error) {
-        setErrorMessage(`Error guardando registro: ${error.message}`)
-        setSaving(false)
-        return
+        setErrorMessage(`Error actualizando registro: ${error.message}`)
+        return false
       }
 
       const saved = fromDatabase(data as DatabaseApparatusRegistry)
       setItem(saved)
-      setMessage('Registro guardado correctamente.')
+      setBaseline(saved)
+      setMode('view')
+      setMessage('Registro actualizado correctamente.')
+      return true
+    } finally {
       setSaving(false)
-      navigate(`/apparatusregistry/${saved.id}`, { replace: true })
-      return
     }
-
-    const { data, error } = await supabase
-      .from('apparatus_registry')
-      .update(payload)
-      .eq('id', item.id)
-      .select('*')
-      .single()
-
-    if (error) {
-      setErrorMessage(`Error actualizando registro: ${error.message}`)
-      setSaving(false)
-      return
-    }
-
-    setItem(fromDatabase(data as DatabaseApparatusRegistry))
-    setMessage('Registro actualizado correctamente.')
-    setSaving(false)
   }
+
+  async function handleSave(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    await saveRecord()
+  }
+
+  const isDirty =
+    mode !== 'view' && JSON.stringify(item) !== JSON.stringify(baseline)
+
+  const {
+    requestNavigation,
+    cancelNavigation,
+    discardNavigation,
+    saveAndNavigate,
+    dialogOpen,
+    saving: navigatingAndSaving,
+  } = useGuardedNavigation({
+    dirty: isDirty,
+    onNavigate: navigate,
+    onSave: () => saveRecord(false),
+  })
+
+  async function finishCancel() {
+    setCancelDialogOpen(false)
+
+    if (mode === 'edit') {
+      setItem(baseline)
+      setMode('view')
+      setMessage('')
+      setErrorMessage('')
+      return
+    }
+
+    navigate('/apparatusregistry')
+  }
+
+  function handleFormCancel() {
+    if (mode === 'edit' && isDirty) {
+      setCancelDialogOpen(true)
+      return
+    }
+
+    if (mode === 'edit') {
+      setItem(baseline)
+      setMode('view')
+      setMessage('')
+      setErrorMessage('')
+      return
+    }
+
+    if (mode === 'create' && isDirty) {
+      setCancelDialogOpen(true)
+      return
+    }
+
+    navigate('/apparatusregistry')
+  }
+
+  async function saveAndFinishCancel() {
+    const wasCreate = isNew
+    const saved = await saveRecord(false)
+
+    if (!saved) return
+
+    setCancelDialogOpen(false)
+
+    if (wasCreate) {
+      navigate('/apparatusregistry')
+    }
+  }
+
+  const onSaveAvailable = mode === 'view' ? undefined : saveAndNavigate
+
+  useEscapeAsCancel({
+    enabled: true,
+    onCancel: () => {
+      if (dialogOpen) {
+        cancelNavigation()
+        return
+      }
+
+      if (cancelDialogOpen) {
+        setCancelDialogOpen(false)
+        return
+      }
+
+      if (mode === 'view') {
+        navigate('/apparatusregistry')
+        return
+      }
+
+      handleFormCancel()
+    },
+  })
 
   async function handlePhotoFiles(event: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files ?? [])
@@ -309,9 +351,14 @@ const path = `${item.id}/${generateId()}.${extension}`
   }
 
   async function handleDeletePhoto(url: string) {
-    if (!item.id) return
+    if (!item.id || mode === 'view') return
 
-    const confirmed = window.confirm('¿Eliminar esta fotografía?')
+    const confirmed = await confirm({
+      title: 'Eliminar fotografía',
+      message: '¿Quieres eliminar esta fotografía?',
+      variant: 'warning',
+      confirmLabel: 'Eliminar',
+    })
     if (!confirmed) return
 
     setUploadingPhotos(true)
@@ -357,28 +404,6 @@ const path = `${item.id}/${generateId()}.${extension}`
     }
   }
 
-  async function handleDelete() {
-    if (isNew || !item.id) return
-
-    const confirmed = window.confirm(
-      `¿Eliminar el registro ${item.code}? Esta acción no se puede deshacer.`,
-    )
-
-    if (!confirmed) return
-
-    const { error } = await supabase
-      .from('apparatus_registry')
-      .delete()
-      .eq('id', item.id)
-
-    if (error) {
-      setErrorMessage(`Error eliminando registro: ${error.message}`)
-      return
-    }
-
-    navigate('/apparatusregistry')
-  }
-
   function openReport() {
     if (!item.id) {
       setErrorMessage('El registro todavía no está guardado.')
@@ -409,14 +434,13 @@ const path = `${item.id}/${generateId()}.${extension}`
         <div className="mb-4 rounded-2xl bg-white p-3 shadow-lg sm:p-4">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
-              <img
-                src="/logo.png"
-                alt="Arias PAM"
+              <BrandLogo
+                onActivate={() => requestNavigation('/')}
                 className="h-11 w-auto object-contain sm:h-13"
               />
               <div>
                 <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">
-                  Relación de Aparatos
+                  Equipos e instalaciones
                 </h1>
                 <p className="text-sm text-slate-500">
                   {isNew ? 'Nuevo registro' : item.code}
@@ -424,42 +448,27 @@ const path = `${item.id}/${generateId()}.${extension}`
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="submit"
-                form="apparatus-detail-form"
-                disabled={saving || generatingCode || uploadingPhotos}
-                className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-3 py-2 font-semibold text-white shadow hover:bg-green-700 disabled:opacity-50"
-              >
-                <Save size={17} />
-                Guardar
-              </button>
-              <button
-                type="button"
-                onClick={handleDelete}
-                disabled={isNew || saving || uploadingPhotos}
-                className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-3 py-2 font-semibold text-white shadow hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                <Trash2 size={17} />
-                Eliminar
-              </button>
-              <button
-                type="button"
-                onClick={openReport}
-                disabled={!item.id}
-                className="inline-flex items-center gap-2 rounded-lg bg-slate-700 px-3 py-2 font-semibold text-white shadow hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                <FileText size={17} />
-                PDF
-              </button>
-              <button
-                type="button"
-                onClick={() => navigate('/apparatusregistry')}
-                className="inline-flex items-center gap-2 rounded-lg bg-white px-3 py-2 font-semibold text-slate-700 shadow ring-1 ring-slate-200 hover:bg-slate-50"
-              >
-                <ArrowLeft size={17} />
-                Salir
-              </button>
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <BackButton
+                onBack={() => {
+                  if (mode === 'view') {
+                    navigate('/apparatusregistry')
+                    return
+                  }
+
+                  handleFormCancel()
+                }}
+                disabled={saving || uploadingPhotos}
+              />
+              <HomeButton onHome={() => requestNavigation('/')} disabled={saving || uploadingPhotos} />
+              <FormActions
+                mode={mode}
+                onSave={() => void saveRecord()}
+                onCancel={handleFormCancel}
+                onEdit={() => setMode('edit')}
+                onReport={openReport}
+                saving={saving || uploadingPhotos}
+              />
             </div>
           </div>
         </div>
@@ -493,20 +502,23 @@ const path = `${item.id}/${generateId()}.${extension}`
               <input
                 value={item.code}
                 readOnly
-                className="w-full rounded-lg border border-slate-300 bg-slate-100 px-3 py-2 font-semibold uppercase text-slate-700 outline-none"
-                placeholder={generatingCode ? 'Generando…' : 'Automático'}
+                className="w-full rounded-lg border border-slate-300 bg-slate-100 px-3 py-2 font-semibold uppercase text-slate-700 outline-none disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
+                placeholder={isNew ? 'Se asignará al guardar' : undefined}
+                disabled
                 required
               />
             </label>
 
             <label className="block">
               <span className="mb-1 block text-sm font-semibold text-slate-700">
-                Denominación
+                Descripción
               </span>
               <input
                 value={item.name}
+                placeholder="Descripción del equipo o instalación"
                 onChange={(event) => updateField('name', event.target.value)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-blue-500"
+                disabled={mode === 'view'}
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 outline-none transition placeholder:text-slate-400 placeholder:italic focus:border-blue-500 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
                 required
               />
             </label>
@@ -517,8 +529,10 @@ const path = `${item.id}/${generateId()}.${extension}`
               </span>
               <input
                 value={item.plant}
+                placeholder="Ej. P00"
                 onChange={(event) => updateField('plant', event.target.value)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-blue-500"
+                disabled={mode === 'view'}
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 outline-none transition placeholder:text-slate-400 placeholder:italic focus:border-slate-500 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
               />
             </label>
 
@@ -528,60 +542,25 @@ const path = `${item.id}/${generateId()}.${extension}`
               </span>
               <input
                 value={item.location}
+                placeholder="Ej. Planta -1, cuarto técnico"
                 onChange={(event) => updateField('location', event.target.value)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-blue-500"
+                disabled={mode === 'view'}
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 outline-none transition placeholder:text-slate-400 placeholder:italic focus:border-blue-500 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
               />
             </label>
 
             <label className="block sm:col-span-2">
               <span className="mb-1 block text-sm font-semibold text-slate-700">
-                Mantenimiento
+                Empresa de mantenimiento
               </span>
               <input
                 value={item.maintenance}
+                placeholder="Empresa que lleva el mantenimiento de este equipo"
                 onChange={(event) =>
                   updateField('maintenance', event.target.value)
                 }
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-blue-500"
-              />
-            </label>
-          </div>
-
-          <hr className="my-6" />
-
-          <h2 className="mb-4 text-lg font-bold text-slate-900">
-            Clasificación
-          </h2>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <label className="block">
-              <span className="mb-1 block text-sm font-semibold text-slate-700">
-                Familia
-              </span>
-              <input
-                value={item.familyCode}
-                onChange={(event) =>
-                  void updateClassification('familyCode', event.target.value)
-                }
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 font-semibold uppercase outline-none focus:border-blue-500"
-                placeholder="Ej. ACC"
-              />
-            </label>
-
-            <label className="block">
-              <span className="mb-1 block text-sm font-semibold text-slate-700">
-                Subfamilia
-              </span>
-              <input
-                value={item.subfamilyCode}
-                onChange={(event) =>
-                  void updateClassification(
-                    'subfamilyCode',
-                    event.target.value,
-                  )
-                }
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 font-semibold uppercase outline-none focus:border-blue-500"
-                placeholder="Ej. AUT"
+                disabled={mode === 'view'}
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 outline-none transition placeholder:text-slate-400 placeholder:italic focus:border-blue-500 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
               />
             </label>
           </div>
@@ -594,12 +573,11 @@ const path = `${item.id}/${generateId()}.${extension}`
 
           <div className="flex flex-wrap gap-2">
             <label
-              className={`relative inline-flex items-center gap-2 overflow-hidden rounded-lg bg-slate-700 px-3 py-2 font-semibold text-white shadow transition ${
-                !item.id || uploadingPhotos
-                  ? 'cursor-not-allowed opacity-40'
-                  : 'cursor-pointer hover:bg-slate-800'
-              }`}
-            >
+              className={`relative inline-flex items-center gap-2 overflow-hidden rounded-xl border border-blue-100 bg-gradient-to-b from-blue-50 via-blue-50 to-blue-100/80 px-3 py-2 text-sm font-semibold text-slate-700 shadow-[0_2px_5px_rgba(37,99,235,0.12)] transition-all duration-150 ${
+                !item.id || mode === 'view' || uploadingPhotos
+                  ? 'cursor-not-allowed opacity-45'
+                  : 'cursor-pointer hover:-translate-y-1 hover:border-blue-200 hover:from-blue-50 hover:via-blue-100 hover:to-blue-200/80 hover:shadow-[0_8px_16px_rgba(37,99,235,0.18)] active:translate-y-0'
+              }`}>
               <Camera size={17} />
               Hacer foto
               <input
@@ -607,19 +585,18 @@ const path = `${item.id}/${generateId()}.${extension}`
                 type="file"
                 accept="image/*"
                 capture="environment"
-                disabled={!item.id || uploadingPhotos}
+                disabled={!item.id || mode === 'view' || uploadingPhotos}
                 onChange={handlePhotoFiles}
                 className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
               />
             </label>
 
             <label
-              className={`relative inline-flex items-center gap-2 overflow-hidden rounded-lg bg-blue-700 px-3 py-2 font-semibold text-white shadow transition ${
-                !item.id || uploadingPhotos
-                  ? 'cursor-not-allowed opacity-40'
-                  : 'cursor-pointer hover:bg-blue-800'
-              }`}
-            >
+              className={`relative inline-flex items-center gap-2 overflow-hidden rounded-xl border border-blue-100 bg-gradient-to-b from-blue-50 via-blue-50 to-blue-100/80 px-3 py-2 text-sm font-semibold text-slate-700 shadow-[0_2px_5px_rgba(37,99,235,0.12)] transition-all duration-150 ${
+                !item.id || mode === 'view' || uploadingPhotos
+                  ? 'cursor-not-allowed opacity-45'
+                  : 'cursor-pointer hover:-translate-y-1 hover:border-blue-200 hover:from-blue-50 hover:via-blue-100 hover:to-blue-200/80 hover:shadow-[0_8px_16px_rgba(37,99,235,0.18)] active:translate-y-0'
+              }`}>
               <ImagePlus size={17} />
               Seleccionar imagen
               <input
@@ -627,7 +604,7 @@ const path = `${item.id}/${generateId()}.${extension}`
                 type="file"
                 accept="image/*"
                 multiple
-                disabled={!item.id || uploadingPhotos}
+                disabled={!item.id || mode === 'view' || uploadingPhotos}
                 onChange={handlePhotoFiles}
                 className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
               />
@@ -666,16 +643,14 @@ const path = `${item.id}/${generateId()}.${extension}`
                       className="aspect-square w-full object-cover transition group-hover:scale-[1.02]"
                     />
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => void handleDeletePhoto(photo)}
-                    disabled={uploadingPhotos}
-                    aria-label="Eliminar fotografía"
+                  <IconButton
+                    icon={X}
+                    label="Eliminar fotografía"
                     title="Eliminar fotografía"
-                    className="absolute right-2 top-2 inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/95 text-red-600 shadow hover:bg-white disabled:opacity-50"
-                  >
-                    <X size={17} />
-                  </button>
+                    onClick={() => void handleDeletePhoto(photo)}
+                    disabled={mode === 'view' || uploadingPhotos}
+                    className="absolute right-2 top-2 h-8 w-8"
+                  />
                 </div>
               ))}
             </div>
@@ -688,16 +663,33 @@ const path = `${item.id}/${generateId()}.${extension}`
               type="checkbox"
               checked={item.active}
               onChange={(event) => updateField('active', event.target.checked)}
-              className="h-5 w-5 rounded border-slate-300"
+              disabled={mode === 'view'}
+              className="h-5 w-5 rounded border-slate-300 disabled:cursor-not-allowed disabled:bg-slate-100"
             />
             Registro activo
           </label>
         </form>
 
-        <div className="mt-4 text-right text-xs text-slate-400">
-          Arias_PAM / Emerson Arias
-        </div>
 
+        <UnsavedChangesDialog
+          open={cancelDialogOpen}
+          onCancel={() => setCancelDialogOpen(false)}
+          onDiscard={finishCancel}
+          onSaveAndContinue={() => void saveAndFinishCancel()}
+          title="Hay cambios sin guardar"
+          message="¿Quieres guardar los cambios antes de volver a la vista del registro?"
+          discardLabel="Descartar cambios"
+          saveLabel="Guardar cambios"
+          saving={saving}
+        />
+
+        <UnsavedChangesDialog
+          open={dialogOpen}
+          onCancel={cancelNavigation}
+          onDiscard={discardNavigation}
+          onSaveAndContinue={onSaveAvailable}
+          saving={navigatingAndSaving}
+        />
         {viewerPhoto && (
           <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
@@ -729,27 +721,23 @@ const path = `${item.id}/${generateId()}.${extension}`
                 </div>
 
                 <div className="flex shrink-0 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setViewerMaximized((current) => !current)}
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-700 shadow-sm hover:bg-slate-200"
+                  <IconButton
+                    icon={viewerMaximized ? Minimize2 : Maximize2}
+                    label={viewerMaximized ? 'Restaurar tamaño' : 'Maximizar'}
                     title={viewerMaximized ? 'Restaurar tamaño' : 'Maximizar'}
-                    aria-label={viewerMaximized ? 'Restaurar tamaño' : 'Maximizar'}
-                  >
-                    {viewerMaximized ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
-                  </button>
-                  <button
-                    type="button"
+                    onClick={() => setViewerMaximized((current) => !current)}
+                    className="h-9 w-9"
+                  />
+                  <IconButton
+                    icon={X}
+                    label="Cerrar"
+                    title="Cerrar"
                     onClick={() => {
                       setViewerPhoto(null)
                       setViewerMaximized(false)
                     }}
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-700 shadow-sm hover:bg-slate-200"
-                    title="Cerrar"
-                    aria-label="Cerrar"
-                  >
-                    <X size={19} />
-                  </button>
+                    className="h-9 w-9"
+                  />
                 </div>
               </div>
 

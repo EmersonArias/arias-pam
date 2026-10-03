@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../../lib/supabase'
+import { useSystemDialog } from '../../../shared/components/dialogs/SystemDialogProvider'
+import BrandLogo from '../../../shared/components/branding/BrandLogo'
 import {
   fromDatabase,
   matchesDateFilter,
@@ -12,6 +14,7 @@ import {
 
 export default function ElectricalPanelsPage() {
   const navigate = useNavigate()
+  const { confirm } = useSystemDialog()
 
   const [panels, setPanels] = useState<ElectricalPanel[]>([])
   const [selectedId, setSelectedId] = useState('')
@@ -126,9 +129,12 @@ export default function ElectricalPanelsPage() {
       return
     }
 
-    const confirmed = window.confirm(
-      `¿Eliminar el registro ${selected.code}? Esta acción no se puede deshacer.`,
-    )
+    const confirmed = await confirm({
+      title: 'Eliminar registro',
+      message: `¿Quieres eliminar el registro ${selected.code}? Esta acción no se puede deshacer.`,
+      variant: 'warning',
+      confirmLabel: 'Eliminar',
+    })
 
     if (!confirmed) return
 
@@ -196,9 +202,8 @@ export default function ElectricalPanelsPage() {
         <div className="mb-4 rounded-2xl bg-white p-3 shadow-lg sm:p-4">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex min-w-0 items-center gap-3">
-              <img
-                src="/logo.png"
-                alt="Arias Suite"
+              <BrandLogo
+                onActivate={() => navigate('/')}
                 className="h-12 w-auto shrink-0 object-contain sm:h-14"
               />
 

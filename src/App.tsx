@@ -1,5 +1,14 @@
 import { Routes, Route } from 'react-router-dom'
 import BooksPage from './pages/Books/BooksPage'
+import LoginPage from './features/auth/pages/LoginPage'
+import ActivateAccountPage from './features/auth/pages/ActivateAccountPage'
+import ForgotPasswordPage from './features/auth/pages/ForgotPasswordPage'
+import UpdatePasswordPage from './features/auth/pages/UpdatePasswordPage'
+import MyProfilePage from './features/auth/pages/MyProfilePage'
+import ProtectedRoute from './features/auth/components/ProtectedRoute'
+import UsersPage from './features/users/pages/UsersPage'
+import RolesPage from './features/roles/pages/RolesPage'
+import ReportsPage from './features/reports/pages/ReportsPage'
 import PamPage from './features/registers/pages/PamPage'
 import AssetsPage from './features/registers/pages/AssetsPage'
 import PumpsPage from './features/registers/pages/PumpsPage'
@@ -23,13 +32,30 @@ import PciReviewPage from './features/fireequipment/pages/PciReviewPage'
 import ApparatusRegistryPage from './features/apparatusregistry/pages/ApparatusRegistryPage'
 import ApparatusRegistryDetailPage from './features/apparatusregistry/pages/ApparatusRegistryDetailPage'
 import ApparatusRegistryReportPage from './features/apparatusregistry/pages/ApparatusRegistryReportPage'
+import MaintenancePage from './features/maintenance/pages/MaintenancePage'
+import ProvidersPage from './features/providers/pages/ProvidersPage'
+import ActionsPage from './features/actions/pages/ActionsPage'
+import PlanningPage from './features/planning/pages/PlanningPage'
 
 export default function App() {
   return (
     <Routes>
-      <Route path="/" element={<BooksPage />} />
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/activate" element={<ActivateAccountPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/update-password" element={<UpdatePasswordPage />} />
 
-      <Route path="/pam" element={<PamPage />} />
+      <Route element={<ProtectedRoute />}>
+        <Route path="/" element={<BooksPage />} />
+
+        <Route path="/users" element={<UsersPage />} />
+        <Route path="/roles" element={<RolesPage />} />
+        <Route path="/profile" element={<MyProfilePage />} />
+        <Route path="/reports" element={<ReportsPage />} />
+        <Route path="/pam" element={<PamPage />} />
+        <Route path="/planning" element={<PlanningPage />} />
+        <Route path="/providers" element={<ProvidersPage />} />
+        <Route path="/actions" element={<ActionsPage />} />
       <Route path="/assets" element={<AssetsPage />} />
       <Route path="/pumps" element={<PumpsPage />} />
       <Route path="/pools" element={<PoolsPage />} />
@@ -44,6 +70,7 @@ export default function App() {
       <Route path="/electricalpanels/:id" element={<ElectricalPanelDetailPage />} />
 
       <Route path="/apparatusregistry" element={<ApparatusRegistryPage />} />
+      <Route path="/maintenance" element={<MaintenancePage />} />
       <Route path="/apparatusregistry/new" element={<ApparatusRegistryDetailPage />} />
       <Route path="/apparatusregistry/report" element={<ApparatusRegistryReportPage />} />
       <Route path="/apparatusregistry/:id" element={<ApparatusRegistryDetailPage />} />
@@ -57,7 +84,8 @@ export default function App() {
       <Route path="/fireequipment/extinguishers" element={<ExtinguishersPage />} />
       <Route path="/fireequipment/bie" element={<BiePage />} />
       <Route path="/fireequipment/sprinklers" element={<SprinklersPage />} />
-      <Route path="/fireequipment/pci-review" element={<PciReviewPage />} />
+        <Route path="/fireequipment/pci-review" element={<PciReviewPage />} />
+      </Route>
     </Routes>
   )
 }

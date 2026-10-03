@@ -4,3 +4,52 @@ body {
   margin: 0;
   background: #f1f5f9;
 }
+  
+@media print {
+  @page {
+    margin: 14mm 10mm 12mm 10mm;
+  }
+}
+
+.arias-report-page {
+  padding-top: 4mm;
+  padding-bottom: 12mm;
+}
+
+.arias-report-footer {
+  margin-top: 1rem;
+  padding-top: 0.5rem;
+  font-size: 0.75rem;
+  line-height: 1.2;
+  color: #64748b;
+  text-align: center;
+}
+
+@media print {
+  .arias-report-page {
+    padding-top: 4mm !important;
+    padding-bottom: 12mm !important;
+  }
+
+  .arias-report-footer {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 1.5mm;
+    margin: 0;
+    padding: 0;
+    border-top: 0;
+    background: #ffffff;
+    font-size: 8px;
+    color: #475569;
+    text-align: center;
+    z-index: 50;
+  }
+
+  .arias-report-footer-line {
+    width: 100%;
+    height: 0.3mm;
+    margin-bottom: 1.5mm;
+    background: #cbd5e1;
+  }
+}

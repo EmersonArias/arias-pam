@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { useRef, useState } from 'react'
+import { useSystemDialog } from '../../../shared/components/dialogs/SystemDialogProvider'
 
 interface PoolRecord {
   id: string
@@ -36,6 +37,7 @@ const emptyRecord: PoolRecord = {
 
 export default function PoolsPage() {
   const navigate = useNavigate()
+  const { confirm, alert: showAlert } = useSystemDialog()
 
   const [editing, setEditing] = useState(false)
 
@@ -88,9 +90,13 @@ export default function PoolsPage() {
     }, 50)
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.date) {
-      alert('Debe indicar una fecha')
+      await showAlert({
+        title: 'Fecha obligatoria',
+        message: 'Debe indicar una fecha para guardar el registro.',
+        variant: 'warning',
+      })
       return
     }
 
@@ -125,14 +131,16 @@ export default function PoolsPage() {
     }
   }
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!selectedId) return
 
-    if (
-      !confirm('¿Eliminar registro?')
-    ) {
-      return
-    }
+    const confirmed = await confirm({
+      title: 'Eliminar registro',
+      message: '¿Quieres eliminar este registro? Esta acción no se puede deshacer.',
+      variant: 'warning',
+      confirmLabel: 'Eliminar',
+    })
+    if (!confirmed) return
 
     setRecords((current) =>
       current.filter(

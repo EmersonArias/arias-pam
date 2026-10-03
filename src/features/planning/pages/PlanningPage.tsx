@@ -292,7 +292,7 @@ export default function PlanningPage() {
                     {tasks.filter(t => t.key === expanded).map(task => (
                       <div key={task.key}>
                         <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{task.code} · {task.action}</div>
-                        <div className="mt-1 text-xs text-slate-600">{taskPeriodicityLabel(task.unit,task.value)} · {task.sources.join(' · ')}</div>
+                        <div className="mt-1 text-xs text-slate-600">{periodicityLabel(task.unit,task.value)} · {task.sources.join(' · ')}</div>
                         <div className="mt-3 flex flex-wrap gap-1.5">
                           {MONTHS.map((m,i) => task.byMonth[i+1]?.length ? <span key={m} className="rounded-full border border-slate-200 bg-white px-2 py-1 text-[9px] text-slate-600">{m}: {task.byMonth[i+1].map(w => 'S'+w).join(', ')}</span> : null)}
                         </div>

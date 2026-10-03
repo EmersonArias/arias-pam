@@ -33,6 +33,7 @@ type MaintenanceAlert = {
 
 const registers: HomeRegister[] = [
   { icon: '📋', name: 'PAM', path: '/pam' },
+  { icon: '🗓️', name: 'Planificación', path: '/planning' },
   { icon: '⚙️', name: 'Equipos e instalaciones', path: '/apparatusregistry' },
   { icon: '🏊', name: 'Piscinas', path: '/pools' },
   { icon: '♨️', name: 'Spa', path: '/spa' },

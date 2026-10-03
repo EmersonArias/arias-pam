@@ -1,219 +1,208 @@
 import { useEffect, useMemo, useState } from 'react'
-import { CalendarDays, ChevronLeft, ChevronRight, RefreshCw, Search } from 'lucide-react'
-import { useSearchParams } from 'react-router-dom'
+import { CalendarDays, ChevronDown, RefreshCw, Search } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../../lib/supabase'
 import BrandLogo from '../../../shared/components/branding/BrandLogo'
 import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
 import IconButton from '../../../shared/components/buttons/IconButton'
 
-type JobStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED'
-
-type PlanningJob = {
-  id: string
+type Candidate = {
   hotel_id: string
-  scheduled_job_id: string
-  maintenance_plan_id: string
-  title: string
-  description: string | null
-  work_type: string
-  status: JobStatus
-  assigned_user_id: string | null
-  assigned_user_name: string | null
-  assigned_user_email: string | null
-  scheduled_date: string | null
-  started_at: string | null
-  completed_at: string | null
-  completed_by: string | null
-  observations: string | null
-  maintenance_plan_code: string | null
-  maintenance_plan_name: string
-  maintenance_type: 'INTERNAL' | 'EXTERNAL'
+  source_version: string
+  source_sheet: string
+  source_row: number
+  maintenance_name: string | null
+  source_apparatus_id: number
   apparatus_registry_id: string | null
   apparatus_code: string | null
   apparatus_name: string | null
   plant: string | null
   location: string | null
   plan_year: number
-  month_number: number
-  week_slot: number
-  source_mark_id: string
-  created_at: string
-  updated_at: string
+  mark_code: string
+  action_name: string | null
+  definition_status: 'CONFIRMED' | 'REVIEW' | 'UNKNOWN'
+  mark_count: number
+  month_count: number
+  months: number[] | null
+  week_slots: number[] | null
+  derived_periodicity_unit: 'DAY' | 'WEEK' | 'MONTH' | 'YEAR' | 'VARIABLE' | null
+  derived_periodicity_value: number | null
 }
 
-const MONTHS = [
-  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
-]
-
-const STATUS_LABELS: Record<JobStatus, string> = {
-  PENDING: 'Pendiente',
-  IN_PROGRESS: 'En curso',
-  COMPLETED: 'Finalizado',
+type Task = {
+  key: string
+  apparatusId: string
+  code: string
+  name: string
+  plant: string | null
+  location: string | null
+  mark: string
+  action: string
+  unit: Candidate['derived_periodicity_unit']
+  value: number | null
+  byMonth: Record<number, number[]>
+  sources: string[]
 }
 
-function resolveWeekRange(year: number, month: number, weekSlot: number) {
-  const startDay = (weekSlot - 1) * 7 + 1
-  const first = new Date(year, month - 1, startDay, 12)
-  const lastDay = new Date(year, month, 0, 12).getDate()
-  const endDay = Math.min(startDay + 6, lastDay)
-  const last = new Date(year, month - 1, endDay, 12)
-  return { first, last }
+const MONTHS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
+const ACTIONS: Record<string,string> = {
+  F:'Ficha de revisión',
+  L:'Limpieza',
+  LF:'Limpieza de filtros',
+  RG:'Revisión general',
+  EXT:'Mantenimiento externo',
+  E:'Engrase',
+  DE:'Dosificar encimas',
+  CP:'Control de presiones',
 }
 
-function formatRange(job: PlanningJob) {
-  if (job.scheduled_date) {
-    return new Date(job.scheduled_date + 'T12:00:00').toLocaleDateString('es-ES')
+function actionLabel(mark: string, name: string | null) {
+  return name || ACTIONS[mark] || 'Acción PAM ' + mark
+}
+
+function periodicityLabel(unit: Task['unit'], value: number | null) {
+  if (unit === 'WEEK') return 'Semanal'
+  if (unit === 'MONTH') {
+    if (value === 1) return 'Mensual'
+    if (value === 2) return 'Bimestral'
+    if (value === 3) return 'Trimestral'
+    if (value === 4) return 'Cuatrimestral'
+    if (value === 6) return 'Semestral'
+    return value ? 'Cada ' + value + ' meses' : 'Mensual'
   }
-  const { first, last } = resolveWeekRange(job.plan_year, job.month_number, job.week_slot)
-  return first.toLocaleDateString('es-ES', { day: '2-digit' }) + '–' +
-    last.toLocaleDateString('es-ES', { day: '2-digit' })
+  if (unit === 'YEAR') return 'Anual'
+  if (unit === 'DAY') return value ? 'Cada ' + value + ' días' : 'Diaria'
+  return 'Según PAM'
 }
 
-function statusClass(status: JobStatus) {
-  if (status === 'COMPLETED') return 'bg-slate-100 text-slate-600'
-  if (status === 'IN_PROGRESS') return 'bg-amber-100 text-amber-700'
-  return 'bg-blue-100 text-blue-700'
+function mergeCandidates(rows: Candidate[]) {
+  const map = new Map<string, Task>()
+  for (const row of rows) {
+    if (!row.apparatus_registry_id || !row.apparatus_code) continue
+    const key = row.apparatus_registry_id + '|' + row.mark_code
+    const task = map.get(key) ?? {
+      key,
+      apparatusId: row.apparatus_registry_id,
+      code: row.apparatus_code,
+      name: row.apparatus_name || 'Activo',
+      plant: row.plant,
+      location: row.location,
+      mark: row.mark_code,
+      action: actionLabel(row.mark_code, row.action_name),
+      unit: row.derived_periodicity_unit,
+      value: row.derived_periodicity_value,
+      byMonth: {},
+      sources: [],
+    }
+    for (const month of row.months ?? []) {
+      const weeks = task.byMonth[month] ?? []
+      for (const week of row.week_slots ?? []) if (!weeks.includes(week)) weeks.push(week)
+      weeks.sort((a,b) => a-b)
+      task.byMonth[month] = weeks
+    }
+    if (row.maintenance_name && !task.sources.includes(row.maintenance_name)) task.sources.push(row.maintenance_name)
+    map.set(key, task)
+  }
+  return Array.from(map.values()).sort((a,b) =>
+    a.code.localeCompare(b.code,'es') || a.action.localeCompare(b.action,'es'),
+  )
 }
 
 export default function PlanningPage() {
-  const [searchParams, setSearchParams] = useSearchParams()
+  const navigate = useNavigate()
   const currentYear = new Date().getFullYear()
-  const [year, setYear] = useState(Number(searchParams.get('year')) || currentYear)
-  const [month, setMonth] = useState(Number(searchParams.get('month')) || new Date().getMonth() + 1)
-  const [jobs, setJobs] = useState<PlanningJob[]>([])
+  const [year, setYear] = useState(currentYear)
   const [hotelId, setHotelId] = useState('')
+  const [candidates, setCandidates] = useState<Candidate[]>([])
+  const [unresolvedCount, setUnresolvedCount] = useState(0)
   const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'ALL' | JobStatus>('ALL')
+  const [expanded, setExpanded] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  async function resolveHotelId() {
+  async function hotel() {
     if (hotelId) return hotelId
-
-    const assignment = await supabase
+    const { data, error: assignmentError } = await supabase
       .from('user_hotel_roles')
       .select('hotel_id')
       .eq('active', true)
       .order('hotel_id')
       .limit(1)
       .maybeSingle()
-
-    if (assignment.error || !assignment.data?.hotel_id) {
-      throw new Error(assignment.error?.message ?? 'No se ha podido determinar el hotel activo.')
-    }
-
-    const id = assignment.data.hotel_id as string
-    setHotelId(id)
-    return id
+    if (assignmentError || !data?.hotel_id) throw new Error(assignmentError?.message || 'No se ha podido determinar el hotel activo.')
+    setHotelId(data.hotel_id)
+    return data.hotel_id
   }
 
-  async function loadPlanning(targetYear = year) {
+  async function load() {
     setLoading(true)
     setError('')
-
     try {
-      const id = await resolveHotelId()
-      const result = await supabase
-        .from('maintenance_work_orders_resolved')
-        .select(
-          'id, hotel_id, scheduled_job_id, maintenance_plan_id, title, description, work_type, status, assigned_user_id, assigned_user_name, assigned_user_email, scheduled_date, started_at, completed_at, completed_by, observations, maintenance_plan_code, maintenance_plan_name, maintenance_type, apparatus_registry_id, apparatus_code, apparatus_name, plant, location, plan_year, month_number, week_slot, source_mark_id, created_at, updated_at',
-        )
-        .eq('hotel_id', id)
-        .eq('plan_year', targetYear)
-        .order('month_number')
-        .order('week_slot')
-        .order('apparatus_code', { ascending: true, nullsFirst: true })
-        .order('title')
-
-      if (result.error) throw new Error(result.error.message)
-      setJobs((result.data ?? []) as PlanningJob[])
-    } catch (planningError) {
-      setJobs([])
-      setError(planningError instanceof Error ? planningError.message : 'No se ha podido cargar la planificación.')
+      const id = await hotel()
+      const [a,b] = await Promise.all([
+        supabase.from('pam_plan_candidates')
+          .select('hotel_id,source_version,source_sheet,source_row,maintenance_name,source_apparatus_id,apparatus_registry_id,apparatus_code,apparatus_name,plant,location,plan_year,mark_code,action_name,definition_status,mark_count,month_count,months,week_slots,derived_periodicity_unit,derived_periodicity_value')
+          .eq('hotel_id', id).eq('plan_year', year),
+        supabase.from('pam_source_unresolved')
+          .select('source_apparatus_id')
+          .eq('hotel_id', id).eq('plan_year', year),
+      ])
+      if (a.error) throw new Error(a.error.message)
+      if (b.error) throw new Error(b.error.message)
+      setCandidates((a.data ?? []) as Candidate[])
+      setUnresolvedCount((b.data ?? []).length)
+    } catch (e) {
+      setCandidates([])
+      setUnresolvedCount(0)
+      setError(e instanceof Error ? e.message : 'No se ha podido cargar la planificación.')
     } finally {
       setLoading(false)
     }
   }
 
-  useEffect(() => {
-    void loadPlanning()
-  }, [year])
+  useEffect(() => { void load() }, [year])
 
-  useEffect(() => {
-    const next = new URLSearchParams(searchParams)
-    next.set('year', String(year))
-    next.set('month', String(month))
-    setSearchParams(next, { replace: true })
-  }, [year, month])
+  const tasks = useMemo(() => mergeCandidates(candidates), [candidates])
+  const filtered = useMemo(() => {
+    const q = search.trim().toLocaleLowerCase('es')
+    if (!q) return tasks
+    return tasks.filter(t => [t.code,t.name,t.action,t.mark,t.plant,t.location,...t.sources].filter(Boolean).join(' ').toLocaleLowerCase('es').includes(q))
+  }, [tasks, search])
 
-  const monthJobs = useMemo(
-    () => jobs.filter((job) => job.month_number === month),
-    [jobs, month],
-  )
-
-  const filteredJobs = useMemo(() => {
-    const query = search.trim().toLocaleLowerCase('es')
-    return monthJobs.filter((job) => {
-      if (statusFilter !== 'ALL' && job.status !== statusFilter) return false
-      if (!query) return true
-      const haystack = [
-        job.title,
-        job.description,
-        job.maintenance_plan_code,
-        job.maintenance_plan_name,
-        job.apparatus_code,
-        job.apparatus_name,
-        job.assigned_user_name,
-        job.location,
-      ].filter(Boolean).join(' ').toLocaleLowerCase('es')
-      return haystack.includes(query)
-    })
-  }, [monthJobs, search, statusFilter])
-
-  const counts = useMemo(() => ({
-    total: monthJobs.length,
-    pending: monthJobs.filter((job) => job.status === 'PENDING').length,
-    inProgress: monthJobs.filter((job) => job.status === 'IN_PROGRESS').length,
-    completed: monthJobs.filter((job) => job.status === 'COMPLETED').length,
-  }), [monthJobs])
-
-  const weeks = useMemo(
-    () => [1, 2, 3, 4, 5]
-      .map((weekSlot) => ({ weekSlot, jobs: filteredJobs.filter((job) => job.week_slot === weekSlot) }))
-      .filter((week) => week.jobs.length > 0),
-    [filteredJobs],
-  )
-
-  function changeMonth(delta: number) {
-    const nextMonth = month + delta
-    if (nextMonth < 1) {
-      setMonth(12)
-      setYear((value) => value - 1)
-    } else if (nextMonth > 12) {
-      setMonth(1)
-      setYear((value) => value + 1)
-    } else {
-      setMonth(nextMonth)
+  const assets = useMemo(() => {
+    const map = new Map<string,{id:string;code:string;name:string;plant:string|null;location:string|null;tasks:Task[]}>()
+    for (const task of filtered) {
+      const g = map.get(task.apparatusId) ?? {id:task.apparatusId,code:task.code,name:task.name,plant:task.plant,location:task.location,tasks:[]}
+      g.tasks.push(task)
+      map.set(task.apparatusId,g)
     }
-  }
+    return Array.from(map.values())
+  }, [filtered])
 
   return (
     <div className="min-h-screen bg-slate-100 p-3 sm:p-5">
-      <div className="mx-auto max-w-[1500px]">
+      <div className="mx-auto max-w-[1650px]">
         <div className="mb-3 rounded-2xl bg-white p-3 shadow-lg sm:p-4">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex min-w-0 items-center gap-3">
-              <BrandLogo onActivate={() => window.location.assign('/')} className="h-9 w-auto shrink-0 object-contain sm:h-11" />
-              <div className="min-w-0">
-                <h1 className="text-xl font-bold leading-tight text-slate-900 sm:text-2xl">Planificación</h1>
-                <p className="mt-0.5 text-xs text-slate-500 sm:text-sm">Trabajos programados derivados del PAM</p>
+              <BrandLogo onActivate={() => navigate('/')} className="h-9 w-auto shrink-0 sm:h-11" />
+              <div>
+                <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">Planificación anual</h1>
+                <p className="text-xs text-slate-500 sm:text-sm">Activos y tareas preventivas · fuente PAM</p>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
-              <BackButton onBack={() => window.location.assign('/')} />
-              <HomeButton onHome={() => window.location.assign('/')} />
-              <IconButton icon={RefreshCw} label="Actualizar planificación" title="Actualizar" onClick={() => void loadPlanning()} disabled={loading} />
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
+              <BackButton onBack={() => navigate('/')} />
+              <HomeButton onHome={() => navigate('/')} />
+              <label className="col-span-2 flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs sm:col-span-1">
+                <CalendarDays size={15} className="text-slate-500" />
+                <span className="font-semibold text-slate-600">Año</span>
+                <select value={year} onChange={e => setYear(Number(e.target.value))} className="bg-transparent font-semibold text-slate-800 outline-none">
+                  {[currentYear-1,currentYear,currentYear+1,currentYear+2].map(y => <option key={y} value={y}>{y}</option>)}
+                </select>
+              </label>
+              <IconButton icon={RefreshCw} label="Actualizar" title="Actualizar" onClick={() => void load()} disabled={loading} />
             </div>
           </div>
         </div>
@@ -222,11 +211,11 @@ export default function PlanningPage() {
 
         <div className="mb-3 grid gap-2 sm:grid-cols-4">
           {[
-            ['Trabajos', counts.total],
-            ['Pendientes', counts.pending],
-            ['En curso', counts.inProgress],
-            ['Finalizados', counts.completed],
-          ].map(([label, value]) => (
+            ['Activos', assets.length],
+            ['Preventivos', tasks.length],
+            ['Marcas PAM', candidates.reduce((n,r) => n + r.mark_count, 0)],
+            ['Pendientes de definir', unresolvedCount],
+          ].map(([label,value]) => (
             <div key={String(label)} className="rounded-2xl bg-white px-4 py-3 shadow-sm">
               <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{label}</div>
               <div className="mt-1 text-xl font-bold text-slate-900">{value}</div>
@@ -235,94 +224,107 @@ export default function PlanningPage() {
         </div>
 
         <div className="mb-3 rounded-2xl bg-white p-2 shadow-lg">
-          <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
-            <div className="flex items-center gap-2">
-              <button type="button" onClick={() => changeMonth(-1)} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100" title="Mes anterior"><ChevronLeft size={18} /></button>
-              <div className="min-w-[180px] text-center">
-                <div className="text-sm font-bold text-slate-900">{MONTHS[month - 1]} {year}</div>
-                <div className="text-[10px] text-slate-400">Calendario real del mes</div>
-              </div>
-              <button type="button" onClick={() => changeMonth(1)} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100" title="Mes siguiente"><ChevronRight size={18} /></button>
-              <label className="hidden items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs sm:flex">
-                <CalendarDays size={15} className="text-slate-400" />
-                <select value={year} onChange={(event) => setYear(Number(event.target.value))} className="bg-transparent font-semibold text-slate-700 outline-none">
-                  {[currentYear - 1, currentYear, currentYear + 1, currentYear + 2].map((value) => <option key={value} value={value}>{value}</option>)}
-                </select>
-              </label>
-            </div>
-            <div className="flex flex-1 flex-col gap-2 sm:flex-row sm:justify-end">
-              <div className="relative min-w-0 flex-1 sm:max-w-[320px]">
-                <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
-                <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar equipo o trabajo…" className="w-full rounded-lg border border-slate-300 py-2 pl-9 pr-3 text-xs outline-none focus:border-blue-500" />
-              </div>
-              <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as 'ALL' | JobStatus)} className="rounded-lg border border-slate-300 px-3 py-2 text-xs text-slate-700">
-                <option value="ALL">Todos los estados</option>
-                <option value="PENDING">Pendiente</option>
-                <option value="IN_PROGRESS">En curso</option>
-                <option value="COMPLETED">Finalizado</option>
-              </select>
-            </div>
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar activo, ubicación o preventivo…" className="w-full rounded-lg border border-slate-300 py-2 pl-9 pr-3 text-xs outline-none focus:border-blue-500" />
           </div>
         </div>
 
-        <div className="rounded-2xl bg-white shadow-lg">
+        <div className="overflow-hidden rounded-2xl bg-white shadow-lg">
           <div className="border-b border-slate-200 px-4 py-3">
-            <div className="text-sm font-semibold text-slate-800">Trabajos de {MONTHS[month - 1]}</div>
-            <div className="mt-0.5 text-xs text-slate-500">La posición semanal procede directamente del PAM. La fecha exacta solo aparece cuando existe programación explícita.</div>
+            <div className="text-sm font-semibold text-slate-800">Planificación {year}</div>
+            <div className="mt-0.5 text-xs text-slate-500">Cada fila es un activo y cada preventivo aparece debajo. El texto antiguo del PAM se conserva solo como origen.</div>
           </div>
 
           {loading ? (
             <div className="p-12 text-center text-sm text-slate-400">Cargando planificación…</div>
-          ) : filteredJobs.length === 0 ? (
+          ) : assets.length === 0 ? (
             <div className="p-12 text-center">
-              <div className="text-sm font-semibold text-slate-600">No hay trabajos para este periodo.</div>
-              <div className="mt-1 text-xs text-slate-400">La planificación no genera datos fuera de la fuente PAM.</div>
+              <div className="text-sm font-semibold text-slate-600">No hay planificación cargada para {year}.</div>
+              <div className="mt-1 text-xs text-slate-400">El selector cambia el año de la fuente PAM, no muestra otro año automáticamente.</div>
             </div>
           ) : (
-            <div className="space-y-4 p-3 sm:p-4">
-              {weeks.map((week) => {
-                const range = resolveWeekRange(year, month, week.weekSlot)
-                return (
-                  <section key={week.weekSlot} className="overflow-hidden rounded-2xl border border-slate-200">
-                    <div className="flex flex-col gap-1 border-b border-slate-100 bg-slate-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div>
-                        <div className="text-xs font-bold uppercase tracking-wide text-slate-700">Semana {week.weekSlot}</div>
-                        <div className="mt-0.5 text-[10px] text-slate-400">
-                          {range.first.toLocaleDateString('es-ES')} – {range.last.toLocaleDateString('es-ES')}
+            <>
+              <div className="hidden md:block overflow-auto">
+                <table className="w-full min-w-[1220px] border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-200 bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500">
+                      <th className="sticky left-0 z-20 w-[240px] border-r border-slate-200 bg-slate-50 px-3 py-3 text-left">Activo</th>
+                      <th className="sticky left-[240px] z-20 w-[230px] border-r border-slate-200 bg-slate-50 px-3 py-3 text-left">Qué toca</th>
+                      {MONTHS.map(m => <th key={m} className="w-[62px] px-1 py-3 text-center">{m}</th>)}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {assets.map(asset => asset.tasks.map((task,index) => {
+                      const isOpen = expanded === task.key
+                      return (
+                        <tr key={task.key} className="border-b border-slate-100 align-top">
+                          <td className="sticky left-0 z-10 bg-white px-3 py-3">
+                            {index === 0 && <button type="button" onClick={() => setExpanded(isOpen ? null : task.key)} className="w-full text-left">
+                              <div className="font-semibold text-slate-800">{asset.code}</div>
+                              <div className="text-[10px] text-slate-500">{asset.name}</div>
+                              <div className="mt-1 text-[9px] text-slate-400">{asset.plant || '—'} · {asset.location || '—'}</div>
+                            </button>}
+                          </td>
+                          <td className="sticky left-[240px] z-10 border-r border-slate-100 bg-white px-3 py-3">
+                            <button type="button" onClick={() => setExpanded(isOpen ? null : task.key)} className="w-full text-left">
+                              <div className="flex items-center gap-1.5">
+                                <span className="rounded-md bg-slate-100 px-1.5 py-1 text-[9px] font-bold text-slate-600">{task.mark}</span>
+                                <span className="truncate text-xs font-semibold text-slate-800">{task.action}</span>
+                              </div>
+                              <div className="mt-1 text-[9px] text-slate-400">{periodicityLabel(task.unit,task.value)}</div>
+                            </button>
+                          </td>
+                          {MONTHS.map((m,i) => {
+                            const weeks = task.byMonth[i+1] ?? []
+                            const weekly = task.unit === 'WEEK' && weeks.length >= 4
+                            return <td key={m} className="border-r border-slate-100 px-1 py-3 text-center" title={weeks.length ? weeks.map(w => 'Semana '+w).join(' · ') : 'Sin programación'}>
+                              {weeks.length ? <><div className="font-bold text-slate-700">{weekly ? '4–5' : weeks.length}</div><div className="text-[8px] text-slate-400">{weekly ? 'sem.' : 'vez'}</div></> : <span className="text-slate-300">—</span>}
+                            </td>
+                          })}
+                        </tr>
+                      )
+                    }))}
+                  </tbody>
+                </table>
+                {expanded && (
+                  <div className="border-t bg-slate-50 px-4 py-3">
+                    {tasks.filter(t => t.key === expanded).map(task => (
+                      <div key={task.key}>
+                        <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{task.code} · {task.action}</div>
+                        <div className="mt-1 text-xs text-slate-600">{taskPeriodicityLabel(task.unit,task.value)} · {task.sources.join(' · ')}</div>
+                        <div className="mt-3 flex flex-wrap gap-1.5">
+                          {MONTHS.map((m,i) => task.byMonth[i+1]?.length ? <span key={m} className="rounded-full border border-slate-200 bg-white px-2 py-1 text-[9px] text-slate-600">{m}: {task.byMonth[i+1].map(w => 'S'+w).join(', ')}</span> : null)}
                         </div>
                       </div>
-                      <div className="text-[10px] font-semibold text-slate-400">{week.jobs.length} trabajos</div>
-                    </div>
-                    <div className="divide-y divide-slate-100">
-                      {week.jobs.map((job) => (
-                        <div key={job.id} className="grid gap-3 px-4 py-3 md:grid-cols-[minmax(220px,1fr)_180px_140px_120px] md:items-center">
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2">
-                              <div className="truncate text-xs font-semibold text-slate-800">{job.apparatus_code || '—'} · {job.apparatus_name || 'Equipo'}</div>
-                              <span className={'shrink-0 rounded-full px-2 py-1 text-[9px] font-semibold ' + statusClass(job.status)}>{STATUS_LABELS[job.status]}</span>
-                            </div>
-                            <div className="mt-1 truncate text-[11px] text-slate-500">{job.title}</div>
-                            <div className="mt-0.5 truncate text-[10px] text-slate-400">{job.location || job.plant || '—'}</div>
-                          </div>
-                          <div className="text-[10px] text-slate-500">
-                            <div className="font-semibold text-slate-600">Periodo</div>
-                            <div className="mt-0.5">{formatRange(job)}</div>
-                          </div>
-                          <div className="text-[10px] text-slate-500">
-                            <div className="font-semibold text-slate-600">Responsable</div>
-                            <div className="mt-0.5 truncate">{job.assigned_user_name || 'Sin asignar'}</div>
-                          </div>
-                          <div className="text-[10px] text-slate-500 md:text-right">
-                            <div className="font-semibold text-slate-600">OT</div>
-                            <div className="mt-0.5">{job.maintenance_plan_code || '—'}</div>
-                          </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="md:hidden divide-y divide-slate-100">
+                {assets.map(asset => (
+                  <div key={asset.id} className="p-2">
+                    <div className="rounded-xl border border-slate-200 overflow-hidden">
+                      <div className="bg-slate-50 px-3 py-3">
+                        <div className="font-semibold text-slate-800">{asset.code}</div>
+                        <div className="text-[10px] text-slate-500">{asset.name}</div>
+                        <div className="mt-1 text-[9px] text-slate-400">{asset.plant || '—'} · {asset.location || '—'}</div>
+                      </div>
+                      {asset.tasks.map(task => (
+                        <div key={task.key}>
+                          <button type="button" onClick={() => setExpanded(expanded === task.key ? null : task.key)} className="w-full px-3 py-3 text-left">
+                            <div className="flex items-center gap-1.5"><span className="rounded-md bg-slate-100 px-1.5 py-1 text-[9px] font-bold text-slate-600">{task.mark}</span><span className="text-xs font-semibold text-slate-800">{task.action}</span><ChevronDown size={14} className={'ml-auto text-slate-400 '+(expanded===task.key?'rotate-180':'')} /></div>
+                            <div className="mt-1 text-[9px] text-slate-400">{periodicityLabel(task.unit,task.value)}</div>
+                          </button>
+                          {expanded===task.key && <div className="border-t bg-slate-50 px-3 py-3 text-[10px] text-slate-600">Origen: {task.sources.join(' · ') || 'PAM'}<div className="mt-2 flex flex-wrap gap-1.5">{MONTHS.map((m,i) => task.byMonth[i+1]?.length ? <span key={m} className="rounded-full bg-white px-2 py-1">{m}: {task.byMonth[i+1].map(w=>'S'+w).join(', ')}</span> : null)}</div></div>}
                         </div>
                       ))}
                     </div>
-                  </section>
-                )
-              })}
-            </div>
+                  </div>
+                ))}
+              </div>
+            </>
           )}
         </div>
       </div>

@@ -35,6 +35,7 @@ import ApparatusRegistryReportPage from './features/apparatusregistry/pages/Appa
 import MaintenancePage from './features/maintenance/pages/MaintenancePage'
 import ProvidersPage from './features/providers/pages/ProvidersPage'
 import ActionsPage from './features/actions/pages/ActionsPage'
+import PlanningPage from './features/planning/pages/PlanningPage'
 
 export default function App() {
   return (
@@ -52,6 +53,7 @@ export default function App() {
         <Route path="/profile" element={<MyProfilePage />} />
         <Route path="/reports" element={<ReportsPage />} />
         <Route path="/pam" element={<PamPage />} />
+        <Route path="/planning" element={<PlanningPage />} />
         <Route path="/providers" element={<ProvidersPage />} />
         <Route path="/actions" element={<ActionsPage />} />
       <Route path="/assets" element={<AssetsPage />} />

@@ -38,8 +38,7 @@ export default function LoginPage() {
       return
     }
 
-    navigate('/', { replace: true })
-    setBusy(false)
+    window.location.replace('/')
   }
 
   return (

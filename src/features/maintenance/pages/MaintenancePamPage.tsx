@@ -90,6 +90,7 @@ export default function MaintenancePamPage() {
   const [typeFilter, setTypeFilter] = useState<FilterType>('ALL')
   const [stateFilter, setStateFilter] = useState<FilterState>('ALL')
   const [search, setSearch] = useState('')
+  const [selectedFrequency, setSelectedFrequency] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -145,10 +146,43 @@ export default function MaintenancePamPage() {
     void loadPAM()
   }, [])
 
+  function frequencyKey(plan: Plan) {
+    if (plan.periodicity_unit === 'DAY' && plan.periodicity_value === 1) return 'DAILY'
+    if (plan.periodicity_unit === 'WEEK' && plan.periodicity_value === 2) return 'FORTNIGHTLY'
+    if (plan.periodicity_unit === 'MONTH' && plan.periodicity_value === 1) return 'MONTHLY'
+    if (plan.periodicity_unit === 'MONTH' && plan.periodicity_value === 2) return 'BIMONTHLY'
+    if (plan.periodicity_unit === 'MONTH' && plan.periodicity_value === 3) return 'QUARTERLY'
+    if (plan.periodicity_unit === 'MONTH' && plan.periodicity_value === 6) return 'SEMIANNUAL'
+    if (plan.periodicity_unit === 'YEAR' && plan.periodicity_value === 1) return 'ANNUAL'
+    return 'OTHER'
+  }
+
+  const frequencyCards = [
+    { key: 'DAILY', label: 'Diario', description: 'Trabajos que se realizan cada día' },
+    { key: 'FORTNIGHTLY', label: 'Quincenal', description: 'Trabajos cada dos semanas' },
+    { key: 'MONTHLY', label: 'Mensual', description: 'Trabajos una vez al mes' },
+    { key: 'BIMONTHLY', label: 'Bimensual', description: 'Trabajos cada dos meses' },
+    { key: 'QUARTERLY', label: 'Trimestral', description: 'Trabajos cada tres meses' },
+    { key: 'SEMIANNUAL', label: 'Semestral', description: 'Trabajos cada seis meses' },
+    { key: 'ANNUAL', label: 'Anual', description: 'Trabajos una vez al año' },
+    { key: 'OTHER', label: 'Otras', description: 'Frecuencias variables o no clasificadas' },
+  ] as const
+
+  const frequencyCounts = useMemo(() => {
+    const counts: Record<string, number> = {}
+    frequencyCards.forEach((card) => { counts[card.key] = 0 })
+    plans.forEach((plan) => { counts[frequencyKey(plan)] = (counts[frequencyKey(plan)] ?? 0) + 1 })
+    return counts
+  }, [plans])
+
+  const selectedFrequencyLabel =
+    frequencyCards.find((card) => card.key === selectedFrequency)?.label ?? ''
+
   const filteredPlans = useMemo(() => {
     const query = search.trim().toLocaleLowerCase('es')
 
     return plans.filter((plan) => {
+      if (selectedFrequency && frequencyKey(plan) !== selectedFrequency) return false
       if (typeFilter !== 'ALL' && plan.maintenance_type !== typeFilter) return false
 
       const state = workState(plan).label
@@ -174,7 +208,7 @@ export default function MaintenancePamPage() {
 
       return true
     })
-  }, [plans, alerts, search, typeFilter, stateFilter])
+  }, [plans, search, typeFilter, stateFilter, selectedFrequency])
 
   const openPlan = (id: string) => {
     navigate(`/maintenance/configuration?planId=${encodeURIComponent(id)}`)
@@ -189,7 +223,7 @@ export default function MaintenancePamPage() {
               <BrandLogo onActivate={() => navigate('/')} className="h-9 w-auto shrink-0 object-contain sm:h-11" />
               <div className="min-w-0">
                 <h1 className="text-xl font-bold sm:text-2xl">PAM</h1>
-                <p className="text-xs text-slate-500 sm:text-sm">Plan Anual de Mantenimiento · previsión y control de trabajos</p>
+                <p className="text-xs text-slate-500 sm:text-sm">Plan Anual de Mantenimiento</p>
               </div>
             </div>
             <div className="flex gap-2">
@@ -199,60 +233,45 @@ export default function MaintenancePamPage() {
           </div>
         </header>
 
-        <section className="mb-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+        <section className="mb-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
           <div className="flex items-start gap-3">
             <CalendarDays className="mt-0.5 shrink-0 text-slate-500" size={20} />
             <div className="min-w-0">
               <h2 className="text-sm font-semibold sm:text-base">Previsión de trabajos preventivos</h2>
               <p className="mt-1 text-xs leading-5 text-slate-500 sm:text-sm">
-                Aquí se controlan los mantenimientos previstos, tanto realizados por SSTT como por empresas externas. Las fechas y alertas proceden de los mantenimientos configurados.
+                Selecciona una frecuencia para ver los trabajos preventivos previstos de esa categoría.
               </p>
             </div>
           </div>
         </section>
 
-        <section className="mb-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,2fr)_180px_180px_auto]">
-          <label className="block">
-            <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-slate-500">Buscar trabajo, equipo o empresa</span>
-            <input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Nombre, equipo, código, empresa…"
-              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 outline-none focus:border-blue-500"
-            />
-          </label>
+        <section className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {frequencyCards.map((card) => {
+            const selected = selectedFrequency === card.key
+            const count = frequencyCounts[card.key] ?? 0
 
-          <label className="block">
-            <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-slate-500">Ejecutor</span>
-            <select
-              value={typeFilter}
-              onChange={(event) => setTypeFilter(event.target.value as FilterType)}
-              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5"
-            >
-              <option value="ALL">Todos</option>
-              <option value="INTERNAL">SSTT</option>
-              <option value="EXTERNAL">Empresa externa</option>
-            </select>
-          </label>
-
-          <label className="block">
-            <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-slate-500">Estado</span>
-            <select
-              value={stateFilter}
-              onChange={(event) => setStateFilter(event.target.value as FilterState)}
-              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5"
-            >
-              <option value="ALL">Todos</option>
-              <option value="UPCOMING">Próximos</option>
-              <option value="DUE">Hoy</option>
-              <option value="OVERDUE">Vencidos</option>
-              <option value="INACTIVE">Inactivos</option>
-            </select>
-          </label>
-
-          <div className="flex items-end">
-            <IconButton icon={RefreshCw} label="Actualizar" onClick={() => void loadPAM()} />
-          </div>
+            return (
+              <button
+                key={card.key}
+                type="button"
+                onClick={() => setSelectedFrequency(selected ? null : card.key)}
+                className={`rounded-2xl border p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${selected ? 'border-blue-300 bg-blue-50 ring-2 ring-blue-100' : 'border-slate-200 bg-white'}`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-base font-bold text-slate-900">{card.label}</div>
+                    <div className="mt-1 text-xs leading-5 text-slate-500">{card.description}</div>
+                  </div>
+                  <div className="flex h-11 min-w-11 shrink-0 items-center justify-center rounded-xl bg-slate-100 px-2 text-lg font-bold text-slate-800">
+                    {count}
+                  </div>
+                </div>
+                <div className="mt-3 text-xs font-semibold text-slate-500">
+                  {count === 1 ? '1 trabajo' : `${count} trabajos`}
+                </div>
+              </button>
+            )
+          })}
         </section>
 
         {error && (
@@ -261,92 +280,187 @@ export default function MaintenancePamPage() {
           </div>
         )}
 
-        <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex flex-col gap-2 border-b border-slate-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <div className="text-sm font-semibold">Trabajos previstos</div>
-              <div className="text-xs text-slate-500">
-                {loading ? 'Cargando…' : `${filteredPlans.length} trabajos visibles`}
+        {selectedFrequency && (
+          <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="border-b border-slate-200 px-4 py-3">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <div className="text-base font-semibold text-slate-900">{selectedFrequencyLabel}</div>
+                  <div className="text-xs text-slate-500">
+                    {loading ? 'Cargando…' : `${filteredPlans.length} trabajos`}
+                  </div>
+                </div>
+
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-[minmax(240px,1fr)_170px_170px_auto_auto]">
+                  <label className="block">
+                    <span className="sr-only">Buscar</span>
+                    <input
+                      value={search}
+                      onChange={(event) => setSearch(event.target.value)}
+                      placeholder="Buscar trabajo, equipo o empresa…"
+                      className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
+                    />
+                  </label>
+
+                  <select
+                    value={typeFilter}
+                    onChange={(event) => setTypeFilter(event.target.value as FilterType)}
+                    className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+                    aria-label="Filtrar por ejecutor"
+                  >
+                    <option value="ALL">Todos los ejecutores</option>
+                    <option value="INTERNAL">SSTT</option>
+                    <option value="EXTERNAL">Empresa externa</option>
+                  </select>
+
+                  <select
+                    value={stateFilter}
+                    onChange={(event) => setStateFilter(event.target.value as FilterState)}
+                    className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+                    aria-label="Filtrar por estado"
+                  >
+                    <option value="ALL">Todos los estados</option>
+                    <option value="UPCOMING">Próximos</option>
+                    <option value="DUE">Hoy</option>
+                    <option value="OVERDUE">Vencidos</option>
+                    <option value="INACTIVE">Inactivos</option>
+                  </select>
+
+                  <IconButton icon={RefreshCw} label="Actualizar" onClick={() => void loadPAM()} />
+                  <button
+                    type="button"
+                    onClick={() => setSelectedFrequency(null)}
+                    className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                  >
+                    Cerrar
+                  </button>
+                </div>
               </div>
             </div>
-            <div className="flex flex-wrap gap-2 text-[11px] text-slate-500">
-              <span className="inline-flex items-center gap-1"><UserRound size={13} /> SSTT</span>
-              <span className="inline-flex items-center gap-1"><Building2 size={13} /> Empresa externa</span>
-              <span className="inline-flex items-center gap-1"><Bell size={13} /> Avisos automáticos</span>
+
+            <div className="hidden md:block overflow-auto">
+              <table className="w-full min-w-[980px] border-collapse text-sm">
+                <thead>
+                  <tr className="border-b bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+                    <th className="px-4 py-3 font-semibold">Trabajo preventivo</th>
+                    <th className="px-4 py-3 font-semibold">Equipo</th>
+                    <th className="px-4 py-3 font-semibold">Próxima fecha</th>
+                    <th className="px-4 py-3 font-semibold">Ejecutor</th>
+                    <th className="px-4 py-3 font-semibold">Estado</th>
+                    <th className="px-4 py-3 font-semibold">Avisos</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredPlans.map((plan) => {
+                    const state = workState(plan)
+                    const alert = alertBadge(plan.id, alerts)
+                    const AlertIcon = alert?.icon
+                    const apparatus = plan.apparatus_registry
+
+                    return (
+                      <tr
+                        key={plan.id}
+                        onClick={() => openPlan(plan.id)}
+                        className="cursor-pointer border-b transition hover:bg-slate-50"
+                      >
+                        <td className="px-4 py-3">
+                          <div className="font-semibold text-slate-900">{plan.name}</div>
+                          <div className="mt-1 text-xs text-slate-500">{periodicityLabel(plan)}</div>
+                        </td>
+                        <td className="px-4 py-3">
+                          {apparatus?.code ? (
+                            <>
+                              <div className="font-semibold text-slate-800">{apparatus.code}</div>
+                              <div className="text-xs text-slate-500">{apparatus.name}</div>
+                            </>
+                          ) : (
+                            <span className="text-slate-400">Sin equipo asociado</span>
+                          )}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3 font-medium">{formatDate(plan.next_due_date)}</td>
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${plan.maintenance_type === 'EXTERNAL' ? 'bg-violet-100 text-violet-700' : 'bg-slate-100 text-slate-700'}`}>
+                            {plan.maintenance_type === 'EXTERNAL' ? plan.external_company || 'Empresa externa' : 'SSTT'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${state.tone}`}>
+                            {state.label}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          {alert && AlertIcon ? (
+                            <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${alert.tone}`}>
+                              <AlertIcon size={13} />
+                              {alert.label}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-slate-400">Sin avisos</span>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
             </div>
-          </div>
 
-          <div className="divide-y divide-slate-100">
-            {filteredPlans.map((plan) => {
-              const state = workState(plan)
-              const alert = alertBadge(plan.id, alerts)
-              const AlertIcon = alert?.icon
-              const apparatus = plan.apparatus_registry
+            <div className="grid gap-2 p-2 md:hidden">
+              {filteredPlans.map((plan) => {
+                const state = workState(plan)
+                const alert = alertBadge(plan.id, alerts)
+                const AlertIcon = alert?.icon
+                const apparatus = plan.apparatus_registry
 
-              return (
-                <button
-                  key={plan.id}
-                  type="button"
-                  onClick={() => openPlan(plan.id)}
-                  className="flex w-full items-start gap-3 px-4 py-4 text-left transition hover:bg-slate-50"
-                >
-                  <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-500">
-                    <Wrench size={19} />
-                  </div>
-
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+                return (
+                  <button
+                    key={plan.id}
+                    type="button"
+                    onClick={() => openPlan(plan.id)}
+                    className="rounded-xl border border-slate-200 p-3 text-left hover:bg-slate-50"
+                  >
+                    <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <div className="text-sm font-semibold text-slate-900">{plan.name}</div>
+                        <div className="text-sm font-semibold">{plan.name}</div>
                         <div className="mt-1 text-xs text-slate-500">
                           {apparatus?.code ? `${apparatus.code} · ${apparatus.name}` : 'Sin equipo asociado'}
                         </div>
                       </div>
-
-                      <div className="flex flex-wrap gap-2">
-                        <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${state.tone}`}>
-                          {state.label}
-                        </span>
-                        <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${plan.maintenance_type === 'EXTERNAL' ? 'bg-violet-100 text-violet-700' : 'bg-slate-100 text-slate-700'}`}>
-                          {plan.maintenance_type === 'EXTERNAL' ? 'Externo' : 'SSTT'}
-                        </span>
+                      <ChevronRight size={18} className="shrink-0 text-slate-300" />
+                    </div>
+                    <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-600">
+                      <div>Fecha: <span className="font-semibold">{formatDate(plan.next_due_date)}</span></div>
+                      <div>Ejecutor: <span className="font-semibold">{plan.maintenance_type === 'EXTERNAL' ? plan.external_company || 'Externo' : 'SSTT'}</span></div>
+                      <div>
+                        <span className={`inline-flex rounded-full px-2 py-1 font-semibold ${state.tone}`}>{state.label}</span>
+                      </div>
+                      <div>
                         {alert && AlertIcon && (
-                          <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold ${alert.tone}`}>
-                            <AlertIcon size={13} />
+                          <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 font-semibold ${alert.tone}`}>
+                            <AlertIcon size={12} />
                             {alert.label}
                           </span>
                         )}
                       </div>
                     </div>
-
-                    <div className="mt-3 grid gap-2 text-xs text-slate-600 sm:grid-cols-3">
-                      <div className="inline-flex items-center gap-1.5">
-                        <CalendarDays size={14} className="text-slate-400" />
-                        Próximo trabajo: <span className="font-semibold">{formatDate(plan.next_due_date)}</span>
-                      </div>
-                      <div className="inline-flex items-center gap-1.5">
-                        <Clock3 size={14} className="text-slate-400" />
-                        Frecuencia: <span className="font-semibold">{periodicityLabel(plan)}</span>
-                      </div>
-                      <div className="inline-flex items-center gap-1.5">
-                        {plan.maintenance_type === 'EXTERNAL' ? <Building2 size={14} className="text-slate-400" /> : <UserRound size={14} className="text-slate-400" />}
-                        Ejecutor: <span className="font-semibold">{plan.maintenance_type === 'EXTERNAL' ? plan.external_company || 'Empresa no indicada' : 'SSTT'}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <ChevronRight size={18} className="mt-1 shrink-0 text-slate-300" />
-                </button>
-              )
-            })}
+                  </button>
+                )
+              })}
+            </div>
 
             {!loading && filteredPlans.length === 0 && (
-              <div className="border-dashed p-10 text-center text-sm text-slate-500">
-                No hay trabajos previstos que coincidan con los filtros.
+              <div className="border-t border-dashed border-slate-200 p-10 text-center text-sm text-slate-500">
+                No hay trabajos en esta frecuencia con los filtros seleccionados.
               </div>
             )}
-          </div>
-        </section>
+          </section>
+        )}
+
+        {!selectedFrequency && !loading && (
+          <section className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
+            Selecciona una tarjeta para desplegar el listado de trabajos de esa frecuencia.
+          </section>
+        )}
       </div>
     </div>
   )

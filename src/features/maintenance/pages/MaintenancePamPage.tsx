@@ -32,6 +32,7 @@ type SourceMark = {
 }
 
 type Apparatus = {
+  id: string
   source_id: number | null
   code: string
   name: string
@@ -48,18 +49,33 @@ type PlanLink = {
 type Execution = {
   maintenance_plan_id: string
   executed_at: string | null
+  result?: 'COMPLETED' | 'COMPLETED_WITH_ISSUES' | 'NOT_CONFORM' | 'CANCELLED'
+}
+
+type MaintenancePlan = {
+  id: string
+  apparatus_registry_id: string | null
+  next_due_date: string | null
 }
 
 type PamWork = {
   sourceId: number
+  apparatusId: string | null
+  planId: string | null
   hotelCode: string
   name: string
   work: string
   periodicity: string
-  lastRevision: string | null
-  nextDate: string | null
+  nextRevision: string | null
   executor: string
-  state: 'Pendiente' | 'En curso' | 'Finalizado'
+  state:
+    | 'Pendiente'
+    | 'En curso'
+    | 'Finalizado'
+    | 'Revisada'
+    | 'Revisada con incidencias'
+    | 'No conforme'
+    | 'No realizada'
 }
 
 const dailyPamSourceIds = [
@@ -129,11 +145,6 @@ const actionLabels: Record<string, string> = {
   CP: 'CONTROL DE PRESIONES',
 }
 
-function localDateString() {
-  const now = new Date()
-  const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
-  return local.toISOString().slice(0, 10)
-}
 
 function formatDate(value: string | null) {
   if (!value) return 'Pendiente de planificar'
@@ -183,30 +194,32 @@ function deriveFrequency(
 function uniqueWorks(
   rows: SourceMark[],
   apparatusBySourceId: Map<number, Apparatus>,
-  hotelCodeBySourceId: Record<number, string>,
   periodicity: string,
-  nextDate: string | null,
-  lastRevisionByKey: Map<string, string>,
+  planIdByKey: Map<string, string>,
+  nextRevisionByKey: Map<string, string | null>,
+  stateByKey: Map<string, PamWork['state']>,
 ) {
   const works = new Map<string, PamWork>()
 
   for (const row of rows) {
     const apparatus = apparatusBySourceId.get(row.source_apparatus_id)
     const work = actionLabel(row.mark_code)
-    const key = `${row.source_apparatus_id}-${row.mark_code}`
+    const key = row.source_apparatus_id + '-' + work
+    const planKey = row.source_apparatus_id + '-' + row.mark_code
 
     if (works.has(key)) continue
 
     works.set(key, {
       sourceId: row.source_apparatus_id,
-      hotelCode: hotelCodeBySourceId[row.source_apparatus_id] ?? '—',
+      apparatusId: apparatus?.id ?? null,
+      planId: planIdByKey.get(planKey) ?? null,
+      hotelCode: dailyHotelAssetCodes[row.source_apparatus_id] ?? '—',
       name: apparatus?.name ?? 'Activo PAM sin equipo resuelto',
       work,
       periodicity,
-      lastRevision: lastRevisionByKey.get(key) ?? null,
-      nextDate,
+      nextRevision: nextRevisionByKey.get(planKey) ?? null,
       executor: executorLabel(apparatus?.maintenance ?? null),
-      state: 'Pendiente',
+      state: stateByKey.get(planKey) ?? 'Pendiente',
     })
   }
 
@@ -248,7 +261,7 @@ export default function MaintenancePamPage() {
 
     const hotelId = hotel.data.id as string
 
-    const [groupsQuery, marksQuery, apparatusQuery, linksQuery, executionsQuery] = await Promise.all([
+    const [groupsQuery, marksQuery, apparatusQuery, linksQuery, executionsQuery, plansQuery] = await Promise.all([
       supabase
         .from('pam_source_groups')
         .select('id, source_row, maintenance_name')
@@ -264,7 +277,7 @@ export default function MaintenancePamPage() {
         .order('source_apparatus_id'),
       supabase
         .from('apparatus_registry')
-        .select('source_id, code, name, maintenance')
+        .select('id, source_id, code, name, maintenance')
         .eq('hotel_id', hotelId)
         .eq('active', true)
         .order('source_id'),
@@ -274,9 +287,13 @@ export default function MaintenancePamPage() {
         .eq('plan_year', 2026),
       supabase
         .from('maintenance_executions')
-        .select('maintenance_plan_id, executed_at')
+        .select('maintenance_plan_id, executed_at, result')
         .not('executed_at', 'is', null)
         .order('executed_at', { ascending: false }),
+      supabase
+        .from('maintenance_plans')
+        .select('id, apparatus_registry_id, next_due_date')
+        .eq('active', true),
     ])
 
     const firstError =
@@ -310,22 +327,40 @@ export default function MaintenancePamPage() {
       if (item.source_id !== null) apparatusBySourceId.set(item.source_id, item)
     })
 
-    const groupRowById = new Map<string, number>()
-    sourceGroups.forEach((group) => {
-      groupRowById.set(group.id, group.source_row)
+    const planIdByKey = new Map<string, string>()
+    planLinks.forEach((link) => {
+      const key = link.source_apparatus_id + '-' + link.mark_code
+      if (!planIdByKey.has(key)) planIdByKey.set(key, link.maintenance_plan_id)
     })
 
-    const lastRevisionByKey = new Map<string, string>()
+    const planById = new Map<string, MaintenancePlan>()
+    ;(plansQuery.data ?? []).forEach((row) => {
+      const plan = row as MaintenancePlan
+      planById.set(plan.id, plan)
+    })
+
+    const nextRevisionByKey = new Map<string, string | null>()
+    planIdByKey.forEach((planId, key) => {
+      nextRevisionByKey.set(key, planById.get(planId)?.next_due_date ?? null)
+    })
+
+    const stateByKey = new Map<string, PamWork['state']>()
     for (const execution of executions) {
-      const matchedLinks = planLinks.filter((link) => link.maintenance_plan_id === execution.maintenance_plan_id)
-      for (const link of matchedLinks) {
-        const sourceRow = groupRowById.get(link.source_group_id)
-        if (sourceRow === undefined) continue
-        const key = `${link.source_apparatus_id}-${link.mark_code}`
-        if (!lastRevisionByKey.has(key) && execution.executed_at) {
-          lastRevisionByKey.set(key, execution.executed_at)
-        }
-      }
+      const entry = Array.from(planIdByKey.entries()).find((item) => item[1] === execution.maintenance_plan_id)
+      if (!entry || stateByKey.has(entry[0])) continue
+
+      stateByKey.set(
+        entry[0],
+        execution.result === 'COMPLETED'
+          ? 'Revisada'
+          : execution.result === 'COMPLETED_WITH_ISSUES'
+            ? 'Revisada con incidencias'
+            : execution.result === 'NOT_CONFORM'
+              ? 'No conforme'
+              : execution.result === 'CANCELLED'
+                ? 'No realizada'
+                : 'Pendiente',
+      )
     }
 
     const worksByFrequency = new Map<FrequencyKey, PamWork[]>()
@@ -341,7 +376,14 @@ export default function MaintenancePamPage() {
 
     worksByFrequency.set(
       'DAILY',
-      uniqueWorks(dailyRows, apparatusBySourceId, dailyHotelAssetCodes, 'Diario', localDateString(), lastRevisionByKey),
+      uniqueWorks(
+        dailyRows,
+        apparatusBySourceId,
+        'Diario',
+        planIdByKey,
+        nextRevisionByKey,
+        stateByKey,
+      ),
     )
 
     const rowsForPlanning = sourceGroups.filter((group) => group.source_row >= 19)
@@ -353,31 +395,33 @@ export default function MaintenancePamPage() {
       for (const code of actionCodes) {
         const actionMarks = groupMarks.filter((mark) => mark.mark_code === code)
         const frequency = deriveFrequency(group.source_row, actionMarks)
-
-        if (frequency === 'OTHER' && !actionMarks.length) continue
-
         const existing = worksByFrequency.get(frequency) ?? []
+        const generated = uniqueWorks(
+          actionMarks,
+          apparatusBySourceId,
+          frequencyCards.find((card) => card.key === frequency)?.label ?? 'Otras',
+          planIdByKey,
+          nextRevisionByKey,
+          stateByKey,
+        )
+
         worksByFrequency.set(
           frequency,
           Array.from(
             new Map(
-              [
-                ...existing.map((work) => [`${work.sourceId}-${work.work}`, work] as const),
-                ...uniqueWorks(actionMarks, apparatusBySourceId, dailyHotelAssetCodes, frequencyCards.find((card) => card.key === frequency)?.label ?? 'Otras', null, lastRevisionByKey)
-                  .map((work) => [`${work.sourceId}-${work.work}`, work] as const),
-              ],
+              existing
+                .concat(generated)
+                .map((work) => [work.sourceId + '-' + work.work, work] as const),
             ).values(),
           ).sort((a, b) => a.sourceId - b.sourceId),
         )
       }
     }
 
-    // Weekly remains deliberately unclassified until the Diario/Semanal split
-    // is validated against the source PAM with the user.
     worksByFrequency.set('WEEKLY', [])
 
     return worksByFrequency
-  }, [sourceGroups, sourceMarks, apparatus])
+  }, [sourceGroups, sourceMarks, apparatus, planLinks, executions, plansQuery.data])
 
   const normalizedSearch = search.trim().toLocaleLowerCase('es')
 
@@ -542,19 +586,37 @@ export default function MaintenancePamPage() {
                 </thead>
                 <tbody>
                   {selectedWorks.map((work) => (
-                    <tr key={`${work.sourceId}-${work.work}`} className="border-b border-slate-100 hover:bg-slate-50">
+                    <tr
+                      key={`${work.sourceId}-${work.work}`}
+                      onClick={() => {
+                        if (work.apparatusId) {
+                          const query = work.planId ? '?planId=' + encodeURIComponent(work.planId) : ''
+                          navigate('/maintenance/pam/' + work.apparatusId + query)
+                        }
+                      }}
+                      className="cursor-pointer border-b border-slate-100 hover:bg-blue-50/40"
+                    >
                       <td className="px-2 py-1 font-semibold text-slate-900">{work.hotelCode}</td>
                       <td className="px-2 py-1 text-slate-700">{work.name}</td>
                       <td className="px-2 py-1 font-medium text-slate-800">{work.work}</td>
                       <td className="whitespace-nowrap px-2 py-1 text-slate-700">
-                        {work.lastRevision
-                          ? new Date(work.lastRevision).toLocaleDateString('es-ES')
-                          : 'Sin revisión'}
+                        {work.nextRevision
+                          ? formatDate(work.nextRevision)
+                          : 'Pendiente de primera revisión'}
                       </td>
-                      <td className="whitespace-nowrap px-2 py-1 text-slate-700">{formatDate(work.nextDate)}</td>
                       <td className="px-2 py-1 font-medium text-slate-700">{work.executor}</td>
                       <td className="px-2 py-1">
-                        <span className="inline-flex rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
+                        <span className={`inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
+                          work.state === 'Revisada'
+                            ? 'bg-emerald-100 text-emerald-700'
+                            : work.state === 'Revisada con incidencias'
+                              ? 'bg-amber-100 text-amber-700'
+                              : work.state === 'No conforme'
+                                ? 'bg-rose-100 text-rose-700'
+                                : work.state === 'No realizada'
+                                  ? 'bg-slate-200 text-slate-700'
+                                  : 'bg-amber-100 text-amber-700'
+                        }`}>
                           {work.state}
                         </span>
                       </td>

@@ -513,18 +513,18 @@ export default function MaintenancePage() {
   return (
     <div className="min-h-screen bg-slate-100 px-3 py-3 text-slate-900 sm:px-5 sm:py-5">
       <div className="mx-auto w-full max-w-[1500px]">
-        <div className="mb-4 flex items-center justify-between">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3 sm:mb-4">
           <BrandLogo label="Inicio Arias Suite" onActivate={() => navigate("/")} className="h-14 w-auto object-contain sm:h-16" />
           <div className="flex items-center gap-2"><BackButton onBack={() => navigate(-1)} /><HomeButton onHome={() => navigate("/")} /></div>
         </div>
         <header className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div><h1 className="text-xl font-semibold">Mantenimientos</h1><p className="mt-1 text-sm text-slate-500">Configuración de revisiones, controles y avisos automáticos.</p></div>
-            <ActionButton icon={Plus} label="Nuevo mantenimiento" onClick={newPlan} />
+            <div className="w-full sm:w-auto"><ActionButton icon={Plus} label="Nuevo mantenimiento" onClick={newPlan} /></div>
           </div>
         </header>
         {error && <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">{error}</div>}
-        <main className="mt-4 grid gap-4 xl:grid-cols-[420px_1fr]">
+        <main className="mt-3 grid gap-3 xl:mt-4 xl:gap-4 xl:grid-cols-[420px_1fr]">
           <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
             {alerts.length > 0 && (
               <div className="border-b border-amber-200 bg-amber-50 px-4 py-3">
@@ -552,7 +552,7 @@ export default function MaintenancePage() {
             )}
             <div className="border-b border-slate-200 px-4 py-3 text-sm font-semibold">Planes de mantenimiento</div>
             {loading ? <div className="p-8 text-center text-sm text-slate-500">Cargando…</div> : plans.length === 0 ? <div className="p-8 text-center text-sm text-slate-500">Todavía no hay mantenimientos configurados.</div> :
-              <div className="max-h-[calc(100vh-220px)] overflow-auto">{plans.map((plan) => <button key={plan.id} type="button" onClick={() => void selectPlan(plan)} className={"w-full border-b border-slate-100 px-4 py-3 text-left transition " + (selectedId === plan.id ? "bg-blue-50" : "hover:bg-slate-50")}>
+              <div className="max-h-[48vh] overflow-auto sm:max-h-[55vh] xl:max-h-[calc(100vh-220px)]">{plans.map((plan) => <button key={plan.id} type="button" onClick={() => void selectPlan(plan)} className={"w-full border-b border-slate-100 px-4 py-3 text-left transition " + (selectedId === plan.id ? "bg-blue-50" : "hover:bg-slate-50")}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="truncate font-medium">{plan.name}</div>
@@ -579,8 +579,8 @@ export default function MaintenancePage() {
               </button>)}</div>
             }
           </section>
-          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            {!form.name ? <div className="flex min-h-[520px] items-center justify-center text-center"><div><Bell className="mx-auto h-10 w-10 text-slate-300" /><h2 className="mt-4 text-lg font-semibold text-slate-700">Configura un mantenimiento</h2><p className="mt-2 max-w-md text-sm text-slate-500">Define el equipo, periodicidad, controles y las personas que deben recibir los avisos.</p></div></div> :
+          <section className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-5">
+            {!form.name ? <div className="flex min-h-[280px] items-center justify-center px-2 text-center sm:min-h-[520px]"><div><Bell className="mx-auto h-10 w-10 text-slate-300" /><h2 className="mt-4 text-lg font-semibold text-slate-700">Configura un mantenimiento</h2><p className="mt-2 max-w-md text-sm text-slate-500">Define el equipo, periodicidad, controles y las personas que deben recibir los avisos.</p></div></div> :
             <>
             <form onSubmit={save} className="space-y-6">
               <div className="flex flex-col gap-3 border-b pb-4 sm:flex-row sm:items-center sm:justify-between">
@@ -597,7 +597,7 @@ export default function MaintenancePage() {
                   disabled={!selectedId || !form.active}
                 />
               </div>
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-3 sm:grid-cols-2 sm:gap-4">
                 <label><span className="mb-1 block text-sm font-medium">Equipo / instalación</span><select value={form.apparatus_registry_id} onChange={(e) => setField("apparatus_registry_id", e.target.value)} className="w-full rounded-xl border px-3 py-2"><option value="">Selecciona un equipo…</option>{apparatus.map((item) => <option key={item.id} value={item.id}>{item.code} — {item.name}{item.plant ? " · " + item.plant : ""}{item.location ? " · " + item.location : ""}</option>)}</select></label>
                 <label><span className="mb-1 block text-sm font-medium">Nombre del mantenimiento</span><input value={form.name} onChange={(e) => setField("name", e.target.value)} placeholder="Ej.: Revisión mensual ascensor" className="w-full rounded-xl border px-3 py-2" /></label>
                 <label className="md:col-span-2"><span className="mb-1 block text-sm font-medium">Descripción</span><textarea value={form.description} onChange={(e) => setField("description", e.target.value)} rows={3} className="w-full rounded-xl border px-3 py-2" /></label>
@@ -607,13 +607,13 @@ export default function MaintenancePage() {
                 <label><span className="mb-1 block text-sm font-medium">Inicio</span><input type="date" value={form.start_date} onChange={(e) => setField("start_date", e.target.value)} className="w-full rounded-xl border px-3 py-2" /></label>
                 <label className="flex items-center gap-2 self-end text-sm"><input type="checkbox" checked={form.active} onChange={(e) => setField("active", e.target.checked)} />Mantenimiento activo</label>
               </div>
-              <section className="rounded-2xl border bg-slate-50 p-4">
+              <section className="rounded-2xl border bg-slate-50 p-3 sm:p-4">
                 <div className="mb-3 flex items-center justify-between"><div><h2 className="font-semibold">Controles de la revisión</h2><p className="text-xs text-slate-500">Cada control valida su propio valor y puede generar su propia alerta.</p></div><button type="button" onClick={() => setControls((current) => [...current, { ...emptyControl }])} className="inline-flex items-center gap-1 rounded-lg border bg-white px-3 py-2 text-sm"><Plus size={16} />Añadir control</button></div>
                 <div className="space-y-3">{controls.map((control, index) => <div key={control.id ?? "new-" + index} className="rounded-xl border bg-white p-3"><div className="grid gap-3 md:grid-cols-[1.5fr_1fr_1fr_1fr_auto]"><input value={control.label} onChange={(e) => updateControl(index, "label", e.target.value)} placeholder="Ej.: Cloro libre" className="rounded-lg border px-3 py-2" /><select value={control.input_type} onChange={(e) => updateControl(index, "input_type", e.target.value)} className="rounded-lg border bg-white px-3 py-2"><option value="NUMBER">Número</option><option value="TEXT">Texto</option><option value="BOOLEAN">Sí / No</option><option value="DATE">Fecha</option><option value="TIME">Hora</option><option value="SELECT">Selección</option></select><input value={control.unit} onChange={(e) => updateControl(index, "unit", e.target.value)} placeholder="Unidad" className="rounded-lg border px-3 py-2" /><div className="grid grid-cols-2 gap-2"><input type="number" value={control.min_value} disabled={control.input_type !== "NUMBER"} onChange={(e) => updateControl(index, "min_value", e.target.value)} placeholder="Mín." className="rounded-lg border px-3 py-2 disabled:bg-slate-100" /><input type="number" value={control.max_value} disabled={control.input_type !== "NUMBER"} onChange={(e) => updateControl(index, "max_value", e.target.value)} placeholder="Máx." className="rounded-lg border px-3 py-2 disabled:bg-slate-100" /></div><button type="button" onClick={() => setControls((current) => current.filter((_, currentIndex) => currentIndex !== index))} className="inline-flex h-10 items-center justify-center rounded-lg border border-rose-200 text-rose-600" title="Eliminar control"><Trash2 size={17} /></button></div><label className="mt-3 inline-flex items-center gap-2 text-sm text-slate-600"><input type="checkbox" checked={control.required} onChange={(e) => updateControl(index, "required", e.target.checked)} />Dato obligatorio para considerar realizada la revisión</label></div>)}</div>
               </section>
-              <section className="rounded-2xl border bg-slate-50 p-4">
+              <section className="rounded-2xl border bg-slate-50 p-3 sm:p-4">
                 <div className="flex items-start gap-3"><Mail className="mt-0.5 text-slate-500" size={20} /><div className="flex-1"><div className="flex items-center justify-between gap-3"><div><h2 className="font-semibold">Avisos por email</h2><p className="text-xs text-slate-500">Avisos internos de control. No se envían automáticamente a la empresa mantenedora.</p></div><label className="inline-flex items-center gap-2 text-sm font-medium"><input type="checkbox" checked={form.email_enabled} onChange={(e) => setField("email_enabled", e.target.checked)} />Activar</label></div>
-                <div className="mt-4 grid gap-4 md:grid-cols-3"><label><span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Aviso previo (días)</span><input type="number" min={0} value={form.days_before} onChange={(e) => setField("days_before", e.target.value)} className="w-full rounded-lg border px-3 py-2" /></label><label className="flex items-center gap-2 self-end text-sm"><input type="checkbox" checked={form.notify_on_due} onChange={(e) => setField("notify_on_due", e.target.checked)} />Avisar el día previsto</label><label className="flex items-center gap-2 self-end text-sm"><input type="checkbox" checked={form.notify_when_overdue} onChange={(e) => setField("notify_when_overdue", e.target.checked)} />Avisar si vence</label></div>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3"><label><span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Aviso previo (días)</span><input type="number" min={0} value={form.days_before} onChange={(e) => setField("days_before", e.target.value)} className="w-full rounded-lg border px-3 py-2" /></label><label className="flex items-center gap-2 self-end text-sm"><input type="checkbox" checked={form.notify_on_due} onChange={(e) => setField("notify_on_due", e.target.checked)} />Avisar el día previsto</label><label className="flex items-center gap-2 self-end text-sm"><input type="checkbox" checked={form.notify_when_overdue} onChange={(e) => setField("notify_when_overdue", e.target.checked)} />Avisar si vence</label></div>
                 <label className="mt-3 block max-w-xs"><span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Repetir vencido (días)</span><input type="number" min={1} value={form.overdue_repeat_days} onChange={(e) => setField("overdue_repeat_days", e.target.value)} className="w-full rounded-lg border px-3 py-2" /></label>
                 <div className="mt-5"><h3 className="text-sm font-semibold">Usuarios SSTT del hotel</h3><div className="mt-2 grid gap-2 sm:grid-cols-2">{recipients.map((recipient) => { const checked = form.recipient_ids.includes(recipient.user_id); return <label key={recipient.user_id} className="flex items-start gap-3 rounded-lg border bg-white px-3 py-2"><input type="checkbox" checked={checked} onChange={() => setField("recipient_ids", checked ? form.recipient_ids.filter((id) => id !== recipient.user_id) : [...form.recipient_ids, recipient.user_id])} className="mt-1 h-4 w-4" /><span><span className="block text-sm font-medium">{recipient.full_name ?? "Usuario"}</span><span className="block text-xs text-slate-500">{recipient.role_name}{recipient.email ? " · " + recipient.email : " · Sin correo"}</span></span></label> })}</div>{recipients.length === 0 && <p className="mt-2 text-xs text-slate-500">No hay usuarios SSTT activos disponibles.</p>}</div>
                 <label className="mt-5 block"><span className="mb-1 block text-sm font-semibold">Otros destinatarios</span><textarea value={form.external_emails} onChange={(e) => setField("external_emails", e.target.value)} rows={3} placeholder="Uno o varios emails, separados por salto de línea, coma o punto y coma." className="w-full rounded-lg border bg-white px-3 py-2" /></label>
@@ -623,7 +623,7 @@ export default function MaintenancePage() {
             </form>
 
             <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <div className="flex items-center justify-between gap-3 border-b pb-4">
+              <div className="flex flex-col gap-3 border-b pb-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <h2 className="text-base font-semibold">Ejecuciones reales</h2>
                   <p className="text-xs text-slate-500">
@@ -637,7 +637,7 @@ export default function MaintenancePage() {
               </div>
 
               {executionFormOpen && (
-                <form onSubmit={saveExecution} className="mt-4 rounded-2xl border border-blue-100 bg-blue-50/50 p-4">
+                <form onSubmit={saveExecution} className="mt-4 rounded-2xl border border-blue-100 bg-blue-50/50 p-3 sm:p-4">
                   <div className="mb-4 flex items-center justify-between gap-3">
                     <div>
                       <h3 className="font-semibold">Registrar ejecución real</h3>
@@ -812,7 +812,8 @@ export default function MaintenancePage() {
                     </div>
                   )}
 
-                  <div className="mt-5 flex justify-end border-t pt-4">
+                  <div className="mt-5 flex justify-stretch border-t pt-4 sm:justify-end">
+                    <div className="w-full sm:w-auto">
                     <ActionButton
                       icon={Save}
                       label={executionSaving ? "Registrando…" : "Registrar ejecución"}
@@ -820,6 +821,7 @@ export default function MaintenancePage() {
                       type="submit"
                       disabled={executionSaving}
                     />
+                    </div>
                   </div>
                 </form>
               )}

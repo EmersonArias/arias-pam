@@ -30,10 +30,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (!mounted) return
 
-      if (profileCheck.error || profileCheck.data === false) {
+      if (profileCheck.data === false) {
         await ariasAuth.signOut()
         if (mounted) setSession(null)
       } else {
+        // A transient profile-query error must never close a valid Auth session.
+        // The session is the source of truth for persistence; authorization is checked separately.
         setSession(restoredSession)
       }
 
@@ -54,13 +56,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       void ariasAuth.isProfileActive(nextSession.user.id).then((profileCheck) => {
         if (!mounted) return
 
-        if (profileCheck.error || profileCheck.data === false) {
+        if (profileCheck.data === false) {
           void ariasAuth.signOut()
           setSession(null)
           setLoading(false)
           return
         }
 
+        // Never sign out because a profile lookup temporarily failed.
         setSession(nextSession)
         setLoading(false)
       })

@@ -576,10 +576,9 @@ export default function MaintenancePamPage() {
                 <thead className="sticky top-0 z-10">
                   <tr className="border-b bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
                     <th className="px-2 py-1.5 font-semibold">ID</th>
-                    <th className="px-3 py-2 font-semibold">Activo</th>
-                    <th className="px-3 py-2 font-semibold">Trabajo</th>
-                    <th className="px-3 py-2 font-semibold">Última revisión</th>
-                    <th className="px-3 py-2 font-semibold">Próxima fecha</th>
+                    <th className="px-2 py-1.5 font-semibold">Activo</th>
+                    <th className="px-2 py-1.5 font-semibold">Trabajo</th>
+                    <th className="px-2 py-1.5 font-semibold">Próxima revisión</th>
                     <th className="px-3 py-2 font-semibold">Ejecutor</th>
                     <th className="px-3 py-2 font-semibold">Estado</th>
                   </tr>

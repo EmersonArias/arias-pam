@@ -236,6 +236,7 @@ export default function MaintenancePamPage() {
   const [planLinks, setPlanLinks] = useState<PlanLink[]>([])
   const [executions, setExecutions] = useState<Execution[]>([])
   const [apparatus, setApparatus] = useState<Apparatus[]>([])
+  const [maintenancePlans, setMaintenancePlans] = useState<MaintenancePlan[]>([])
   const [selectedFrequency, setSelectedFrequency] = useState<FrequencyKey | null>(null)
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
@@ -302,6 +303,7 @@ export default function MaintenancePamPage() {
       ?? apparatusQuery.error
       ?? linksQuery.error
       ?? executionsQuery.error
+      ?? plansQuery.error
 
     if (firstError) {
       setError(firstError.message ?? 'No se ha podido cargar el PAM.')
@@ -314,6 +316,7 @@ export default function MaintenancePamPage() {
     setApparatus((apparatusQuery.data ?? []) as Apparatus[])
     setPlanLinks((linksQuery.data ?? []) as PlanLink[])
     setExecutions((executionsQuery.data ?? []) as Execution[])
+    setMaintenancePlans((plansQuery.data ?? []) as MaintenancePlan[])
     setLoading(false)
   }
 
@@ -334,8 +337,7 @@ export default function MaintenancePamPage() {
     })
 
     const planById = new Map<string, MaintenancePlan>()
-    ;(plansQuery.data ?? []).forEach((row) => {
-      const plan = row as MaintenancePlan
+    maintenancePlans.forEach((plan) => {
       planById.set(plan.id, plan)
     })
 
@@ -421,7 +423,7 @@ export default function MaintenancePamPage() {
     worksByFrequency.set('WEEKLY', [])
 
     return worksByFrequency
-  }, [sourceGroups, sourceMarks, apparatus, planLinks, executions, plansQuery.data])
+  }, [sourceGroups, sourceMarks, apparatus, planLinks, executions, maintenancePlans])
 
   const normalizedSearch = search.trim().toLocaleLowerCase('es')
 

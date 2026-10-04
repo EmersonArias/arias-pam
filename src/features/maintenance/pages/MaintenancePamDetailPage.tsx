@@ -570,8 +570,14 @@ export default function MaintenancePamDetailPage() {
                   </select>
                 </label>
                 <label>
-                  <span className="mb-1 block text-sm font-semibold text-slate-700">Fecha de inicio</span>
-                  <input type="date" value={plan.start_date ?? ''} disabled={mode === 'view'} onChange={(event) => updatePlan('start_date', event.target.value || null)} className="w-full rounded-lg border border-slate-300 px-3 py-2 disabled:bg-slate-100" />
+                  <span className="mb-1 block text-sm font-semibold text-slate-700">Fecha programada</span>
+                  <input
+                    type="date"
+                    value={plan.start_date ?? ''}
+                    disabled={mode === 'view'}
+                    onChange={(event) => updatePlan('start_date', event.target.value || null)}
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 disabled:bg-slate-100"
+                  />
                 </label>
                 <label>
                   <span className="mb-1 block text-sm font-semibold text-slate-700">Próxima revisión</span>
@@ -584,10 +590,28 @@ export default function MaintenancePamDetailPage() {
               </div>
 
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                <label><span className="mb-1 block text-sm font-semibold text-slate-700">Día del mes</span><input type="number" min="1" max="31" value={plan.scheduled_day_of_month ?? ''} disabled={mode === 'view'} onChange={(event) => updatePlan('scheduled_day_of_month', event.target.value ? Number(event.target.value) : null)} className="w-full rounded-lg border border-slate-300 px-3 py-2 disabled:bg-slate-100" /></label>
-                <label><span className="mb-1 block text-sm font-semibold text-slate-700">Día de la semana</span><input type="number" min="1" max="7" value={plan.scheduled_weekday ?? ''} disabled={mode === 'view'} onChange={(event) => updatePlan('scheduled_weekday', event.target.value ? Number(event.target.value) : null)} className="w-full rounded-lg border border-slate-300 px-3 py-2 disabled:bg-slate-100" /></label>
-                <label><span className="mb-1 block text-sm font-semibold text-slate-700">Tolerancia (días)</span><input type="number" min="0" value={plan.tolerance_days} disabled={mode === 'view'} onChange={(event) => updatePlan('tolerance_days', Number(event.target.value))} className="w-full rounded-lg border border-slate-300 px-3 py-2 disabled:bg-slate-100" /></label>
-                <label><span className="mb-1 block text-sm font-semibold text-slate-700">Aviso previo (días)</span><input type="number" min="0" value={plan.alert_lead_days} disabled={mode === 'view'} onChange={(event) => updatePlan('alert_lead_days', Number(event.target.value))} className="w-full rounded-lg border border-slate-300 px-3 py-2 disabled:bg-slate-100" /></label>
+                <label>
+                  <span className="mb-1 block text-sm font-semibold text-slate-700">Tolerancia (días)</span>
+                  <input
+                    type="number"
+                    min="0"
+                    value={plan.tolerance_days}
+                    disabled={mode === 'view'}
+                    onChange={(event) => updatePlan('tolerance_days', Number(event.target.value))}
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 disabled:bg-slate-100"
+                  />
+                </label>
+                <label>
+                  <span className="mb-1 block text-sm font-semibold text-slate-700">Aviso previo (días)</span>
+                  <input
+                    type="number"
+                    min="0"
+                    value={plan.alert_lead_days}
+                    disabled={mode === 'view'}
+                    onChange={(event) => updatePlan('alert_lead_days', Number(event.target.value))}
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 disabled:bg-slate-100"
+                  />
+                </label>
               </div>
             </>
           )}

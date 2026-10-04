@@ -201,6 +201,7 @@ export default function MaintenancePamDetailPage() {
 
   const [reviewDate, setReviewDate] = useState('')
   const [reviewResult, setReviewResult] = useState<Execution['result']>('COMPLETED')
+  const [reviewCompany, setReviewCompany] = useState('')
   const [reviewObservations, setReviewObservations] = useState('')
 
   async function load() {
@@ -261,6 +262,7 @@ export default function MaintenancePamDetailPage() {
     setBaselinePlan(selectedPlan)
     setExecutions((executionQuery.data ?? []) as Execution[])
     setReviewDate(new Date().toISOString().slice(0, 10))
+    setReviewCompany(scheduledExecutor(loadedAsset, selectedPlan))
     setReviewObservations('')
     setMode('view')
     setLoading(false)
@@ -456,7 +458,7 @@ export default function MaintenancePamDetailPage() {
           scheduled_date: reviewDate,
           executed_at: reviewResult === 'CANCELLED' ? new Date(reviewDate + 'T12:00:00').toISOString() : new Date(reviewDate + 'T12:00:00').toISOString(),
           executed_by: userId,
-          performer_company: scheduledExecutor(asset!, plan) || null,
+          performer_company: reviewCompany.trim() || null,
           result: reviewResult,
           observations: reviewObservations.trim() || null,
         })
@@ -693,7 +695,7 @@ export default function MaintenancePamDetailPage() {
                   <option value="NOT_CONFORM">No conforme</option>
                   <option value="CANCELLED">No realizada / cancelada</option>
                 </select></label>
-                <label><span className="mb-1 block text-sm font-semibold text-slate-700">Empresa</span><input value={scheduledExecutor(asset, plan)} readOnly className="w-full rounded-lg border border-slate-300 bg-slate-100 px-3 py-2" /></label>
+                <label><span className="mb-1 block text-sm font-semibold text-slate-700">Empresa</span><input value={reviewCompany} disabled={registering} onChange={(event) => setReviewCompany(event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 disabled:bg-slate-100" /></label>
                 <label className="sm:col-span-2"><span className="mb-1 block text-sm font-semibold text-slate-700">Observaciones / motivo</span><textarea rows={3} value={reviewObservations} disabled={registering} onChange={(event) => setReviewObservations(event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 disabled:bg-slate-100" /></label>
               </div>
               <button type="button" onClick={() => void registerReview()} disabled={registering} className="mt-4 inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">

@@ -510,7 +510,7 @@ export default function MaintenancePamPage() {
             <div className="flex flex-col gap-2 border-b border-slate-200 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <div className="text-sm font-semibold text-slate-900">{selectedLabel}</div>
-                <div className="text-[11px] text-slate-500">
+                <div className="text-[10px] text-slate-500">
                   {loading ? 'Cargando…' : `${selectedWorks.length} trabajos · ${new Set(selectedWorks.map((work) => work.sourceId)).size} activos`}
                 </div>
               </div>
@@ -518,11 +518,20 @@ export default function MaintenancePamPage() {
               <IconButton icon={RefreshCw} label="Actualizar" onClick={() => void loadPAM()} />
             </div>
 
-            <div className="max-h-[calc(100vh-500px)] min-h-[240px] overflow-auto">
-              <table className="w-full min-w-[860px] border-collapse text-sm">
+            <div className="max-h-[calc(100vh-460px)] min-h-[240px] overflow-auto">
+              <table className="w-full min-w-[860px] border-collapse text-[12px]">
+                <colgroup>
+                  <col className="w-[12%]" />
+                  <col className="w-[29%]" />
+                  <col className="w-[18%]" />
+                  <col className="w-[14%]" />
+                  <col className="w-[14%]" />
+                  <col className="w-[9%]" />
+                  <col className="w-[6%]" />
+                </colgroup>
                 <thead className="sticky top-0 z-10">
                   <tr className="border-b bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
-                    <th className="px-3 py-2 font-semibold">ID</th>
+                    <th className="px-2 py-1.5 font-semibold">ID</th>
                     <th className="px-3 py-2 font-semibold">Activo</th>
                     <th className="px-3 py-2 font-semibold">Trabajo</th>
                     <th className="px-3 py-2 font-semibold">Última revisión</th>
@@ -534,18 +543,18 @@ export default function MaintenancePamPage() {
                 <tbody>
                   {selectedWorks.map((work) => (
                     <tr key={`${work.sourceId}-${work.work}`} className="border-b border-slate-100 hover:bg-slate-50">
-                      <td className="px-3 py-1.5 font-semibold text-slate-900">{work.hotelCode}</td>
-                      <td className="px-3 py-1.5 text-slate-700">{work.name}</td>
-                      <td className="px-3 py-1.5 font-medium text-slate-800">{work.work}</td>
-                      <td className="whitespace-nowrap px-3 py-1.5 text-slate-700">
+                      <td className="px-2 py-1 font-semibold text-slate-900">{work.hotelCode}</td>
+                      <td className="px-2 py-1 text-slate-700">{work.name}</td>
+                      <td className="px-2 py-1 font-medium text-slate-800">{work.work}</td>
+                      <td className="whitespace-nowrap px-2 py-1 text-slate-700">
                         {work.lastRevision
                           ? new Date(work.lastRevision).toLocaleDateString('es-ES')
                           : 'Sin revisión'}
                       </td>
-                      <td className="whitespace-nowrap px-3 py-1.5 text-slate-700">{formatDate(work.nextDate)}</td>
-                      <td className="px-3 py-1.5 font-medium text-slate-700">{work.executor}</td>
-                      <td className="px-3 py-1.5">
-                        <span className="inline-flex rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-700">
+                      <td className="whitespace-nowrap px-2 py-1 text-slate-700">{formatDate(work.nextDate)}</td>
+                      <td className="px-2 py-1 font-medium text-slate-700">{work.executor}</td>
+                      <td className="px-2 py-1">
+                        <span className="inline-flex rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
                           {work.state}
                         </span>
                       </td>

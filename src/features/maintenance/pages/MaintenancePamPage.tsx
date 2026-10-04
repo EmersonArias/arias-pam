@@ -491,34 +491,31 @@ export default function MaintenancePamPage() {
               <table className="w-full min-w-[980px] border-collapse text-sm">
                 <thead className="sticky top-0 z-10">
                   <tr className="border-b bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
-                    <th className="px-3 py-2.5 font-semibold">ID</th>
-                    <th className="px-3 py-2.5 font-semibold">Activo</th>
-                    <th className="px-3 py-2.5 font-semibold">Trabajo</th>
-                    <th className="px-3 py-2.5 font-semibold">Periodicidad</th>
-                    <th className="px-3 py-2.5 font-semibold">Última revisión</th>
-                    <th className="px-3 py-2.5 font-semibold">Próxima fecha</th>
-                    <th className="px-3 py-2.5 font-semibold">Ejecutor</th>
-                    <th className="px-3 py-2.5 font-semibold">Estado</th>
+                    <th className="px-3 py-2 font-semibold">ID PAM</th>
+                    <th className="px-3 py-2 font-semibold">Código Arias</th>
+                    <th className="px-3 py-2 font-semibold">Activo</th>
+                    <th className="px-3 py-2 font-semibold">Trabajo</th>
+                    <th className="px-3 py-2 font-semibold">Última revisión</th>
+                    <th className="px-3 py-2 font-semibold">Próxima fecha</th>
+                    <th className="px-3 py-2 font-semibold">Ejecutor</th>
+                    <th className="px-3 py-2 font-semibold">Estado</th>
                   </tr>
                 </thead>
                 <tbody>
                   {selectedWorks.map((work) => (
                     <tr key={`${work.sourceId}-${work.work}`} className="border-b border-slate-100 hover:bg-slate-50">
-                      <td className="px-3 py-2.5 font-semibold text-slate-900">{work.sourceId}</td>
-                      <td className="px-3 py-2.5">
-                        <div className="font-semibold text-slate-800">{work.code}</div>
-                        <div className="text-xs text-slate-500">{work.name}</div>
-                      </td>
-                      <td className="px-3 py-2.5 font-medium text-slate-800">{work.work}</td>
-                      <td className="px-3 py-2.5 text-slate-700">{work.periodicity}</td>
-                      <td className="whitespace-nowrap px-3 py-2.5 text-slate-700">
+                      <td className="px-3 py-1.5 font-semibold text-slate-900">{work.sourceId}</td>
+                      <td className="px-3 py-1.5 font-semibold text-slate-800">{work.code}</td>
+                      <td className="px-3 py-1.5 text-slate-700">{work.name}</td>
+                      <td className="px-3 py-1.5 font-medium text-slate-800">{work.work}</td>
+                      <td className="whitespace-nowrap px-3 py-1.5 text-slate-700">
                         {work.lastRevision
                           ? new Date(work.lastRevision).toLocaleDateString('es-ES')
                           : 'Sin revisión'}
                       </td>
-                      <td className="whitespace-nowrap px-3 py-2.5 text-slate-700">{formatDate(work.nextDate)}</td>
-                      <td className="px-3 py-2.5 font-medium text-slate-700">{work.executor}</td>
-                      <td className="px-3 py-2.5">
+                      <td className="whitespace-nowrap px-3 py-1.5 text-slate-700">{formatDate(work.nextDate)}</td>
+                      <td className="px-3 py-1.5 font-medium text-slate-700">{work.executor}</td>
+                      <td className="px-3 py-1.5">
                         <span className="inline-flex rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-700">
                           {work.state}
                         </span>

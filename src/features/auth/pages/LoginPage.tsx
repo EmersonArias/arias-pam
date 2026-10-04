@@ -2,56 +2,6 @@ import { type FormEvent, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ariasAuth } from '../../../core/auth/authService'
 
-type PasswordCredentialConstructor = {
-  new (data: {
-    id: string
-    password: string
-    name?: string
-    iconURL?: string
-  }): Credential
-  new (form: HTMLFormElement): Credential
-}
-
-async function storeBrowserCredential(form: HTMLFormElement) {
-  if (!window.isSecureContext || !navigator.credentials) return
-
-  const PasswordCredentialCtor = (
-    window as typeof window & {
-      PasswordCredential?: PasswordCredentialConstructor
-    }
-  ).PasswordCredential
-
-  if (!PasswordCredentialCtor || typeof navigator.credentials.store !== 'function') {
-    return
-  }
-
-  try {
-    const credential = new PasswordCredentialCtor(form)
-    await navigator.credentials.store(credential)
-  } catch {
-    try {
-      const identifier = (
-        form.elements.namedItem('username') as HTMLInputElement | null
-      )?.value.trim()
-      const password = (
-        form.elements.namedItem('password') as HTMLInputElement | null
-      )?.value
-
-      if (!identifier || !password) return
-
-      const credential = new PasswordCredentialCtor({
-        id: identifier,
-        password,
-        name: identifier,
-      })
-
-      await navigator.credentials.store(credential)
-    } catch {
-      // El gestor nativo del navegador decide si muestra o guarda la credencial.
-    }
-  }
-}
-
 export default function LoginPage() {
   const navigate = useNavigate()
   const [identifier, setIdentifier] = useState('')
@@ -88,8 +38,7 @@ export default function LoginPage() {
       return
     }
 
-    void storeBrowserCredential(event.currentTarget)
-    navigate('/', { replace: true })
+    window.location.replace('/')
   }
 
   return (

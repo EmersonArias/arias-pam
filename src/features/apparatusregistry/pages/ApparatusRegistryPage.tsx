@@ -181,7 +181,7 @@ export default function ApparatusRegistryPage() {
             </div>
 
             <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
-              <BackButton onBack={() => navigate('/')} />
+              <BackButton onBack={() => navigate(-1)} />
               <HomeButton onHome={() => navigate('/')} />
               <GridToolbar
                 actions={[

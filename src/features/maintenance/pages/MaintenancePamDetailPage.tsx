@@ -88,7 +88,10 @@ const periodicityOptions = [
 
 function formatDate(value: string | null) {
   if (!value) return 'Pendiente de primera revisión'
-  return new Date(value + 'T12:00:00').toLocaleDateString('es-ES')
+  const date = value.length > 10
+    ? new Date(value)
+    : new Date(value + 'T12:00:00')
+  return date.toLocaleDateString('es-ES')
 }
 
 function executionLabel(result: Execution['result']) {
@@ -193,7 +196,7 @@ export default function MaintenancePamDetailPage() {
     setExecutions((executionQuery.data ?? []) as Execution[])
     setReviewDate(new Date().toISOString().slice(0, 10))
     setReviewPerformer('')
-    setReviewCompany(hotelAssetCodes[loadedAsset.source_id ?? 0] ? (loadedAsset.maintenance ?? '') : (loadedAsset.maintenance ?? ''))
+    setReviewCompany(loadedAsset.maintenance ?? '')
     setReviewObservations('')
     setMode('view')
     setLoading(false)
@@ -213,12 +216,6 @@ export default function MaintenancePamDetailPage() {
   )
 
   const latestExecution = executions[0] ?? null
-
-  const isDirty =
-    mode !== 'view' &&
-    JSON.stringify(asset) !== JSON.stringify(baselineAsset) ||
-    mode !== 'view' &&
-    JSON.stringify(plan) !== JSON.stringify(baselinePlan)
 
   function updateAsset<K extends keyof Asset>(field: K, value: Asset[K]) {
     setAsset((current) => current ? { ...current, [field]: value } : current)

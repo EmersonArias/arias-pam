@@ -279,26 +279,37 @@ export default function MaintenancePamPage() {
   return (
     <div className="min-h-screen bg-slate-100 px-3 py-3 text-slate-900 sm:px-5 sm:py-5">
       <div className="mx-auto max-w-[1400px]">
-        <header className="mb-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-lg sm:p-4">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex min-w-0 items-center gap-3">
+        <header className="mb-3 rounded-2xl border border-slate-200 bg-white p-2.5 shadow-lg sm:p-3">
+          <div className="grid items-center gap-3 lg:grid-cols-[1fr_auto_1fr]">
+            <div className="flex min-w-0 items-center gap-2.5">
               <BrandLogo
                 onActivate={() => navigate('/')}
-                className="h-9 w-auto shrink-0 object-contain sm:h-11"
+                className="h-8 w-auto shrink-0 object-contain sm:h-10"
               />
               <div className="min-w-0">
-                <h1 className="text-xl font-bold sm:text-2xl">PAM</h1>
-                <p className="text-xs text-slate-500 sm:text-sm">Plan Anual de Mantenimiento</p>
+                <h1 className="text-xl font-bold leading-none sm:text-2xl">PAM</h1>
+                <p className="text-[11px] text-slate-500 sm:text-xs">Plan Anual de Mantenimiento</p>
               </div>
             </div>
-            <div className="flex gap-2">
+
+            <div className="hidden items-center justify-center gap-2 px-2 lg:flex">
+              <CalendarDays className="shrink-0 text-slate-500" size={17} />
+              <span className="text-sm font-semibold text-slate-800">Previsión de trabajos preventivos</span>
+            </div>
+
+            <div className="flex justify-end gap-2">
               <BackButton onBack={() => navigate('/maintenance')} />
               <HomeButton onHome={() => navigate('/')} />
             </div>
           </div>
+
+          <div className="mt-2 flex items-center justify-center gap-2 lg:hidden">
+            <CalendarDays className="shrink-0 text-slate-500" size={16} />
+            <span className="text-xs font-semibold text-slate-800">Previsión de trabajos preventivos</span>
+          </div>
         </header>
 
-        <section className="mb-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+        <section className="mb-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
           <label className="block">
             <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-slate-500">
               Buscar en PAM
@@ -312,18 +323,6 @@ export default function MaintenancePamPage() {
               aria-label="Buscar en PAM"
             />
           </label>
-        </section>
-
-        <section className="mb-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-          <div className="flex items-start gap-3">
-            <CalendarDays className="mt-0.5 shrink-0 text-slate-500" size={20} />
-            <div className="min-w-0">
-              <h2 className="text-sm font-semibold sm:text-base">Previsión de trabajos preventivos</h2>
-              <p className="mt-1 text-xs leading-5 text-slate-500 sm:text-sm">
-                El PAM muestra los activos que tienen trabajos preventivos programados. Los libros y registros oficiales se gestionan en Registros.
-              </p>
-            </div>
-          </div>
         </section>
 
         {error && (
@@ -343,18 +342,18 @@ export default function MaintenancePamPage() {
                 key={card.key}
                 type="button"
                 onClick={() => setSelectedFrequency(selected ? null : card.key)}
-                className={`rounded-xl border p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${selected ? 'border-blue-300 bg-blue-50 ring-2 ring-blue-100' : 'border-slate-200 bg-white'}`}
+                className={`rounded-xl border p-2.5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:p-3 ${card.key === 'OTHER' ? 'lg:col-start-4' : ''} ${selected ? 'border-blue-300 bg-blue-50 ring-2 ring-blue-100' : 'border-slate-200 bg-white'}`}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <div className="text-sm font-bold text-slate-900">{card.label}</div>
-                    <div className="mt-0.5 text-[11px] leading-4 text-slate-500">{card.description}</div>
+                    <div className="text-sm font-bold leading-tight text-slate-900">{card.label}</div>
+                    <div className="mt-0.5 text-[10px] leading-4 text-slate-500">{card.description}</div>
                   </div>
-                  <div className="flex h-9 min-w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 px-2 text-base font-bold text-slate-800">
+                  <div className="flex h-8 min-w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 px-2 text-sm font-bold text-slate-800">
                     {normalizedSearch ? count : totalCount}
                   </div>
                 </div>
-                <div className="mt-2 text-[11px] font-semibold text-slate-500">
+                <div className="mt-1.5 text-[10px] font-semibold text-slate-500">
                   {card.key === 'WEEKLY' && (normalizedSearch ? count : totalCount) === 0
                     ? normalizedSearch
                       ? 'Sin coincidencias'

@@ -331,7 +331,7 @@ export default function MaintenancePamPage() {
           </div>
         )}
 
-        <section className="mb-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+        <section className="mb-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
           {frequencyCards.map((card) => {
             const selected = selectedFrequency === card.key
             const totalCount = frequencyAssets.get(card.key)?.length ?? 0
@@ -347,13 +347,13 @@ export default function MaintenancePamPage() {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <div className="text-sm font-bold leading-tight text-slate-900">{card.label}</div>
-                    <div className="mt-0.5 text-[10px] leading-4 text-slate-500">{card.description}</div>
+                    <div className="mt-0.5 text-[10px] leading-3.5 text-slate-500">{card.description}</div>
                   </div>
-                  <div className="flex h-8 min-w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 px-2 text-sm font-bold text-slate-800">
+                  <div className="flex h-7 min-w-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 px-1.5 text-sm font-bold text-slate-800">
                     {normalizedSearch ? count : totalCount}
                   </div>
                 </div>
-                <div className="mt-1.5 text-[10px] font-semibold text-slate-500">
+                <div className="mt-1 text-[10px] font-semibold leading-3 text-slate-500">
                   {card.key === 'WEEKLY' && (normalizedSearch ? count : totalCount) === 0
                     ? normalizedSearch
                       ? 'Sin coincidencias'

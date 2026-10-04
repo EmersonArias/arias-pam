@@ -56,6 +56,8 @@ type MaintenancePlan = {
   id: string
   apparatus_registry_id: string | null
   next_due_date: string | null
+  periodicity_value: number | null
+  periodicity_unit: 'DAY' | 'WEEK' | 'MONTH' | 'YEAR' | 'VARIABLE' | null
 }
 
 type PamWork = {
@@ -162,6 +164,19 @@ function executorLabel(value: string | null) {
   const normalized = value?.trim() ?? ''
   if (!normalized || normalized.toUpperCase() === 'SB HOTELS') return 'SSTT'
   return normalized
+}
+
+function frequencyFromPlan(plan: MaintenancePlan | null): FrequencyKey | null {
+  if (!plan) return null
+  if (plan.periodicity_unit === 'DAY' && plan.periodicity_value === 1) return 'DAILY'
+  if (plan.periodicity_unit === 'WEEK' && plan.periodicity_value === 1) return 'WEEKLY'
+  if (plan.periodicity_unit === 'WEEK' && plan.periodicity_value === 2) return 'FORTNIGHTLY'
+  if (plan.periodicity_unit === 'MONTH' && plan.periodicity_value === 1) return 'MONTHLY'
+  if (plan.periodicity_unit === 'MONTH' && plan.periodicity_value === 2) return 'BIMONTHLY'
+  if (plan.periodicity_unit === 'MONTH' && plan.periodicity_value === 3) return 'QUARTERLY'
+  if (plan.periodicity_unit === 'MONTH' && plan.periodicity_value === 6) return 'SEMIANNUAL'
+  if (plan.periodicity_unit === 'YEAR' && plan.periodicity_value === 1) return 'ANNUAL'
+  return 'OTHER'
 }
 
 function deriveFrequency(
@@ -296,7 +311,7 @@ export default function MaintenancePamPage() {
         .order('executed_at', { ascending: false }),
       supabase
         .from('maintenance_plans')
-        .select('id, apparatus_registry_id, next_due_date')
+        .select('id, apparatus_registry_id, next_due_date, periodicity_value, periodicity_unit')
         .eq('active', true),
     ])
 
@@ -420,17 +435,19 @@ export default function MaintenancePamPage() {
       })),
     ]
 
-    worksByFrequency.set(
-      'DAILY',
-      uniqueWorks(
-        dailyRows,
-        apparatusBySourceId,
-        'Diario',
-        planIdByKey,
-        nextRevisionByKey,
-        stateByKey,
-      ),
-    )
+    const dailyWorks = uniqueWorks(
+      dailyRows,
+      apparatusBySourceId,
+      'Diario',
+      planIdByKey,
+      nextRevisionByKey,
+      stateByKey,
+    ).filter((work) => {
+      if (!work.planId) return true
+      return frequencyFromPlan(planById.get(work.planId) ?? null) === 'DAILY'
+    })
+
+    worksByFrequency.set('DAILY', dailyWorks)
 
     const rowsForPlanning = sourceGroups.filter((group) => group.source_row >= 19)
 

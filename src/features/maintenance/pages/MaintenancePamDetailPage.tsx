@@ -202,7 +202,6 @@ export default function MaintenancePamDetailPage() {
   const [reviewDate, setReviewDate] = useState('')
   const [reviewResult, setReviewResult] = useState<Execution['result']>('COMPLETED')
   const [reviewPerformer, setReviewPerformer] = useState('')
-  const [reviewCompany, setReviewCompany] = useState('')
   const [reviewObservations, setReviewObservations] = useState('')
 
   async function load() {
@@ -626,7 +625,7 @@ export default function MaintenancePamDetailPage() {
                   <span className="mb-1 block text-sm font-semibold text-slate-700">Estado actual</span>
                   <div className="flex h-[42px] items-center rounded-lg border border-slate-300 bg-slate-100 px-3">
                     <span className={'inline-flex rounded-full px-2 py-1 text-xs font-semibold ' + cycleStatusTone(cycleStatus(plan, executions))}>
-                      ${cycleStatus(plan, executions)}
+                      {cycleStatus(plan, executions)}
                     </span>
                   </div>
                 </label>

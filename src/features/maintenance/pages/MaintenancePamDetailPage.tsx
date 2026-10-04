@@ -201,7 +201,6 @@ export default function MaintenancePamDetailPage() {
 
   const [reviewDate, setReviewDate] = useState('')
   const [reviewResult, setReviewResult] = useState<Execution['result']>('COMPLETED')
-  const [reviewPerformer, setReviewPerformer] = useState('')
   const [reviewObservations, setReviewObservations] = useState('')
 
   async function load() {
@@ -262,7 +261,6 @@ export default function MaintenancePamDetailPage() {
     setBaselinePlan(selectedPlan)
     setExecutions((executionQuery.data ?? []) as Execution[])
     setReviewDate(new Date().toISOString().slice(0, 10))
-    setReviewPerformer('')
     setReviewObservations('')
     setMode('view')
     setLoading(false)
@@ -696,7 +694,6 @@ export default function MaintenancePamDetailPage() {
                   <option value="NOT_CONFORM">No conforme</option>
                   <option value="CANCELLED">No realizada / cancelada</option>
                 </select></label>
-                <label><span className="mb-1 block text-sm font-semibold text-slate-700">Realizada por</span><input value={reviewPerformer} disabled={registering} onChange={(event) => setReviewPerformer(event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 disabled:bg-slate-100" /></label>
                 <label><span className="mb-1 block text-sm font-semibold text-slate-700">Empresa</span><input value={scheduledExecutor(asset, plan)} readOnly className="w-full rounded-lg border border-slate-300 bg-slate-100 px-3 py-2" /></label>
                 <label className="sm:col-span-2"><span className="mb-1 block text-sm font-semibold text-slate-700">Observaciones / motivo</span><textarea rows={3} value={reviewObservations} disabled={registering} onChange={(event) => setReviewObservations(event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 disabled:bg-slate-100" /></label>
               </div>

@@ -647,7 +647,13 @@ export default function MaintenancePamPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {selectedWorks.map((work) => (
+                  {loading ? (
+                    <tr>
+                      <td colSpan={7} className="px-4 py-10 text-center text-sm text-slate-500">
+                        Cargando trabajos preventivos…
+                      </td>
+                    </tr>
+                  ) : selectedWorks.map((work) => (
                     <tr
                       key={`${work.sourceId}-${work.work}`}
                       onClick={() => {

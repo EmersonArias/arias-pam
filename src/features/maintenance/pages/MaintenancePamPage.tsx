@@ -126,6 +126,7 @@ export default function MaintenancePamPage() {
   const [sourceMarks, setSourceMarks] = useState<SourceMark[]>([])
   const [apparatus, setApparatus] = useState<Apparatus[]>([])
   const [selectedFrequency, setSelectedFrequency] = useState<FrequencyKey | null>(null)
+  const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 

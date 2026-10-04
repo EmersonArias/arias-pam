@@ -205,7 +205,7 @@ function uniqueWorks(
     const apparatus = apparatusBySourceId.get(row.source_apparatus_id)
     const work = actionLabel(row.mark_code)
     const key = row.source_apparatus_id + '-' + work
-    const planKey = row.source_apparatus_id + '-' + row.mark_code
+    const planKey = row.source_row + '-' + row.source_apparatus_id + '-' + row.mark_code
 
     if (works.has(key)) continue
 
@@ -330,9 +330,14 @@ export default function MaintenancePamPage() {
       if (item.source_id !== null) apparatusBySourceId.set(item.source_id, item)
     })
 
+    const sourceRowByGroupId = new Map<string, number>()
+    sourceGroups.forEach((group) => sourceRowByGroupId.set(group.id, group.source_row))
+
     const planIdByKey = new Map<string, string>()
     planLinks.forEach((link) => {
-      const key = link.source_apparatus_id + '-' + link.mark_code
+      const sourceRow = sourceRowByGroupId.get(link.source_group_id)
+      if (sourceRow === undefined) return
+      const key = sourceRow + '-' + link.source_apparatus_id + '-' + link.mark_code
       if (!planIdByKey.has(key)) planIdByKey.set(key, link.maintenance_plan_id)
     })
 
@@ -368,13 +373,31 @@ export default function MaintenancePamPage() {
     const worksByFrequency = new Map<FrequencyKey, PamWork[]>()
     frequencyCards.forEach((card) => worksByFrequency.set(card.key, []))
 
-    const dailyRows: SourceMark[] = dailyPamSourceIds.map((sourceId) => ({
-      source_row: 6,
-      source_apparatus_id: sourceId,
-      mark_code: 'F',
-      month_number: 0,
-      week_slot: 0,
-    }))
+    const dailyRows: SourceMark[] = [
+      ...dailyPamSourceIds
+        .filter((sourceId) => ![264, 334, 144, 145, 149, 335].includes(sourceId))
+        .map((sourceId) => ({
+          source_row: 6,
+          source_apparatus_id: sourceId,
+          mark_code: 'F',
+          month_number: 0,
+          week_slot: 0,
+        })),
+      ...[264, 334].map((sourceId) => ({
+        source_row: 7,
+        source_apparatus_id: sourceId,
+        mark_code: 'F',
+        month_number: 0,
+        week_slot: 0,
+      })),
+      ...[144, 145, 149, 335].map((sourceId) => ({
+        source_row: 8,
+        source_apparatus_id: sourceId,
+        mark_code: 'F',
+        month_number: 0,
+        week_slot: 0,
+      })),
+    ]
 
     worksByFrequency.set(
       'DAILY',

@@ -18,6 +18,7 @@ type FrequencyKey =
   | 'OTHER'
 
 type SourceGroup = {
+  id: string
   source_row: number
   maintenance_name: string
 }
@@ -37,12 +38,25 @@ type Apparatus = {
   maintenance: string | null
 }
 
+type PlanLink = {
+  maintenance_plan_id: string
+  source_group_id: string
+  source_apparatus_id: number
+  mark_code: string
+}
+
+type Execution = {
+  maintenance_plan_id: string
+  executed_at: string | null
+}
+
 type PamWork = {
   sourceId: number
   code: string
   name: string
   work: string
   periodicity: string
+  lastRevision: string | null
   nextDate: string | null
   executor: string
   state: 'Pendiente' | 'En curso' | 'Finalizado'
@@ -141,6 +155,7 @@ function uniqueWorks(
   apparatusBySourceId: Map<number, Apparatus>,
   periodicity: string,
   nextDate: string | null,
+  lastRevisionByKey: Map<string, string>,
 ) {
   const works = new Map<string, PamWork>()
 
@@ -157,6 +172,7 @@ function uniqueWorks(
       name: apparatus?.name ?? 'Activo PAM sin equipo resuelto',
       work,
       periodicity,
+      lastRevision: lastRevisionByKey.get(key) ?? null,
       nextDate,
       executor: executorLabel(apparatus?.maintenance ?? null),
       state: 'Pendiente',
@@ -173,6 +189,8 @@ export default function MaintenancePamPage() {
   const navigate = useNavigate()
   const [sourceGroups, setSourceGroups] = useState<SourceGroup[]>([])
   const [sourceMarks, setSourceMarks] = useState<SourceMark[]>([])
+  const [planLinks, setPlanLinks] = useState<PlanLink[]>([])
+  const [executions, setExecutions] = useState<Execution[]>([])
   const [apparatus, setApparatus] = useState<Apparatus[]>([])
   const [selectedFrequency, setSelectedFrequency] = useState<FrequencyKey | null>(null)
   const [search, setSearch] = useState('')
@@ -199,10 +217,10 @@ export default function MaintenancePamPage() {
 
     const hotelId = hotel.data.id as string
 
-    const [groupsQuery, marksQuery, apparatusQuery] = await Promise.all([
+    const [groupsQuery, marksQuery, apparatusQuery, linksQuery, executionsQuery] = await Promise.all([
       supabase
         .from('pam_source_groups')
-        .select('source_row, maintenance_name')
+        .select('id, source_row, maintenance_name')
         .eq('hotel_id', hotelId)
         .eq('plan_year', 2026)
         .order('source_row'),
@@ -219,22 +237,35 @@ export default function MaintenancePamPage() {
         .eq('hotel_id', hotelId)
         .eq('active', true)
         .order('source_id'),
+      supabase
+        .from('pam_maintenance_plan_links')
+        .select('maintenance_plan_id, source_group_id, source_apparatus_id, mark_code')
+        .eq('plan_year', 2026),
+      supabase
+        .from('maintenance_executions')
+        .select('maintenance_plan_id, executed_at')
+        .not('executed_at', 'is', null)
+        .order('executed_at', { ascending: false }),
     ])
 
-    if (groupsQuery.error || marksQuery.error || apparatusQuery.error) {
-      setError(
-        groupsQuery.error?.message
-          ?? marksQuery.error?.message
-          ?? apparatusQuery.error?.message
-          ?? 'No se ha podido cargar el PAM.',
-      )
+    const firstError =
+      groupsQuery.error
+      ?? marksQuery.error
+      ?? apparatusQuery.error
+      ?? linksQuery.error
+      ?? executionsQuery.error
+
+    if (firstError) {
+      setError(firstError.message ?? 'No se ha podido cargar el PAM.')
       setLoading(false)
       return
     }
 
-    setSourceGroups((groupsQuery.data ?? []) as SourceGroup[])
+    setSourceGroups((groupsQuery.data ?? []) as unknown as SourceGroup[])
     setSourceMarks((marksQuery.data ?? []) as SourceMark[])
     setApparatus((apparatusQuery.data ?? []) as Apparatus[])
+    setPlanLinks((linksQuery.data ?? []) as PlanLink[])
+    setExecutions((executionsQuery.data ?? []) as Execution[])
     setLoading(false)
   }
 
@@ -248,11 +279,29 @@ export default function MaintenancePamPage() {
       if (item.source_id !== null) apparatusBySourceId.set(item.source_id, item)
     })
 
+    const groupRowById = new Map<string, number>()
+    sourceGroups.forEach((group) => {
+      groupRowById.set(group.id, group.source_row)
+    })
+
+    const lastRevisionByKey = new Map<string, string>()
+    for (const execution of executions) {
+      const matchedLinks = planLinks.filter((link) => link.maintenance_plan_id === execution.maintenance_plan_id)
+      for (const link of matchedLinks) {
+        const sourceRow = groupRowById.get(link.source_group_id)
+        if (sourceRow === undefined) continue
+        const key = `${link.source_apparatus_id}-${link.mark_code}`
+        if (!lastRevisionByKey.has(key) && execution.executed_at) {
+          lastRevisionByKey.set(key, execution.executed_at)
+        }
+      }
+    }
+
     const worksByFrequency = new Map<FrequencyKey, PamWork[]>()
     frequencyCards.forEach((card) => worksByFrequency.set(card.key, []))
 
     const dailyRows: SourceMark[] = dailyPamSourceIds.map((sourceId) => ({
-      source_row: 0,
+      source_row: 6,
       source_apparatus_id: sourceId,
       mark_code: 'F',
       month_number: 0,
@@ -261,7 +310,7 @@ export default function MaintenancePamPage() {
 
     worksByFrequency.set(
       'DAILY',
-      uniqueWorks(dailyRows, apparatusBySourceId, 'Diario', localDateString()),
+      uniqueWorks(dailyRows, apparatusBySourceId, 'Diario', localDateString(), lastRevisionByKey),
     )
 
     const rowsForPlanning = sourceGroups.filter((group) => group.source_row >= 19)
@@ -283,7 +332,7 @@ export default function MaintenancePamPage() {
             new Map(
               [
                 ...existing.map((work) => [`${work.sourceId}-${work.work}`, work] as const),
-                ...uniqueWorks(actionMarks, apparatusBySourceId, frequencyCards.find((card) => card.key === frequency)?.label ?? 'Otras', null)
+                ...uniqueWorks(actionMarks, apparatusBySourceId, frequencyCards.find((card) => card.key === frequency)?.label ?? 'Otras', null, lastRevisionByKey)
                   .map((work) => [`${work.sourceId}-${work.work}`, work] as const),
               ],
             ).values(),
@@ -446,6 +495,7 @@ export default function MaintenancePamPage() {
                     <th className="px-3 py-2.5 font-semibold">Activo</th>
                     <th className="px-3 py-2.5 font-semibold">Trabajo</th>
                     <th className="px-3 py-2.5 font-semibold">Periodicidad</th>
+                    <th className="px-3 py-2.5 font-semibold">Última revisión</th>
                     <th className="px-3 py-2.5 font-semibold">Próxima fecha</th>
                     <th className="px-3 py-2.5 font-semibold">Ejecutor</th>
                     <th className="px-3 py-2.5 font-semibold">Estado</th>
@@ -461,6 +511,11 @@ export default function MaintenancePamPage() {
                       </td>
                       <td className="px-3 py-2.5 font-medium text-slate-800">{work.work}</td>
                       <td className="px-3 py-2.5 text-slate-700">{work.periodicity}</td>
+                      <td className="whitespace-nowrap px-3 py-2.5 text-slate-700">
+                        {work.lastRevision
+                          ? new Date(work.lastRevision).toLocaleDateString('es-ES')
+                          : 'Sin revisión'}
+                      </td>
                       <td className="whitespace-nowrap px-3 py-2.5 text-slate-700">{formatDate(work.nextDate)}</td>
                       <td className="px-3 py-2.5 font-medium text-slate-700">{work.executor}</td>
                       <td className="px-3 py-2.5">
@@ -473,7 +528,7 @@ export default function MaintenancePamPage() {
 
                   {!loading && selectedWorks.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="border-dashed px-4 py-10 text-center text-sm text-slate-500">
+                      <td colSpan={8} className="border-dashed px-4 py-10 text-center text-sm text-slate-500">
                         No hay trabajos definidos para esta frecuencia.
                       </td>
                     </tr>

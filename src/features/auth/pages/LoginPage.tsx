@@ -2,6 +2,36 @@ import { type FormEvent, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ariasAuth } from '../../../core/auth/authService'
 
+type PasswordCredentialConstructor = new (options: {
+  id: string
+  password: string
+  name?: string
+}) => Credential
+
+async function storeBrowserCredential(identifier: string, password: string) {
+  if (!identifier || !password || !window.isSecureContext || !navigator.credentials) return
+
+  const PasswordCredentialCtor = (
+    window as typeof window & {
+      PasswordCredential?: PasswordCredentialConstructor
+    }
+  ).PasswordCredential
+
+  if (!PasswordCredentialCtor || typeof navigator.credentials.store !== 'function') return
+
+  try {
+    const credential = new PasswordCredentialCtor({
+      id: identifier,
+      password,
+      name: identifier,
+    })
+
+    await navigator.credentials.store(credential)
+  } catch {
+    // El gestor de contraseñas nativo del navegador sigue pudiendo actuar por su cuenta.
+  }
+}
+
 export default function LoginPage() {
   const navigate = useNavigate()
   const [identifier, setIdentifier] = useState('')
@@ -38,7 +68,8 @@ export default function LoginPage() {
       return
     }
 
-    window.location.replace('/')
+    await storeBrowserCredential(identifier.trim(), password)
+    navigate('/', { replace: true })
   }
 
   return (
@@ -59,7 +90,7 @@ export default function LoginPage() {
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} autoComplete="on" className="space-y-4">
+          <form onSubmit={handleSubmit} method="post" action="/login" autoComplete="on" className="space-y-4">
             <label className="block" htmlFor="login-identifier">
               <span className="mb-1.5 block text-sm font-medium text-slate-700">
                 Correo o identificador de acceso

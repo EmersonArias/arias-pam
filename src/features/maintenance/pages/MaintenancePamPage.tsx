@@ -288,7 +288,7 @@ export default function MaintenancePamPage() {
           </div>
         )}
 
-        <section className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <section className="mb-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
           {frequencyCards.map((card) => {
             const selected = selectedFrequency === card.key
             const count = frequencyAssets.get(card.key)?.length ?? 0
@@ -298,18 +298,18 @@ export default function MaintenancePamPage() {
                 key={card.key}
                 type="button"
                 onClick={() => setSelectedFrequency(selected ? null : card.key)}
-                className={`rounded-2xl border p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${selected ? 'border-blue-300 bg-blue-50 ring-2 ring-blue-100' : 'border-slate-200 bg-white'}`}
+                className={`rounded-xl border p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${selected ? 'border-blue-300 bg-blue-50 ring-2 ring-blue-100' : 'border-slate-200 bg-white'}`}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <div className="text-base font-bold text-slate-900">{card.label}</div>
-                    <div className="mt-1 text-xs leading-5 text-slate-500">{card.description}</div>
+                    <div className="text-sm font-bold text-slate-900">{card.label}</div>
+                    <div className="mt-0.5 text-[11px] leading-4 text-slate-500">{card.description}</div>
                   </div>
-                  <div className="flex h-11 min-w-11 shrink-0 items-center justify-center rounded-xl bg-slate-100 px-2 text-lg font-bold text-slate-800">
+                  <div className="flex h-9 min-w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 px-2 text-base font-bold text-slate-800">
                     {count}
                   </div>
                 </div>
-                <div className="mt-3 text-xs font-semibold text-slate-500">
+                <div className="mt-2 text-[11px] font-semibold text-slate-500">
                   {card.key === 'WEEKLY' && count === 0
                     ? 'Pendiente de revisión'
                     : count === 1
@@ -322,7 +322,7 @@ export default function MaintenancePamPage() {
         </section>
 
         {selectedFrequency && (
-          <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
             <div className="flex flex-col gap-3 border-b border-slate-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <div className="text-base font-semibold text-slate-900">{selectedLabel}</div>
@@ -334,7 +334,7 @@ export default function MaintenancePamPage() {
               <IconButton icon={RefreshCw} label="Actualizar" onClick={() => void loadPAM()} />
             </div>
 
-            <div className="overflow-auto">
+            <div className="max-h-[calc(100vh-500px)] min-h-[260px] overflow-auto">
               <table className="w-full min-w-[720px] border-collapse text-sm">
                 <thead>
                   <tr className="border-b bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">

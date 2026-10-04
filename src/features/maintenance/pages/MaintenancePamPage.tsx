@@ -241,8 +241,35 @@ export default function MaintenancePamPage() {
     )
   }, [sourceGroups, sourceMarks, apparatus])
 
+  const normalizedSearch = search.trim().toLocaleLowerCase('es')
+
+  const visibleFrequencyAssets = useMemo(() => {
+    if (!normalizedSearch) return frequencyAssets
+
+    const filtered = new Map<FrequencyKey, PamAsset[]>()
+
+    frequencyCards.forEach((card) => {
+      const assets = frequencyAssets.get(card.key) ?? []
+      filtered.set(
+        card.key,
+        assets.filter((asset) =>
+          [
+            String(asset.sourceId),
+            asset.code,
+            asset.name,
+          ]
+            .join(' ')
+            .toLocaleLowerCase('es')
+            .includes(normalizedSearch),
+        ),
+      )
+    })
+
+    return filtered
+  }, [frequencyAssets, normalizedSearch])
+
   const selectedAssets = selectedFrequency
-    ? frequencyAssets.get(selectedFrequency) ?? []
+    ? visibleFrequencyAssets.get(selectedFrequency) ?? []
     : []
 
   const selectedLabel =
@@ -270,7 +297,23 @@ export default function MaintenancePamPage() {
           </div>
         </header>
 
-        <section className="mb-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+        <section className="mb-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+          <label className="block">
+            <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              Buscar en PAM
+            </span>
+            <input
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Busca por ID PAM, código, equipo o mantenimiento…"
+              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              aria-label="Buscar en PAM"
+            />
+          </label>
+        </section>
+
+        <section className="mb-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
           <div className="flex items-start gap-3">
             <CalendarDays className="mt-0.5 shrink-0 text-slate-500" size={20} />
             <div className="min-w-0">
@@ -291,7 +334,8 @@ export default function MaintenancePamPage() {
         <section className="mb-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
           {frequencyCards.map((card) => {
             const selected = selectedFrequency === card.key
-            const count = frequencyAssets.get(card.key)?.length ?? 0
+            const totalCount = frequencyAssets.get(card.key)?.length ?? 0
+            const count = visibleFrequencyAssets.get(card.key)?.length ?? 0
 
             return (
               <button
@@ -306,15 +350,17 @@ export default function MaintenancePamPage() {
                     <div className="mt-0.5 text-[11px] leading-4 text-slate-500">{card.description}</div>
                   </div>
                   <div className="flex h-9 min-w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 px-2 text-base font-bold text-slate-800">
-                    {count}
+                    {normalizedSearch ? count : totalCount}
                   </div>
                 </div>
                 <div className="mt-2 text-[11px] font-semibold text-slate-500">
-                  {card.key === 'WEEKLY' && count === 0
-                    ? 'Pendiente de revisión'
-                    : count === 1
+                  {card.key === 'WEEKLY' && (normalizedSearch ? count : totalCount) === 0
+                    ? normalizedSearch
+                      ? 'Sin coincidencias'
+                      : 'Pendiente de revisión'
+                    : (normalizedSearch ? count : totalCount) === 1
                       ? '1 activo'
-                      : `${count} activos`}
+                      : `${normalizedSearch ? count : totalCount} activos`}
                 </div>
               </button>
             )

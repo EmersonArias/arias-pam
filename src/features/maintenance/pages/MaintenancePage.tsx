@@ -7,7 +7,7 @@ import { BackButton, HomeButton } from "../../../shared/components/navigation/Na
 import BrandLogo from "../../../shared/components/branding/BrandLogo"
 import { useSystemDialog } from "../../../shared/components/dialogs/SystemDialogProvider"
 
-type Apparatus = { id: string; code: string; name: string; plant: string | null; location: string | null }
+type Apparatus = { id: string; code: string; name: string; plant: string | null; location: string | null; sourceId: number | null }
 type Plan = {
   id: string
   apparatus_registry_id: string | null
@@ -161,7 +161,7 @@ export default function MaintenancePage() {
     await supabase.rpc("refresh_maintenance_due_alerts", { target_hotel_id: id })
 
     const [a, p, r, al] = await Promise.all([
-      supabase.from("apparatus_registry").select("id, code, name, plant, location").eq("hotel_id", id).eq("active", true).order("code"),
+      supabase.from("apparatus_registry").select("id, code, name, plant, location, source_id").eq("hotel_id", id).eq("active", true).order("code"),
       supabase.from("maintenance_plans").select("id, apparatus_registry_id, name, description, maintenance_type, external_company, periodicity_value, periodicity_unit, start_date, next_due_date, active, apparatus_registry(code, name)").eq("hotel_id", id).order("next_due_date", { ascending: true, nullsFirst: false }),
       supabase.rpc("get_maintenance_alert_recipients", { target_hotel_id: id }),
       supabase.from("maintenance_alerts").select("id, maintenance_plan_id, alert_type, severity, title, message, due_date, triggered_at").eq("hotel_id", id).is("resolved_at", null).order("triggered_at", { ascending: false }),
@@ -171,7 +171,14 @@ export default function MaintenancePage() {
     if (firstError) {
       setError(firstError.message)
     } else {
-      const loadedApparatus = (a.data ?? []) as Apparatus[]
+      const loadedApparatus = (a.data ?? []).map((row) => ({
+        id: row.id,
+        code: row.code,
+        name: row.name,
+        plant: row.plant,
+        location: row.location,
+        sourceId: row.source_id ?? null,
+      })) as Apparatus[]
       setApparatus(loadedApparatus)
       if (!selectedId) setPlanApparatus(loadedApparatus)
       setPlans((p.data ?? []) as unknown as Plan[])
@@ -286,6 +293,7 @@ export default function MaintenancePage() {
             name: row.apparatus_name ?? "Equipo",
             plant: row.plant ?? null,
             location: row.location ?? null,
+            sourceId: row.source_apparatus_id ?? null,
           })
         }
 

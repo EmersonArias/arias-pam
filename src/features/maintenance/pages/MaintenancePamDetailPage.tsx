@@ -332,8 +332,20 @@ export default function MaintenancePamDetailPage() {
     }
   }
 
+  const guardedNavigate = useCallback(
+    (path: string) => {
+      if (path === '__HISTORY_BACK__') {
+        navigate(-1)
+        return
+      }
+      navigate(path)
+    },
+    [navigate],
+  )
+
   const {
     requestNavigation,
+    requestBackNavigation,
     cancelNavigation,
     discardNavigation,
     saveAndNavigate,
@@ -341,7 +353,7 @@ export default function MaintenancePamDetailPage() {
     saving: navigatingAndSaving,
   } = useGuardedNavigation({
     dirty: isDirty,
-    onNavigate: navigate,
+    onNavigate: guardedNavigate,
     onSave: saveChanges,
   })
 
@@ -448,7 +460,7 @@ export default function MaintenancePamDetailPage() {
               </div>
             </div>
             <div className="flex flex-wrap items-center justify-end gap-2">
-              <BackButton onBack={() => requestNavigation('/maintenance/pam')} disabled={saving || registering || navigatingAndSaving} />
+              <BackButton onBack={requestBackNavigation} disabled={saving || registering || navigatingAndSaving} />
               <HomeButton onHome={() => requestNavigation('/')} disabled={saving || registering || navigatingAndSaving} />
               <FormActions
                 mode={mode}

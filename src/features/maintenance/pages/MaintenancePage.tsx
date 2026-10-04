@@ -121,6 +121,7 @@ export default function MaintenancePage() {
   const { alert: showAlert } = useSystemDialog()
   const [hotelId, setHotelId] = useState("")
   const [apparatus, setApparatus] = useState<Apparatus[]>([])
+  const [planApparatus, setPlanApparatus] = useState<Apparatus[]>([])
   const [plans, setPlans] = useState<Plan[]>([])
   const [recipients, setRecipients] = useState<Recipient[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -170,7 +171,9 @@ export default function MaintenancePage() {
     if (firstError) {
       setError(firstError.message)
     } else {
-      setApparatus((a.data ?? []) as Apparatus[])
+      const loadedApparatus = (a.data ?? []) as Apparatus[]
+      setApparatus(loadedApparatus)
+      if (!selectedId) setPlanApparatus(loadedApparatus)
       setPlans((p.data ?? []) as unknown as Plan[])
       setRecipients((r.data ?? []) as Recipient[])
       setAlerts((al.data ?? []) as MaintenanceAlert[])
@@ -182,6 +185,7 @@ export default function MaintenancePage() {
   function setField<K extends keyof FormState>(field: K, value: FormState[K]) { setForm((current) => ({ ...current, [field]: value })) }
   function newPlan() {
     setSelectedId(null)
+    setPlanApparatus(apparatus)
     setOriginalControlIds([])
     setControls([{ ...emptyControl }])
     setExecutions([])
@@ -203,7 +207,7 @@ export default function MaintenancePage() {
     setSelectedId(plan.id)
     setExecutionFormOpen(false)
     setError("")
-    const [c, config, executionQuery] = await Promise.all([
+    const [c, config, executionQuery, linkQuery] = await Promise.all([
       supabase.from("maintenance_controls")
         .select("id, label, input_type, unit, min_value, max_value, required")
         .eq("maintenance_plan_id", plan.id)
@@ -217,9 +221,13 @@ export default function MaintenancePage() {
         .select("id, maintenance_plan_id, scheduled_date, executed_at, executed_by, performer_name, performer_company, result, observations, evidence_files")
         .eq("maintenance_plan_id", plan.id)
         .order("executed_at", { ascending: false, nullsFirst: false }),
+      supabase.from("pam_maintenance_plan_links")
+        .select("source_group_id, source_apparatus_id")
+        .eq("maintenance_plan_id", plan.id)
+        .maybeSingle(),
     ])
-    if (c.error || config.error || executionQuery.error) {
-      setError(c.error?.message ?? config.error?.message ?? executionQuery.error?.message ?? "No se ha podido cargar el mantenimiento.")
+    if (c.error || config.error || executionQuery.error || linkQuery.error) {
+      setError(c.error?.message ?? config.error?.message ?? executionQuery.error?.message ?? linkQuery.error?.message ?? "No se ha podido cargar el mantenimiento.")
       return
     }
 
@@ -255,8 +263,52 @@ export default function MaintenancePage() {
     setExecutions((executionQuery.data ?? []) as Execution[])
     setExecutionValues(loadedControls.map((row) => ({ controlId: row.id, value: "" })))
 
+    let resolvedPlanApparatus: Apparatus[] = []
+    let resolvedApparatusId = plan.apparatus_registry_id ?? ""
+
+    if (linkQuery.data?.source_group_id) {
+      const groupQuery = await supabase
+        .from("pam_maintenance_schedule")
+        .select("source_apparatus_id, apparatus_registry_id, apparatus_code, apparatus_name, plant, location")
+        .eq("source_group_id", linkQuery.data.source_group_id)
+
+      if (groupQuery.error) {
+        setError(groupQuery.error.message)
+      } else {
+        const unique = new Map<string, Apparatus>()
+
+        for (const row of groupQuery.data ?? []) {
+          if (!row.apparatus_registry_id || unique.has(row.apparatus_registry_id)) continue
+
+          unique.set(row.apparatus_registry_id, {
+            id: row.apparatus_registry_id,
+            code: row.apparatus_code ?? "—",
+            name: row.apparatus_name ?? "Equipo",
+            plant: row.plant ?? null,
+            location: row.location ?? null,
+          })
+        }
+
+        resolvedPlanApparatus = Array.from(unique.values())
+        setPlanApparatus(resolvedPlanApparatus)
+
+        const linked = resolvedPlanApparatus.find(
+          (item) =>
+            item.id === plan.apparatus_registry_id ||
+            (item.id && linkQuery.data?.source_apparatus_id === (apparatus.find((entry) => entry.id === item.id)?.sourceId ?? null)),
+        )
+
+        if (linked) resolvedApparatusId = linked.id
+      }
+    }
+
+    if (!resolvedPlanApparatus.length) {
+      const current = apparatus.find((item) => item.id === plan.apparatus_registry_id)
+      setPlanApparatus(current ? [current] : [])
+    }
+
     setForm({
-      apparatus_registry_id: plan.apparatus_registry_id ?? "", name: plan.name, description: plan.description ?? "",
+      apparatus_registry_id: resolvedApparatusId, name: plan.name, description: "",
       maintenance_type: plan.maintenance_type, external_company: plan.external_company ?? "",
       periodicity_value: plan.periodicity_value?.toString() ?? "", periodicity_unit: plan.periodicity_unit ?? "VARIABLE",
       start_date: plan.start_date ?? "", active: plan.active, email_enabled: config.data?.email_enabled ?? false,
@@ -598,7 +650,7 @@ export default function MaintenancePage() {
                 />
               </div>
               <div className="grid gap-3 sm:grid-cols-2 sm:gap-4">
-                <label><span className="mb-1 block text-sm font-medium">Equipo / instalación</span><select value={form.apparatus_registry_id} onChange={(e) => setField("apparatus_registry_id", e.target.value)} className="w-full rounded-xl border px-3 py-2"><option value="">Selecciona un equipo…</option>{apparatus.map((item) => <option key={item.id} value={item.id}>{item.code} — {item.name}{item.plant ? " · " + item.plant : ""}{item.location ? " · " + item.location : ""}</option>)}</select></label>
+                <label><span className="mb-1 block text-sm font-medium">Equipo / instalación</span><select value={form.apparatus_registry_id} onChange={(e) => setField("apparatus_registry_id", e.target.value)} className="w-full rounded-xl border px-3 py-2"><option value="">Selecciona un equipo…</option>{(planApparatus.length ? planApparatus : apparatus).map((item) => <option key={item.id} value={item.id}>{item.code} — {item.name}{item.plant ? " · " + item.plant : ""}{item.location ? " · " + item.location : ""}</option>)}</select></label>
                 <label><span className="mb-1 block text-sm font-medium">Nombre del mantenimiento</span><input value={form.name} onChange={(e) => setField("name", e.target.value)} placeholder="Ej.: Revisión mensual ascensor" className="w-full rounded-xl border px-3 py-2" /></label>
                 <label className="md:col-span-2"><span className="mb-1 block text-sm font-medium">Descripción</span><textarea value={form.description} onChange={(e) => setField("description", e.target.value)} rows={3} className="w-full rounded-xl border px-3 py-2" /></label>
                 <label><span className="mb-1 block text-sm font-medium">Tipo</span><select value={form.maintenance_type} onChange={(e) => setField("maintenance_type", e.target.value as FormState["maintenance_type"])} className="w-full rounded-xl border bg-white px-3 py-2"><option value="INTERNAL">Interno</option><option value="EXTERNAL">Externo</option></select></label>

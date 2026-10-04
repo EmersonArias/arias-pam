@@ -2,14 +2,18 @@ import { type FormEvent, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ariasAuth } from '../../../core/auth/authService'
 
-type PasswordCredentialConstructor = new (options: {
-  id: string
-  password: string
-  name?: string
-}) => Credential
+type PasswordCredentialConstructor = {
+  new (data: {
+    id: string
+    password: string
+    name?: string
+    iconURL?: string
+  }): Credential
+  new (form: HTMLFormElement): Credential
+}
 
-async function storeBrowserCredential(identifier: string, password: string) {
-  if (!identifier || !password || !window.isSecureContext || !navigator.credentials) return
+async function storeBrowserCredential(form: HTMLFormElement) {
+  if (!window.isSecureContext || !navigator.credentials) return
 
   const PasswordCredentialCtor = (
     window as typeof window & {
@@ -17,18 +21,34 @@ async function storeBrowserCredential(identifier: string, password: string) {
     }
   ).PasswordCredential
 
-  if (!PasswordCredentialCtor || typeof navigator.credentials.store !== 'function') return
+  if (!PasswordCredentialCtor || typeof navigator.credentials.store !== 'function') {
+    return
+  }
 
   try {
-    const credential = new PasswordCredentialCtor({
-      id: identifier,
-      password,
-      name: identifier,
-    })
-
+    const credential = new PasswordCredentialCtor(form)
     await navigator.credentials.store(credential)
   } catch {
-    // El gestor de contraseñas nativo del navegador sigue pudiendo actuar por su cuenta.
+    try {
+      const identifier = (
+        form.elements.namedItem('username') as HTMLInputElement | null
+      )?.value.trim()
+      const password = (
+        form.elements.namedItem('password') as HTMLInputElement | null
+      )?.value
+
+      if (!identifier || !password) return
+
+      const credential = new PasswordCredentialCtor({
+        id: identifier,
+        password,
+        name: identifier,
+      })
+
+      await navigator.credentials.store(credential)
+    } catch {
+      // El gestor nativo del navegador decide si muestra o guarda la credencial.
+    }
   }
 }
 
@@ -68,7 +88,7 @@ export default function LoginPage() {
       return
     }
 
-    await storeBrowserCredential(identifier.trim(), password)
+    await storeBrowserCredential(event.currentTarget)
     navigate('/', { replace: true })
   }
 
@@ -90,7 +110,7 @@ export default function LoginPage() {
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} method="post" action="/login" autoComplete="on" className="space-y-4">
+          <form onSubmit={handleSubmit} autoComplete="on" className="space-y-4">
             <label className="block" htmlFor="login-identifier">
               <span className="mb-1.5 block text-sm font-medium text-slate-700">
                 Correo o identificador de acceso

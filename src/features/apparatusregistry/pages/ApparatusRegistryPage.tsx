@@ -120,7 +120,6 @@ export default function ApparatusRegistryPage() {
     const row = rowRefs.current[selectedId]
     if (!row) return
 
-    row.focus()
     row.scrollIntoView({
       block: 'start',
       inline: 'nearest',

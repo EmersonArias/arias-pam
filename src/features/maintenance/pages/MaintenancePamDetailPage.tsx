@@ -1,0 +1,593 @@
+import { useEffect, useMemo, useState } from 'react'
+import { CalendarClock, CheckCircle2, Clock3, History, Save, XCircle } from 'lucide-react'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import BrandLogo from '../../../shared/components/branding/BrandLogo'
+import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
+import FormActions, { type FormMode } from '../../../shared/components/forms/FormActions'
+import { supabase } from '../../../lib/supabase'
+
+type Asset = {
+  id: string
+  source_id: number | null
+  code: string
+  name: string
+  plant: string | null
+  location: string | null
+  maintenance: string | null
+  active: boolean
+}
+
+type Plan = {
+  id: string
+  code: string | null
+  name: string
+  description: string | null
+  maintenance_type: 'INTERNAL' | 'EXTERNAL'
+  external_company: string | null
+  periodicity_value: number | null
+  periodicity_unit: 'DAY' | 'WEEK' | 'MONTH' | 'YEAR' | 'VARIABLE' | null
+  start_date: string | null
+  next_due_date: string | null
+  scheduled_day_of_month: number | null
+  scheduled_weekday: number | null
+  tolerance_days: number
+  alert_lead_days: number
+  booking_required: boolean
+  visit_duration_minutes: number | null
+  schedule_notes: string | null
+  active: boolean
+}
+
+type Execution = {
+  id: string
+  scheduled_date: string | null
+  executed_at: string | null
+  result: 'COMPLETED' | 'COMPLETED_WITH_ISSUES' | 'NOT_CONFORM' | 'CANCELLED'
+  performer_name: string | null
+  performer_company: string | null
+  observations: string | null
+}
+
+const hotelAssetCodes: Record<number, string> = {
+  8: 'COC-CAM-01',
+  93: 'BMB-FIL-01',
+  168: 'BMB-ACU-01',
+  169: 'BMB-ACU-02',
+  170: 'BMB-ACU-03',
+  171: 'BMB-ACU-04',
+  172: 'BMB-ACU-05',
+  173: 'BT-BAT-01',
+  174: 'BT-BAT-02',
+  175: 'CLM-DST-02',
+  176: 'CLM-DST-03',
+  177: 'CLM-DST-04',
+  178: 'CLM-DST-05',
+  179: 'BMB-INT-01',
+  180: 'BMB-INT-02',
+  218: 'BMB-AFS-03',
+  224: 'BMB-SEP-01',
+  266: 'PIS-GEN-05',
+  298: 'BT-GAS-01',
+  299: 'ENE-AGU-01',
+  332: 'LUM-SIG-01',
+  264: 'PIS-GEN-04',
+  334: 'PIS-EXT-01',
+  144: 'PIS-GEN-01',
+  145: 'BMB-BOM-01',
+  149: 'PIS-CLT-01',
+  335: 'PIS-SPA-01',
+}
+
+const periodicityOptions = [
+  ['DAY', 'Día'],
+  ['WEEK', 'Semana'],
+  ['MONTH', 'Mes'],
+  ['YEAR', 'Año'],
+  ['VARIABLE', 'Variable'],
+] as const
+
+function formatDate(value: string | null) {
+  if (!value) return 'Pendiente de primera revisión'
+  return new Date(value + 'T12:00:00').toLocaleDateString('es-ES')
+}
+
+function executionLabel(result: Execution['result']) {
+  switch (result) {
+    case 'COMPLETED': return 'Revisada'
+    case 'COMPLETED_WITH_ISSUES': return 'Revisada con incidencias'
+    case 'NOT_CONFORM': return 'No conforme'
+    case 'CANCELLED': return 'No realizada'
+    default: return 'Pendiente'
+  }
+}
+
+function executionTone(result: Execution['result']) {
+  switch (result) {
+    case 'COMPLETED': return 'bg-emerald-100 text-emerald-700'
+    case 'COMPLETED_WITH_ISSUES': return 'bg-amber-100 text-amber-700'
+    case 'NOT_CONFORM': return 'bg-rose-100 text-rose-700'
+    default: return 'bg-slate-200 text-slate-700'
+  }
+}
+
+export default function MaintenancePamDetailPage() {
+  const navigate = useNavigate()
+  const { apparatusId } = useParams<{ apparatusId: string }>()
+  const [searchParams] = useSearchParams()
+  const requestedPlanId = searchParams.get('planId')
+
+  const [asset, setAsset] = useState<Asset | null>(null)
+  const [baselineAsset, setBaselineAsset] = useState<Asset | null>(null)
+  const [plan, setPlan] = useState<Plan | null>(null)
+  const [baselinePlan, setBaselinePlan] = useState<Plan | null>(null)
+  const [executions, setExecutions] = useState<Execution[]>([])
+  const [mode, setMode] = useState<FormMode>('view')
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [registering, setRegistering] = useState(false)
+  const [message, setMessage] = useState('')
+  const [errorMessage, setErrorMessage] = useState('')
+
+  const [reviewDate, setReviewDate] = useState('')
+  const [reviewResult, setReviewResult] = useState<Execution['result']>('COMPLETED')
+  const [reviewPerformer, setReviewPerformer] = useState('')
+  const [reviewCompany, setReviewCompany] = useState('')
+  const [reviewObservations, setReviewObservations] = useState('')
+
+  async function load() {
+    if (!apparatusId) return
+    setLoading(true)
+    setErrorMessage('')
+
+    const assetQuery = await supabase
+      .from('apparatus_registry')
+      .select('id, source_id, code, name, plant, location, maintenance, active')
+      .eq('id', apparatusId)
+      .single()
+
+    if (assetQuery.error || !assetQuery.data) {
+      setErrorMessage(assetQuery.error?.message ?? 'No se ha podido cargar el activo.')
+      setLoading(false)
+      return
+    }
+
+    const loadedAsset = assetQuery.data as Asset
+
+    const plansQuery = await supabase
+      .from('maintenance_plans')
+      .select('id, code, name, description, maintenance_type, external_company, periodicity_value, periodicity_unit, start_date, next_due_date, scheduled_day_of_month, scheduled_weekday, tolerance_days, alert_lead_days, booking_required, visit_duration_minutes, schedule_notes, active')
+      .eq('apparatus_registry_id', apparatusId)
+      .eq('active', true)
+      .order('created_at')
+
+    if (plansQuery.error) {
+      setErrorMessage(plansQuery.error.message)
+      setLoading(false)
+      return
+    }
+
+    const availablePlans = (plansQuery.data ?? []) as Plan[]
+    const selectedPlan =
+      availablePlans.find((item) => item.id === requestedPlanId) ??
+      availablePlans[0] ??
+      null
+
+    const executionQuery = selectedPlan
+      ? await supabase
+          .from('maintenance_executions')
+          .select('id, scheduled_date, executed_at, result, performer_name, performer_company, observations')
+          .eq('maintenance_plan_id', selectedPlan.id)
+          .order('executed_at', { ascending: false, nullsFirst: false })
+      : { data: [], error: null }
+
+    if (executionQuery.error) {
+      setErrorMessage(executionQuery.error.message)
+      setLoading(false)
+      return
+    }
+
+    setAsset(loadedAsset)
+    setBaselineAsset(loadedAsset)
+    setPlan(selectedPlan)
+    setBaselinePlan(selectedPlan)
+    setExecutions((executionQuery.data ?? []) as Execution[])
+    setReviewDate(new Date().toISOString().slice(0, 10))
+    setReviewPerformer('')
+    setReviewCompany(hotelAssetCodes[loadedAsset.source_id ?? 0] ? (loadedAsset.maintenance ?? '') : (loadedAsset.maintenance ?? ''))
+    setReviewObservations('')
+    setMode('view')
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    void load()
+  }, [apparatusId, requestedPlanId])
+
+  const hotelId = asset?.source_id !== null && asset?.source_id !== undefined
+    ? hotelAssetCodes[asset.source_id] ?? ''
+    : ''
+
+  const latestValidExecution = useMemo(
+    () => executions.find((item) => item.executed_at && item.result !== 'CANCELLED') ?? null,
+    [executions],
+  )
+
+  const latestExecution = executions[0] ?? null
+
+  const isDirty =
+    mode !== 'view' &&
+    JSON.stringify(asset) !== JSON.stringify(baselineAsset) ||
+    mode !== 'view' &&
+    JSON.stringify(plan) !== JSON.stringify(baselinePlan)
+
+  function updateAsset<K extends keyof Asset>(field: K, value: Asset[K]) {
+    setAsset((current) => current ? { ...current, [field]: value } : current)
+    setMessage('')
+    setErrorMessage('')
+  }
+
+  function updatePlan<K extends keyof Plan>(field: K, value: Plan[K]) {
+    setPlan((current) => current ? { ...current, [field]: value } : current)
+    setMessage('')
+    setErrorMessage('')
+  }
+
+  async function saveChanges() {
+    if (!asset) return false
+    if (!asset.name.trim()) {
+      setErrorMessage('La descripción del equipo es obligatoria.')
+      return false
+    }
+
+    setSaving(true)
+    setMessage('')
+    setErrorMessage('')
+
+    try {
+      const { error: assetError } = await supabase
+        .from('apparatus_registry')
+        .update({
+          name: asset.name.trim(),
+          plant: asset.plant?.trim() || null,
+          location: asset.location?.trim() || null,
+          maintenance: asset.maintenance?.trim() || null,
+          active: asset.active,
+        })
+        .eq('id', asset.id)
+
+      if (assetError) {
+        setErrorMessage('Error actualizando el activo: ' + assetError.message)
+        return false
+      }
+
+      if (plan) {
+        const { data: savedPlan, error: planError } = await supabase
+          .from('maintenance_plans')
+          .update({
+            name: plan.name.trim(),
+            description: plan.description?.trim() || null,
+            maintenance_type: plan.maintenance_type,
+            external_company: plan.external_company?.trim() || null,
+            periodicity_value: plan.periodicity_value,
+            periodicity_unit: plan.periodicity_unit,
+            start_date: plan.start_date || null,
+            scheduled_day_of_month: plan.scheduled_day_of_month,
+            scheduled_weekday: plan.scheduled_weekday,
+            tolerance_days: plan.tolerance_days,
+            alert_lead_days: plan.alert_lead_days,
+            booking_required: plan.booking_required,
+            visit_duration_minutes: plan.visit_duration_minutes,
+            schedule_notes: plan.schedule_notes?.trim() || null,
+            active: plan.active,
+          })
+          .eq('id', plan.id)
+          .select('*')
+          .single()
+
+        if (planError) {
+          setErrorMessage('El activo se guardó, pero el mantenimiento no: ' + planError.message)
+          await load()
+          return false
+        }
+
+        setPlan(savedPlan as Plan)
+        setBaselinePlan(savedPlan as Plan)
+      }
+
+      const refreshedAsset = await supabase
+        .from('apparatus_registry')
+        .select('id, source_id, code, name, plant, location, maintenance, active')
+        .eq('id', asset.id)
+        .single()
+
+      if (refreshedAsset.data) {
+        setAsset(refreshedAsset.data as Asset)
+        setBaselineAsset(refreshedAsset.data as Asset)
+      }
+
+      setMode('view')
+      setMessage('Cambios guardados correctamente.')
+      return true
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function registerReview() {
+    if (!plan) {
+      setErrorMessage('Este activo todavía no tiene un mantenimiento PAM asociado.')
+      return
+    }
+    if (!reviewDate) {
+      setErrorMessage('Indica la fecha de la revisión.')
+      return
+    }
+
+    setRegistering(true)
+    setMessage('')
+    setErrorMessage('')
+
+    try {
+      const { data: userData } = await supabase.auth.getUser()
+      const userId = userData.user?.id ?? null
+
+      const { error } = await supabase
+        .from('maintenance_executions')
+        .insert({
+          maintenance_plan_id: plan.id,
+          scheduled_date: reviewDate,
+          executed_at: reviewResult === 'CANCELLED' ? new Date(reviewDate + 'T12:00:00').toISOString() : new Date(reviewDate + 'T12:00:00').toISOString(),
+          executed_by: userId,
+          performer_name: reviewPerformer.trim() || null,
+          performer_company: reviewCompany.trim() || null,
+          result: reviewResult,
+          observations: reviewObservations.trim() || null,
+        })
+
+      if (error) {
+        setErrorMessage('Error registrando la revisión: ' + error.message)
+        return
+      }
+
+      setMessage('Revisión registrada. La próxima revisión se recalculará según la periodicidad.')
+      await load()
+    } finally {
+      setRegistering(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-100 p-3 sm:p-5">
+        <div className="mx-auto max-w-5xl rounded-2xl bg-white p-6 shadow-lg text-sm">Cargando ficha PAM…</div>
+      </div>
+    )
+  }
+
+  if (!asset) {
+    return (
+      <div className="min-h-screen bg-slate-100 p-3 sm:p-5">
+        <div className="mx-auto max-w-5xl rounded-2xl bg-white p-6 shadow-lg text-sm">
+          {errorMessage || 'Activo no encontrado.'}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-100 p-3 sm:p-5">
+      <div className="mx-auto max-w-5xl">
+        <header className="mb-4 rounded-2xl bg-white p-3 shadow-lg sm:p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-center gap-3">
+              <BrandLogo onActivate={() => navigate('/maintenance/pam')} className="h-9 w-auto shrink-0 object-contain sm:h-11" />
+              <div className="min-w-0">
+                <h1 className="text-xl font-bold leading-tight text-slate-900 sm:text-2xl">PAM — Ficha de mantenimiento</h1>
+                <p className="text-xs text-slate-500 sm:text-sm">
+                  {hotelId || asset.code} · {asset.name}
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <BackButton onBack={() => navigate('/maintenance/pam')} disabled={saving || registering} />
+              <HomeButton onHome={() => navigate('/')} disabled={saving || registering} />
+              <FormActions
+                mode={mode}
+                onSave={() => void saveChanges()}
+                onCancel={() => {
+                  setAsset(baselineAsset)
+                  setPlan(baselinePlan)
+                  setMode('view')
+                  setMessage('')
+                  setErrorMessage('')
+                }}
+                onEdit={() => setMode('edit')}
+                saving={saving}
+              />
+            </div>
+          </div>
+        </header>
+
+        {(message || errorMessage) && (
+          <div className={
+            errorMessage
+              ? 'mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700 shadow-sm'
+              : 'mb-4 rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-green-700 shadow-sm'
+          }>
+            {errorMessage || message}
+          </div>
+        )}
+
+        <section className="mb-4 rounded-2xl bg-white p-4 shadow-lg sm:p-5">
+          <h2 className="mb-4 text-lg font-bold text-slate-900">Identificación</h2>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label>
+              <span className="mb-1 block text-sm font-semibold text-slate-700">ID del hotel</span>
+              <input value={hotelId || '—'} readOnly className="w-full rounded-lg border border-slate-300 bg-slate-100 px-3 py-2 font-semibold text-slate-700" />
+            </label>
+            <label>
+              <span className="mb-1 block text-sm font-semibold text-slate-700">Código Arias</span>
+              <input value={asset.code} readOnly className="w-full rounded-lg border border-slate-300 bg-slate-100 px-3 py-2 font-semibold text-slate-700" />
+            </label>
+            <label>
+              <span className="mb-1 block text-sm font-semibold text-slate-700">Descripción</span>
+              <input value={asset.name} disabled={mode === 'view'} onChange={(event) => updateAsset('name', event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 disabled:bg-slate-100" />
+            </label>
+            <label>
+              <span className="mb-1 block text-sm font-semibold text-slate-700">Planta</span>
+              <input value={asset.plant ?? ''} disabled={mode === 'view'} onChange={(event) => updateAsset('plant', event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 disabled:bg-slate-100" />
+            </label>
+            <label>
+              <span className="mb-1 block text-sm font-semibold text-slate-700">Ubicación</span>
+              <input value={asset.location ?? ''} disabled={mode === 'view'} onChange={(event) => updateAsset('location', event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 disabled:bg-slate-100" />
+            </label>
+            <label>
+              <span className="mb-1 block text-sm font-semibold text-slate-700">Empresa de mantenimiento</span>
+              <input value={asset.maintenance ?? ''} disabled={mode === 'view'} onChange={(event) => updateAsset('maintenance', event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 disabled:bg-slate-100" />
+            </label>
+          </div>
+        </section>
+
+        <section className="mb-4 rounded-2xl bg-white p-4 shadow-lg sm:p-5">
+          <div className="mb-4 flex items-center gap-2">
+            <CalendarClock size={18} className="text-slate-500" />
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">Programación PAM</h2>
+              <p className="text-xs text-slate-500">{plan?.code ?? 'Sin plan asociado'}</p>
+            </div>
+          </div>
+
+          {!plan ? (
+            <div className="rounded-xl border border-dashed border-slate-300 p-5 text-sm text-slate-500">
+              Este activo no tiene todavía un mantenimiento PAM materializado.
+            </div>
+          ) : (
+            <>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label>
+                  <span className="mb-1 block text-sm font-semibold text-slate-700">Mantenimiento</span>
+                  <input value={plan.name} disabled={mode === 'view'} onChange={(event) => updatePlan('name', event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 disabled:bg-slate-100" />
+                </label>
+                <label>
+                  <span className="mb-1 block text-sm font-semibold text-slate-700">Tipo</span>
+                  <select value={plan.maintenance_type} disabled={mode === 'view'} onChange={(event) => updatePlan('maintenance_type', event.target.value as Plan['maintenance_type'])} className="w-full rounded-lg border border-slate-300 px-3 py-2 disabled:bg-slate-100">
+                    <option value="INTERNAL">Interno</option>
+                    <option value="EXTERNAL">Externo</option>
+                  </select>
+                </label>
+                <label>
+                  <span className="mb-1 block text-sm font-semibold text-slate-700">Periodicidad</span>
+                  <div className="grid grid-cols-[110px_1fr] gap-2">
+                    <input type="number" min="1" value={plan.periodicity_value ?? ''} disabled={mode === 'view'} onChange={(event) => updatePlan('periodicity_value', event.target.value ? Number(event.target.value) : null)} className="w-full rounded-lg border border-slate-300 px-3 py-2 disabled:bg-slate-100" />
+                    <select value={plan.periodicity_unit ?? ''} disabled={mode === 'view'} onChange={(event) => updatePlan('periodicity_unit', (event.target.value || null) as Plan['periodicity_unit'])} className="w-full rounded-lg border border-slate-300 px-3 py-2 disabled:bg-slate-100">
+                      <option value="">Sin definir</option>
+                      {periodicityOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                    </select>
+                  </div>
+                </label>
+                <label>
+                  <span className="mb-1 block text-sm font-semibold text-slate-700">Fecha de inicio</span>
+                  <input type="date" value={plan.start_date ?? ''} disabled={mode === 'view'} onChange={(event) => updatePlan('start_date', event.target.value || null)} className="w-full rounded-lg border border-slate-300 px-3 py-2 disabled:bg-slate-100" />
+                </label>
+                <label>
+                  <span className="mb-1 block text-sm font-semibold text-slate-700">Próxima revisión</span>
+                  <input value={formatDate(plan.next_due_date)} readOnly className="w-full rounded-lg border border-slate-300 bg-slate-100 px-3 py-2 font-semibold text-slate-700" />
+                </label>
+                <label>
+                  <span className="mb-1 block text-sm font-semibold text-slate-700">Empresa externa</span>
+                  <input value={plan.external_company ?? ''} disabled={mode === 'view'} onChange={(event) => updatePlan('external_company', event.target.value || null)} className="w-full rounded-lg border border-slate-300 px-3 py-2 disabled:bg-slate-100" />
+                </label>
+              </div>
+
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                <label><span className="mb-1 block text-sm font-semibold text-slate-700">Día del mes</span><input type="number" min="1" max="31" value={plan.scheduled_day_of_month ?? ''} disabled={mode === 'view'} onChange={(event) => updatePlan('scheduled_day_of_month', event.target.value ? Number(event.target.value) : null)} className="w-full rounded-lg border border-slate-300 px-3 py-2 disabled:bg-slate-100" /></label>
+                <label><span className="mb-1 block text-sm font-semibold text-slate-700">Día de la semana</span><input type="number" min="1" max="7" value={plan.scheduled_weekday ?? ''} disabled={mode === 'view'} onChange={(event) => updatePlan('scheduled_weekday', event.target.value ? Number(event.target.value) : null)} className="w-full rounded-lg border border-slate-300 px-3 py-2 disabled:bg-slate-100" /></label>
+                <label><span className="mb-1 block text-sm font-semibold text-slate-700">Tolerancia (días)</span><input type="number" min="0" value={plan.tolerance_days} disabled={mode === 'view'} onChange={(event) => updatePlan('tolerance_days', Number(event.target.value))} className="w-full rounded-lg border border-slate-300 px-3 py-2 disabled:bg-slate-100" /></label>
+                <label><span className="mb-1 block text-sm font-semibold text-slate-700">Aviso previo (días)</span><input type="number" min="0" value={plan.alert_lead_days} disabled={mode === 'view'} onChange={(event) => updatePlan('alert_lead_days', Number(event.target.value))} className="w-full rounded-lg border border-slate-300 px-3 py-2 disabled:bg-slate-100" /></label>
+              </div>
+            </>
+          )}
+        </section>
+
+        <section className="mb-4 rounded-2xl bg-white p-4 shadow-lg sm:p-5">
+          <div className="mb-4 flex items-center gap-2">
+            <CheckCircle2 size={18} className="text-slate-500" />
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">Registrar revisión</h2>
+              <p className="text-xs text-slate-500">La próxima revisión se calcula a partir de la última revisión válida y la periodicidad.</p>
+            </div>
+          </div>
+
+          {!plan ? (
+            <div className="rounded-xl border border-dashed border-slate-300 p-5 text-sm text-slate-500">Sin plan PAM asociado.</div>
+          ) : (
+            <>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label><span className="mb-1 block text-sm font-semibold text-slate-700">Fecha</span><input type="date" value={reviewDate} disabled={registering} onChange={(event) => setReviewDate(event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 disabled:bg-slate-100" /></label>
+                <label><span className="mb-1 block text-sm font-semibold text-slate-700">Resultado</span><select value={reviewResult} disabled={registering} onChange={(event) => setReviewResult(event.target.value as Execution['result'])} className="w-full rounded-lg border border-slate-300 px-3 py-2">
+                  <option value="COMPLETED">Revisada</option>
+                  <option value="COMPLETED_WITH_ISSUES">Revisada con incidencias</option>
+                  <option value="NOT_CONFORM">No conforme</option>
+                  <option value="CANCELLED">No realizada / cancelada</option>
+                </select></label>
+                <label><span className="mb-1 block text-sm font-semibold text-slate-700">Realizada por</span><input value={reviewPerformer} disabled={registering} onChange={(event) => setReviewPerformer(event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 disabled:bg-slate-100" /></label>
+                <label><span className="mb-1 block text-sm font-semibold text-slate-700">Empresa</span><input value={reviewCompany} disabled={registering} onChange={(event) => setReviewCompany(event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 disabled:bg-slate-100" /></label>
+                <label className="sm:col-span-2"><span className="mb-1 block text-sm font-semibold text-slate-700">Observaciones / motivo</span><textarea rows={3} value={reviewObservations} disabled={registering} onChange={(event) => setReviewObservations(event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 disabled:bg-slate-100" /></label>
+              </div>
+              <button type="button" onClick={() => void registerReview()} disabled={registering} className="mt-4 inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">
+                <Save size={16} /> {registering ? 'Registrando…' : 'Guardar revisión'}
+              </button>
+            </>
+          )}
+        </section>
+
+        <section className="rounded-2xl bg-white p-4 shadow-lg sm:p-5">
+          <div className="mb-4 flex items-center gap-2">
+            <History size={18} className="text-slate-500" />
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">Histórico de revisiones</h2>
+              <p className="text-xs text-slate-500">
+                {latestValidExecution
+                  ? 'Última revisión válida: ' + formatDate(latestValidExecution.executed_at)
+                  : 'Todavía no existe una revisión válida registrada.'}
+              </p>
+            </div>
+          </div>
+
+          <div className="overflow-auto">
+            <table className="w-full min-w-[720px] border-collapse text-[12px]">
+              <thead>
+                <tr className="border-b bg-slate-50 text-left text-[10px] uppercase tracking-wide text-slate-500">
+                  <th className="px-2 py-1.5 font-semibold">Fecha</th>
+                  <th className="px-2 py-1.5 font-semibold">Resultado</th>
+                  <th className="px-2 py-1.5 font-semibold">Realizada por</th>
+                  <th className="px-2 py-1.5 font-semibold">Empresa</th>
+                  <th className="px-2 py-1.5 font-semibold">Observaciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {executions.map((item) => (
+                  <tr key={item.id} className="border-b border-slate-100">
+                    <td className="px-2 py-1.5">{formatDate(item.executed_at)}</td>
+                    <td className="px-2 py-1.5"><span className={'inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-semibold ' + executionTone(item.result)}>{executionLabel(item.result)}</span></td>
+                    <td className="px-2 py-1.5">{item.performer_name || '—'}</td>
+                    <td className="px-2 py-1.5">{item.performer_company || '—'}</td>
+                    <td className="px-2 py-1.5">{item.observations || '—'}</td>
+                  </tr>
+                ))}
+                {executions.length === 0 && <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-slate-500">Todavía no hay revisiones registradas.</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        {latestExecution && (
+          <div className="mt-4 flex items-center gap-2 text-xs text-slate-500">
+            {latestExecution.result === 'CANCELLED' ? <XCircle size={14} /> : <Clock3 size={14} />}
+            Último registro: {executionLabel(latestExecution.result)}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}

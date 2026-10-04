@@ -88,7 +88,7 @@ export default function LoginPage() {
       return
     }
 
-    await storeBrowserCredential(event.currentTarget)
+    void storeBrowserCredential(event.currentTarget)
     navigate('/', { replace: true })
   }
 

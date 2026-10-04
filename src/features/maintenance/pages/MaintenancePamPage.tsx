@@ -7,7 +7,8 @@ import IconButton from '../../../shared/components/buttons/IconButton'
 import { supabase } from '../../../lib/supabase'
 
 type FrequencyKey =
-  | 'DAILY_WEEKLY'
+  | 'DAILY'
+  | 'WEEKLY'
   | 'FORTNIGHTLY'
   | 'MONTHLY'
   | 'BIMONTHLY'
@@ -41,12 +42,23 @@ type PamAsset = {
   name: string
 }
 
+const dailyPamSourceIds = [
+  8, 93,
+  168, 169, 170, 171, 172,
+  173, 174,
+  175, 176, 177, 178, 179, 180,
+  218, 224, 266, 298, 299, 332,
+  264, 334,
+  144, 145, 149, 335,
+]
+
 const frequencyCards: Array<{
   key: FrequencyKey
   label: string
   description: string
 }> = [
-  { key: 'DAILY_WEEKLY', label: 'Diario / semanal', description: 'Preventivo diario/semanal del PAM' },
+  { key: 'DAILY', label: 'Diario', description: 'Activos atendidos diariamente' },
+  { key: 'WEEKLY', label: 'Semanal', description: 'Activos atendidos semanalmente' },
   { key: 'FORTNIGHTLY', label: 'Quincenal', description: 'Trabajos cada dos semanas' },
   { key: 'MONTHLY', label: 'Mensual', description: 'Trabajos una vez al mes' },
   { key: 'BIMONTHLY', label: 'Bimensual', description: 'Trabajos cada dos meses' },
@@ -60,7 +72,7 @@ function deriveFrequency(
   sourceRow: number,
   marks: SourceMark[],
 ): FrequencyKey {
-  if (sourceRow === 6) return 'DAILY_WEEKLY'
+  if (sourceRow === 6) return 'WEEKLY'
 
   const slots = Array.from(
     new Set(
@@ -189,8 +201,20 @@ export default function MaintenancePamPage() {
     const assetsByFrequency = new Map<FrequencyKey, Map<number, PamAsset>>()
     frequencyCards.forEach((card) => assetsByFrequency.set(card.key, new Map()))
 
+    const dailyTarget = assetsByFrequency.get('DAILY')
+    if (dailyTarget) {
+      for (const sourceId of dailyPamSourceIds) {
+        const asset = apparatusBySourceId.get(sourceId)
+        dailyTarget.set(sourceId, {
+          sourceId,
+          code: asset?.code ?? '—',
+          name: asset?.name ?? 'Activo PAM sin equipo resuelto',
+        })
+      }
+    }
+
     const rowsForPlanning = sourceGroups.filter(
-      (group) => group.source_row === 6 || group.source_row >= 19,
+      (group) => group.source_row >= 9 && group.source_row >= 19,
     )
 
     for (const group of rowsForPlanning) {
@@ -286,7 +310,11 @@ export default function MaintenancePamPage() {
                   </div>
                 </div>
                 <div className="mt-3 text-xs font-semibold text-slate-500">
-                  {count === 1 ? '1 activo' : `${count} activos`}
+                  {card.key === 'WEEKLY' && count === 0
+                    ? 'Pendiente de revisión'
+                    : count === 1
+                      ? '1 activo'
+                      : `${count} activos`}
                 </div>
               </button>
             )
@@ -306,31 +334,36 @@ export default function MaintenancePamPage() {
               <IconButton icon={RefreshCw} label="Actualizar" onClick={() => void loadPAM()} />
             </div>
 
-            <div className="grid gap-3 p-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {selectedAssets.map((asset) => (
-                <div
-                  key={asset.sourceId}
-                  className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
-                >
-                  <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                    ID PAM
-                  </div>
-                  <div className="mt-1 text-lg font-bold text-slate-900">{asset.sourceId}</div>
-                  <div className="mt-2 border-t border-slate-100 pt-2">
-                    <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                      Activo
-                    </div>
-                    <div className="mt-1 text-sm font-semibold text-slate-800">{asset.code}</div>
-                    <div className="mt-0.5 text-xs leading-5 text-slate-500">{asset.name}</div>
-                  </div>
-                </div>
-              ))}
+            <div className="overflow-auto">
+              <table className="w-full min-w-[720px] border-collapse text-sm">
+                <thead>
+                  <tr className="border-b bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+                    <th className="px-4 py-3 font-semibold">ID PAM</th>
+                    <th className="px-4 py-3 font-semibold">Código</th>
+                    <th className="px-4 py-3 font-semibold">Equipo / activo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {selectedAssets.map((asset) => (
+                    <tr
+                      key={asset.sourceId}
+                      className="border-b border-slate-100 hover:bg-slate-50"
+                    >
+                      <td className="px-4 py-3 font-semibold text-slate-900">{asset.sourceId}</td>
+                      <td className="px-4 py-3 font-medium text-slate-800">{asset.code}</td>
+                      <td className="px-4 py-3 text-slate-700">{asset.name}</td>
+                    </tr>
+                  ))}
 
-              {!loading && selectedAssets.length === 0 && (
-                <div className="sm:col-span-2 lg:col-span-3 xl:col-span-4 border-dashed p-10 text-center text-sm text-slate-500">
-                  No hay activos en esta frecuencia según el PAM importado.
-                </div>
-              )}
+                  {!loading && selectedAssets.length === 0 && (
+                    <tr>
+                      <td colSpan={3} className="border-dashed px-4 py-10 text-center text-sm text-slate-500">
+                        No hay activos definidos para esta frecuencia.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
           </section>
         )}

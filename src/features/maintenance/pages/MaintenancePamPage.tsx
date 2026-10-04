@@ -76,6 +76,9 @@ type PamWork = {
     | 'Revisada con incidencias'
     | 'No conforme'
     | 'No realizada'
+    | 'Programada'
+    | 'Pendiente hoy'
+    | 'Vencida'
 }
 
 const dailyPamSourceIds = [
@@ -352,23 +355,41 @@ export default function MaintenancePamPage() {
     })
 
     const stateByKey = new Map<string, PamWork['state']>()
-    for (const execution of executions) {
-      const entry = Array.from(planIdByKey.entries()).find((item) => item[1] === execution.maintenance_plan_id)
-      if (!entry || stateByKey.has(entry[0])) continue
+    const executionsByPlan = new Map<string, Execution[]>()
+    executions.forEach((execution) => {
+      const rows = executionsByPlan.get(execution.maintenance_plan_id) ?? []
+      rows.push(execution)
+      executionsByPlan.set(execution.maintenance_plan_id, rows)
+    })
 
-      stateByKey.set(
-        entry[0],
-        execution.result === 'COMPLETED'
-          ? 'Revisada'
-          : execution.result === 'COMPLETED_WITH_ISSUES'
-            ? 'Revisada con incidencias'
-            : execution.result === 'NOT_CONFORM'
-              ? 'No conforme'
-              : execution.result === 'CANCELLED'
-                ? 'No realizada'
-                : 'Pendiente',
+    const today = new Date()
+    const localToday = new Date(today.getTime() - today.getTimezoneOffset() * 60000)
+      .toISOString()
+      .slice(0, 10)
+
+    planIdByKey.forEach((planId, key) => {
+      const plan = planById.get(planId)
+      const planExecutions = executionsByPlan.get(planId) ?? []
+      const hasValidExecution = planExecutions.some(
+        (execution) => execution.executed_at && execution.result !== 'CANCELLED',
       )
-    }
+
+      if (!hasValidExecution) {
+        stateByKey.set(key, 'Pendiente')
+        return
+      }
+
+      const nextRevision = plan?.next_due_date
+      if (!nextRevision) {
+        stateByKey.set(key, 'Pendiente')
+      } else if (nextRevision < localToday) {
+        stateByKey.set(key, 'Vencida')
+      } else if (nextRevision === localToday) {
+        stateByKey.set(key, 'Pendiente hoy')
+      } else {
+        stateByKey.set(key, 'Programada')
+      }
+    })
 
     const worksByFrequency = new Map<FrequencyKey, PamWork[]>()
     frequencyCards.forEach((card) => worksByFrequency.set(card.key, []))
@@ -633,15 +654,19 @@ export default function MaintenancePamPage() {
                       <td className="px-2 py-1 font-medium text-slate-700">{work.executor}</td>
                       <td className="px-2 py-1">
                         <span className={`inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
-                          work.state === 'Revisada'
+                          work.state === 'Programada'
                             ? 'bg-emerald-100 text-emerald-700'
-                            : work.state === 'Revisada con incidencias'
+                            : work.state === 'Pendiente hoy'
                               ? 'bg-amber-100 text-amber-700'
-                              : work.state === 'No conforme'
+                              : work.state === 'Vencida'
                                 ? 'bg-rose-100 text-rose-700'
-                                : work.state === 'No realizada'
-                                  ? 'bg-slate-200 text-slate-700'
-                                  : 'bg-amber-100 text-amber-700'
+                                : work.state === 'Revisada con incidencias'
+                                  ? 'bg-amber-100 text-amber-700'
+                                  : work.state === 'No conforme'
+                                    ? 'bg-rose-100 text-rose-700'
+                                    : work.state === 'No realizada'
+                                      ? 'bg-slate-200 text-slate-700'
+                                      : 'bg-amber-100 text-amber-700'
                         }`}>
                           {work.state}
                         </span>

@@ -33,58 +33,10 @@ import ApparatusRegistryPage from './features/apparatusregistry/pages/ApparatusR
 import ApparatusRegistryDetailPage from './features/apparatusregistry/pages/ApparatusRegistryDetailPage'
 import ApparatusRegistryReportPage from './features/apparatusregistry/pages/ApparatusRegistryReportPage'
 import MaintenancePage from './features/maintenance/pages/MaintenancePage'
+import MaintenanceLandingPage from './features/maintenance/pages/MaintenanceLandingPage'
 import ProvidersPage from './features/providers/pages/ProvidersPage'
 import ActionsPage from './features/actions/pages/ActionsPage'
 
 export default function App() {
-  return (
-    <Routes>
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/activate" element={<ActivateAccountPage />} />
-      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-      <Route path="/update-password" element={<UpdatePasswordPage />} />
-
-      <Route element={<ProtectedRoute />}>
-        <Route path="/" element={<BooksPage />} />
-
-        <Route path="/users" element={<UsersPage />} />
-        <Route path="/roles" element={<RolesPage />} />
-        <Route path="/profile" element={<MyProfilePage />} />
-        <Route path="/reports" element={<ReportsPage />} />
-        <Route path="/pam" element={<PamPage />} />
-        <Route path="/planning" element={<Navigate to="/pam" replace />} />
-        <Route path="/providers" element={<ProvidersPage />} />
-        <Route path="/actions" element={<ActionsPage />} />
-      <Route path="/assets" element={<AssetsPage />} />
-      <Route path="/pumps" element={<PumpsPage />} />
-      <Route path="/pools" element={<PoolsPage />} />
-      <Route path="/spa" element={<SpaPage />} />
-      <Route path="/legionella" element={<LegionellaPage />} />
-      <Route path="/climatizers" element={<ClimatizersPage />} />
-      <Route path="/fancoils" element={<FancoilsPage />} />
-
-      <Route path="/electricalpanels" element={<ElectricalPanelsPage />} />
-      <Route path="/electricalpanels/new" element={<ElectricalPanelDetailPage />} />
-      <Route path="/electricalpanels/report" element={<ElectricalPanelsReportPage />} />
-      <Route path="/electricalpanels/:id" element={<ElectricalPanelDetailPage />} />
-
-      <Route path="/apparatusregistry" element={<ApparatusRegistryPage />} />
-      <Route path="/maintenance" element={<MaintenancePage />} />
-      <Route path="/apparatusregistry/new" element={<ApparatusRegistryDetailPage />} />
-      <Route path="/apparatusregistry/report" element={<ApparatusRegistryReportPage />} />
-      <Route path="/apparatusregistry/:id" element={<ApparatusRegistryDetailPage />} />
-
-      <Route path="/photoluminescent" element={<PhotoluminescentPage />} />
-      <Route path="/emergencylights" element={<EmergencyLightsPage />} />
-      <Route path="/firedoors" element={<FireDoorsPage />} />
-      <Route path="/calibrations" element={<CalibrationsPage />} />
-
-      <Route path="/fireequipment" element={<FireEquipmentPage />} />
-      <Route path="/fireequipment/extinguishers" element={<ExtinguishersPage />} />
-      <Route path="/fireequipment/bie" element={<BiePage />} />
-      <Route path="/fireequipment/sprinklers" element={<SprinklersPage />} />
-        <Route path="/fireequipment/pci-review" element={<PciReviewPage />} />
-      </Route>
-    </Routes>
-  )
+return (<Routes><Route path="/login" element={<LoginPage />} /><Route path="/activate" element={<ActivateAccountPage />} /><Route path="/forgot-password" element={<ForgotPasswordPage />} /><Route path="/update-password" element={<UpdatePasswordPage />} /><Route element={<ProtectedRoute />}><Route path="/" element={<BooksPage />} /><Route path="/users" element={<UsersPage />} /><Route path="/roles" element={<RolesPage />} /><Route path="/profile" element={<MyProfilePage />} /><Route path="/reports" element={<ReportsPage />} /><Route path="/pam" element={<PamPage />} /><Route path="/planning" element={<Navigate to="/pam" replace />} /><Route path="/providers" element={<ProvidersPage />} /><Route path="/actions" element={<ActionsPage />} /><Route path="/assets" element={<AssetsPage />} /><Route path="/pumps" element={<PumpsPage />} /><Route path="/pools" element={<PoolsPage />} /><Route path="/spa" element={<SpaPage />} /><Route path="/legionella" element={<LegionellaPage />} /><Route path="/climatizers" element={<ClimatizersPage />} /><Route path="/fancoils" element={<FancoilsPage />} /><Route path="/electricalpanels" element={<ElectricalPanelsPage />} /><Route path="/electricalpanels/new" element={<ElectricalPanelDetailPage />} /><Route path="/electricalpanels/report" element={<ElectricalPanelsReportPage />} /><Route path="/electricalpanels/:id" element={<ElectricalPanelDetailPage />} /><Route path="/apparatusregistry" element={<ApparatusRegistryPage />} /><Route path="/maintenance" element={<MaintenanceLandingPage />} /><Route path="/maintenance/operation" element={<MaintenancePage />} /><Route path="/apparatusregistry/new" element={<ApparatusRegistryDetailPage />} /><Route path="/apparatusregistry/report" element={<ApparatusRegistryReportPage />} /><Route path="/apparatusregistry/:id" element={<ApparatusRegistryDetailPage />} /><Route path="/photoluminescent" element={<PhotoluminescentPage />} /><Route path="/emergencylights" element={<EmergencyLightsPage />} /><Route path="/firedoors" element={<FireDoorsPage />} /><Route path="/calibrations" element={<CalibrationsPage />} /><Route path="/fireequipment" element={<FireEquipmentPage />} /><Route path="/fireequipment/extinguishers" element={<ExtinguishersPage />} /><Route path="/fireequipment/bie" element={<BiePage />} /><Route path="/fireequipment/sprinklers" element={<SprinklersPage />} /><Route path="/fireequipment/pci-review" element={<PciReviewPage />} /></Route></Routes>)
 }

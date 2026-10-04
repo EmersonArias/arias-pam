@@ -103,14 +103,20 @@ function periodicityKey(plan: Plan | null) {
   return match?.key ?? 'OTHER'
 }
 
-function displayMaintenanceName(plan: Plan | null, frequency: string | null) {
+function displayMaintenanceName(frequency: string | null, plan: Plan | null) {
   if (!plan) return ''
-  if (frequency === 'DAILY' && /DIARIO\/SEMANAL/i.test(plan.name)) {
-    return plan.name
-      .replace(/DIARIO\/SEMANAL/gi, 'DIARIO')
-      .replace(/^_+/, '')
+  const labels: Record<string, string> = {
+    DAILY: 'PREVENTIVO DIARIO',
+    WEEKLY: 'PREVENTIVO SEMANAL',
+    FORTNIGHTLY: 'PREVENTIVO QUINCENAL',
+    MONTHLY: 'PREVENTIVO MENSUAL',
+    BIMONTHLY: 'PREVENTIVO BIMENSUAL',
+    QUARTERLY: 'PREVENTIVO TRIMESTRAL',
+    SEMIANNUAL: 'PREVENTIVO SEMESTRAL',
+    ANNUAL: 'PREVENTIVO ANUAL',
+    OTHER: 'PREVENTIVO — OTRAS',
   }
-  return plan.name
+  return labels[frequency ?? ''] ?? plan.name.replace(/^_+/, '')
 }
 
 function formatDate(value: string | null) {
@@ -576,10 +582,19 @@ export default function MaintenancePamDetailPage() {
             </div>
           ) : (
             <>
+              {requestedFrequency && periodicityKey(plan) !== requestedFrequency && (
+                <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-3 text-sm text-rose-700">
+                  <strong>Inconsistencia de programación:</strong> esta ficha se ha abierto desde el módulo{' '}
+                  <strong>{periodicityOptions.find((option) => option.key === requestedFrequency)?.label ?? requestedFrequency}</strong>,
+                  pero el plan está configurado como{' '}
+                  <strong>{periodicityOptions.find((option) => option.key === periodicityKey(plan))?.label ?? 'Otras'}</strong>.
+                  Corrige la periodicidad del plan antes de guardar.
+                </div>
+              )}
               <div className="grid gap-4 sm:grid-cols-2">
                 <label>
                   <span className="mb-1 block text-sm font-semibold text-slate-700">Mantenimiento</span>
-                  <input value={displayMaintenanceName(plan, requestedFrequency)} disabled={mode === 'view'} onChange={(event) => updatePlan('name', event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 disabled:bg-slate-100" />
+                  <input value={displayMaintenanceName(requestedFrequency, plan)} readOnly className="w-full rounded-lg border border-slate-300 bg-slate-100 px-3 py-2 font-semibold text-slate-700" />
                 </label>
                 <label>
                   <span className="mb-1 block text-sm font-semibold text-slate-700">Tipo</span>

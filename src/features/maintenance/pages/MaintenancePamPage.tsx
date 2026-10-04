@@ -614,7 +614,9 @@ export default function MaintenancePamPage() {
                       key={`${work.sourceId}-${work.work}`}
                       onClick={() => {
                         if (work.apparatusId) {
-                          const query = work.planId ? '?planId=' + encodeURIComponent(work.planId) : ''
+                          const query = work.planId
+                            ? '?planId=' + encodeURIComponent(work.planId) + '&frequency=DAILY'
+                            : '?frequency=DAILY'
                           navigate('/maintenance/pam/' + work.apparatusId + query)
                         }
                       }}

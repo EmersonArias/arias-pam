@@ -331,7 +331,7 @@ export default function MaintenancePamPage() {
           </div>
         )}
 
-        <section className="mb-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <section className="mb-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
           {frequencyCards.map((card) => {
             const selected = selectedFrequency === card.key
             const totalCount = frequencyAssets.get(card.key)?.length ?? 0
@@ -342,7 +342,7 @@ export default function MaintenancePamPage() {
                 key={card.key}
                 type="button"
                 onClick={() => setSelectedFrequency(selected ? null : card.key)}
-                className={`rounded-xl border p-2.5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:p-3 ${card.key === 'OTHER' ? 'lg:col-start-4' : ''} ${selected ? 'border-blue-300 bg-blue-50 ring-2 ring-blue-100' : 'border-slate-200 bg-white'}`}
+                className={`rounded-xl border p-2.5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:p-3 ${selected ? 'border-blue-300 bg-blue-50 ring-2 ring-blue-100' : 'border-slate-200 bg-white'}`}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>

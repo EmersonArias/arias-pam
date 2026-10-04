@@ -140,6 +140,46 @@ function executionTone(result: Execution['result']) {
   }
 }
 
+function todayLocalDate() {
+  const now = new Date()
+  const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
+  return local.toISOString().slice(0, 10)
+}
+
+function cycleStatus(plan: Plan | null, executions: Execution[]) {
+  if (!plan) return 'Sin plan'
+  const hasValidExecution = executions.some(
+    (item) => item.executed_at && item.result !== 'CANCELLED',
+  )
+
+  if (!hasValidExecution) return 'Pendiente de primera revisión'
+  if (!plan.next_due_date) return 'Pendiente de programar'
+
+  const today = todayLocalDate()
+  if (plan.next_due_date < today) return 'Vencida'
+  if (plan.next_due_date === today) return 'Pendiente hoy'
+  return 'Programada'
+}
+
+function cycleStatusTone(status: string) {
+  if (status === 'Vencida') return 'bg-rose-100 text-rose-700'
+  if (status === 'Pendiente hoy') return 'bg-amber-100 text-amber-700'
+  if (status === 'Programada') return 'bg-emerald-100 text-emerald-700'
+  return 'bg-slate-100 text-slate-700'
+}
+
+function scheduledExecutor(
+  asset: Asset,
+  plan: Plan | null,
+) {
+  const planned = plan?.maintenance_type === 'EXTERNAL'
+    ? plan.external_company?.trim()
+    : asset.maintenance?.trim()
+
+  if (planned) return planned
+  return plan?.maintenance_type === 'EXTERNAL' ? 'Pendiente de asignar' : 'SSTT'
+}
+
 export default function MaintenancePamDetailPage() {
   const navigate = useNavigate()
   const { apparatusId } = useParams<{ apparatusId: string }>()
@@ -584,8 +624,28 @@ export default function MaintenancePamDetailPage() {
                   <input value={formatDate(plan.next_due_date)} readOnly className="w-full rounded-lg border border-slate-300 bg-slate-100 px-3 py-2 font-semibold text-slate-700" />
                 </label>
                 <label>
-                  <span className="mb-1 block text-sm font-semibold text-slate-700">Empresa externa</span>
-                  <input value={plan.external_company ?? ''} disabled={mode === 'view'} onChange={(event) => updatePlan('external_company', event.target.value || null)} className="w-full rounded-lg border border-slate-300 px-3 py-2 disabled:bg-slate-100" />
+                  <span className="mb-1 block text-sm font-semibold text-slate-700">Estado actual</span>
+                  <div className="flex h-[42px] items-center rounded-lg border border-slate-300 bg-slate-100 px-3">
+                    <span className={'inline-flex rounded-full px-2 py-1 text-xs font-semibold ' + cycleStatusTone(cycleStatus(plan, executions))}>
+                      ${cycleStatus(plan, executions)}
+                    </span>
+                  </div>
+                </label>
+                <label>
+                  <span className="mb-1 block text-sm font-semibold text-slate-700">Empresa / ejecutor programado</span>
+                  <input
+                    value={scheduledExecutor(asset, plan)}
+                    disabled={mode === 'view'}
+                    onChange={(event) => {
+                      const value = event.target.value || null
+                      if (plan.maintenance_type === 'EXTERNAL') {
+                        updatePlan('external_company', value)
+                      } else {
+                        updateAsset('maintenance', value)
+                      }
+                    }}
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 disabled:bg-slate-100"
+                  />
                 </label>
               </div>
 

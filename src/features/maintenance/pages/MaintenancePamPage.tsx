@@ -52,7 +52,7 @@ type Execution = {
 
 type PamWork = {
   sourceId: number
-  code: string
+  hotelCode: string
   name: string
   work: string
   periodicity: string
@@ -71,6 +71,36 @@ const dailyPamSourceIds = [
   264, 334,
   144, 145, 149, 335,
 ]
+
+const dailyHotelAssetCodes: Record<number, string> = {
+  8: 'COC-CAM-01',
+  93: 'BMB-FIL-01',
+  168: 'BMB-ACU-01',
+  169: 'BMB-ACU-02',
+  170: 'BMB-ACU-03',
+  171: 'BMB-ACU-04',
+  172: 'BMB-ACU-05',
+  173: 'BT-BAT-01',
+  174: 'BT-BAT-02',
+  175: 'CLM-DST-02',
+  176: 'CLM-DST-03',
+  177: 'CLM-DST-04',
+  178: 'CLM-DST-05',
+  179: 'BMB-INT-01',
+  180: 'BMB-INT-02',
+  218: 'BMB-AFS-03',
+  224: 'BMB-SEP-01',
+  266: 'PIS-GEN-05',
+  298: 'BT-GAS-01',
+  299: 'ENE-AGU-01',
+  332: 'LUM-SIG-01',
+  264: 'PIS-GEN-04',
+  334: 'PIS-EXT-01',
+  144: 'PIS-GEN-01',
+  145: 'BMB-BOM-01',
+  149: 'PIS-CLT-01',
+  335: 'PIS-SPA-01',
+}
 
 const frequencyCards: Array<{
   key: FrequencyKey
@@ -153,6 +183,7 @@ function deriveFrequency(
 function uniqueWorks(
   rows: SourceMark[],
   apparatusBySourceId: Map<number, Apparatus>,
+  hotelCodeBySourceId: Record<number, string>,
   periodicity: string,
   nextDate: string | null,
   lastRevisionByKey: Map<string, string>,
@@ -168,7 +199,7 @@ function uniqueWorks(
 
     works.set(key, {
       sourceId: row.source_apparatus_id,
-      code: apparatus?.code ?? '—',
+      hotelCode: hotelCodeBySourceId[row.source_apparatus_id] ?? '—',
       name: apparatus?.name ?? 'Activo PAM sin equipo resuelto',
       work,
       periodicity,
@@ -310,7 +341,7 @@ export default function MaintenancePamPage() {
 
     worksByFrequency.set(
       'DAILY',
-      uniqueWorks(dailyRows, apparatusBySourceId, 'Diario', localDateString(), lastRevisionByKey),
+      uniqueWorks(dailyRows, apparatusBySourceId, dailyHotelAssetCodes, 'Diario', localDateString(), lastRevisionByKey),
     )
 
     const rowsForPlanning = sourceGroups.filter((group) => group.source_row >= 19)
@@ -332,7 +363,7 @@ export default function MaintenancePamPage() {
             new Map(
               [
                 ...existing.map((work) => [`${work.sourceId}-${work.work}`, work] as const),
-                ...uniqueWorks(actionMarks, apparatusBySourceId, frequencyCards.find((card) => card.key === frequency)?.label ?? 'Otras', null, lastRevisionByKey)
+                ...uniqueWorks(actionMarks, apparatusBySourceId, dailyHotelAssetCodes, frequencyCards.find((card) => card.key === frequency)?.label ?? 'Otras', null, lastRevisionByKey)
                   .map((work) => [`${work.sourceId}-${work.work}`, work] as const),
               ],
             ).values(),
@@ -362,7 +393,7 @@ export default function MaintenancePamPage() {
           : works.filter((work) =>
               [
                 String(work.sourceId),
-                work.code,
+                work.hotelCode,
                 work.name,
                 work.work,
                 work.executor,
@@ -430,7 +461,7 @@ export default function MaintenancePamPage() {
               type="search"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Busca por ID PAM, código, equipo, trabajo o empresa…"
+              placeholder="Busca por ID, código de activo, equipo, trabajo o empresa…"
               className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               aria-label="Buscar en PAM"
             />
@@ -488,11 +519,10 @@ export default function MaintenancePamPage() {
             </div>
 
             <div className="max-h-[calc(100vh-500px)] min-h-[240px] overflow-auto">
-              <table className="w-full min-w-[980px] border-collapse text-sm">
+              <table className="w-full min-w-[860px] border-collapse text-sm">
                 <thead className="sticky top-0 z-10">
                   <tr className="border-b bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
-                    <th className="px-3 py-2 font-semibold">ID PAM</th>
-                    <th className="px-3 py-2 font-semibold">Código Arias</th>
+                    <th className="px-3 py-2 font-semibold">ID</th>
                     <th className="px-3 py-2 font-semibold">Activo</th>
                     <th className="px-3 py-2 font-semibold">Trabajo</th>
                     <th className="px-3 py-2 font-semibold">Última revisión</th>
@@ -504,8 +534,7 @@ export default function MaintenancePamPage() {
                 <tbody>
                   {selectedWorks.map((work) => (
                     <tr key={`${work.sourceId}-${work.work}`} className="border-b border-slate-100 hover:bg-slate-50">
-                      <td className="px-3 py-1.5 font-semibold text-slate-900">{work.sourceId}</td>
-                      <td className="px-3 py-1.5 font-semibold text-slate-800">{work.code}</td>
+                      <td className="px-3 py-1.5 font-semibold text-slate-900">{work.hotelCode}</td>
                       <td className="px-3 py-1.5 text-slate-700">{work.name}</td>
                       <td className="px-3 py-1.5 font-medium text-slate-800">{work.work}</td>
                       <td className="whitespace-nowrap px-3 py-1.5 text-slate-700">
@@ -525,7 +554,7 @@ export default function MaintenancePamPage() {
 
                   {!loading && selectedWorks.length === 0 && (
                     <tr>
-                      <td colSpan={8} className="border-dashed px-4 py-10 text-center text-sm text-slate-500">
+                      <td colSpan={7} className="border-dashed px-4 py-10 text-center text-sm text-slate-500">
                         No hay trabajos definidos para esta frecuencia.
                       </td>
                     </tr>

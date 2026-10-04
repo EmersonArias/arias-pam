@@ -12,7 +12,9 @@ export function useGuardedNavigation({
   onNavigate,
   onSave,
 }: UseGuardedNavigationOptions) {
-  const [pendingPath, setPendingPath] = useState<string | null>(null)
+  const [pendingNavigation, setPendingNavigation] = useState<
+    { type: 'path'; path: string } | { type: 'back' } | null
+  >(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [saving, setSaving] = useState(false)
 
@@ -24,34 +26,53 @@ export function useGuardedNavigation({
       return
     }
 
-    setPendingPath(path)
+    setPendingNavigation({ type: 'path', path })
+    setDialogOpen(true)
+  }
+
+  function requestBackNavigation() {
+    if (!dirty) {
+      onNavigate('__HISTORY_BACK__')
+      return
+    }
+
+    setPendingNavigation({ type: 'back' })
     setDialogOpen(true)
   }
 
   function cancelNavigation() {
     setDialogOpen(false)
-    setPendingPath(null)
+    setPendingNavigation(null)
+  }
+
+  function executeNavigation(navigation: { type: 'path'; path: string } | { type: 'back' }) {
+    if (navigation.type === 'back') {
+      onNavigate('__HISTORY_BACK__')
+      return
+    }
+
+    onNavigate(navigation.path)
   }
 
   function discardNavigation() {
-    const path = pendingPath
+    const navigation = pendingNavigation
     setDialogOpen(false)
-    setPendingPath(null)
-    if (path) onNavigate(path)
+    setPendingNavigation(null)
+    if (navigation) executeNavigation(navigation)
   }
 
   async function saveAndNavigate() {
-    if (!pendingPath || !onSave) return
+    if (!pendingNavigation || !onSave) return
 
     setSaving(true)
     try {
       const saved = await onSave()
       if (!saved) return
 
-      const path = pendingPath
+      const navigation = pendingNavigation
       setDialogOpen(false)
-      setPendingPath(null)
-      onNavigate(path)
+      setPendingNavigation(null)
+      executeNavigation(navigation)
     } finally {
       setSaving(false)
     }
@@ -59,6 +80,7 @@ export function useGuardedNavigation({
 
   return {
     requestNavigation,
+    requestBackNavigation,
     cancelNavigation,
     discardNavigation,
     saveAndNavigate,

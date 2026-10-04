@@ -459,7 +459,7 @@ export default function MaintenancePamDetailPage() {
           executed_at: reviewResult === 'CANCELLED' ? new Date(reviewDate + 'T12:00:00').toISOString() : new Date(reviewDate + 'T12:00:00').toISOString(),
           executed_by: userId,
           performer_name: reviewPerformer.trim() || null,
-          performer_company: scheduledExecutor(asset, plan) || null,
+          performer_company: scheduledExecutor(asset!, plan) || null,
           result: reviewResult,
           observations: reviewObservations.trim() || null,
         })

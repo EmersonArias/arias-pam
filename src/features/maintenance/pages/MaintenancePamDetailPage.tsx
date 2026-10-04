@@ -1,9 +1,12 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { CalendarClock, CheckCircle2, Clock3, History, Save, XCircle } from 'lucide-react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import BrandLogo from '../../../shared/components/branding/BrandLogo'
 import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
 import FormActions, { type FormMode } from '../../../shared/components/forms/FormActions'
+import UnsavedChangesDialog from '../../../shared/components/navigation/UnsavedChangesDialog'
+import { useEscapeAsCancel } from '../../../shared/hooks/useEscapeAsCancel'
+import { useGuardedNavigation } from '../../../shared/hooks/useGuardedNavigation'
 import { supabase } from '../../../lib/supabase'
 
 type Asset = {
@@ -79,12 +82,26 @@ const hotelAssetCodes: Record<number, string> = {
 }
 
 const periodicityOptions = [
-  ['DAY', 'Día'],
-  ['WEEK', 'Semana'],
-  ['MONTH', 'Mes'],
-  ['YEAR', 'Año'],
-  ['VARIABLE', 'Variable'],
+  { key: 'DAILY', label: 'Diario', value: 1, unit: 'DAY' as const },
+  { key: 'WEEKLY', label: 'Semanal', value: 1, unit: 'WEEK' as const },
+  { key: 'FORTNIGHTLY', label: 'Quincenal', value: 2, unit: 'WEEK' as const },
+  { key: 'MONTHLY', label: 'Mensual', value: 1, unit: 'MONTH' as const },
+  { key: 'BIMONTHLY', label: 'Bimensual', value: 2, unit: 'MONTH' as const },
+  { key: 'QUARTERLY', label: 'Trimestral', value: 3, unit: 'MONTH' as const },
+  { key: 'SEMIANNUAL', label: 'Semestral', value: 6, unit: 'MONTH' as const },
+  { key: 'ANNUAL', label: 'Anual', value: 1, unit: 'YEAR' as const },
+  { key: 'OTHER', label: 'Otras', value: null, unit: 'VARIABLE' as const },
 ] as const
+
+function periodicityKey(plan: Plan | null) {
+  if (!plan) return 'OTHER'
+  const match = periodicityOptions.find(
+    (option) =>
+      option.value === plan.periodicity_value &&
+      option.unit === plan.periodicity_unit,
+  )
+  return match?.key ?? 'OTHER'
+}
 
 function formatDate(value: string | null) {
   if (!value) return 'Pendiente de primera revisión'
@@ -217,6 +234,11 @@ export default function MaintenancePamDetailPage() {
 
   const latestExecution = executions[0] ?? null
 
+  const isDirty =
+    mode !== 'view' &&
+    (JSON.stringify(asset) !== JSON.stringify(baselineAsset) ||
+      JSON.stringify(plan) !== JSON.stringify(baselinePlan))
+
   function updateAsset<K extends keyof Asset>(field: K, value: Asset[K]) {
     setAsset((current) => current ? { ...current, [field]: value } : current)
     setMessage('')
@@ -310,6 +332,46 @@ export default function MaintenancePamDetailPage() {
     }
   }
 
+  const {
+    requestNavigation,
+    cancelNavigation,
+    discardNavigation,
+    saveAndNavigate,
+    dialogOpen,
+    saving: navigatingAndSaving,
+  } = useGuardedNavigation({
+    dirty: isDirty,
+    onNavigate: navigate,
+    onSave: saveChanges,
+  })
+
+  const handleCancelRequest = useCallback(() => {
+    if (mode === 'view') {
+      navigate('/maintenance/pam')
+      return
+    }
+    if (!isDirty) {
+      setAsset(baselineAsset)
+      setPlan(baselinePlan)
+      setMode('view')
+      setMessage('')
+      setErrorMessage('')
+      return
+    }
+    requestNavigation('/maintenance/pam')
+  }, [mode, isDirty, baselineAsset, baselinePlan, requestNavigation, navigate])
+
+  useEscapeAsCancel({
+    enabled: true,
+    onCancel: () => {
+      if (dialogOpen) {
+        cancelNavigation()
+        return
+      }
+      handleCancelRequest()
+    },
+  })
+
   async function registerReview() {
     if (!plan) {
       setErrorMessage('Este activo todavía no tiene un mantenimiento PAM asociado.')
@@ -386,20 +448,14 @@ export default function MaintenancePamDetailPage() {
               </div>
             </div>
             <div className="flex flex-wrap items-center justify-end gap-2">
-              <BackButton onBack={() => navigate('/maintenance/pam')} disabled={saving || registering} />
-              <HomeButton onHome={() => navigate('/')} disabled={saving || registering} />
+              <BackButton onBack={() => requestNavigation('/maintenance/pam')} disabled={saving || registering || navigatingAndSaving} />
+              <HomeButton onHome={() => requestNavigation('/')} disabled={saving || registering || navigatingAndSaving} />
               <FormActions
                 mode={mode}
                 onSave={() => void saveChanges()}
-                onCancel={() => {
-                  setAsset(baselineAsset)
-                  setPlan(baselinePlan)
-                  setMode('view')
-                  setMessage('')
-                  setErrorMessage('')
-                }}
+                onCancel={handleCancelRequest}
                 onEdit={() => setMode('edit')}
-                saving={saving}
+                saving={saving || navigatingAndSaving}
               />
             </div>
           </div>
@@ -474,13 +530,21 @@ export default function MaintenancePamDetailPage() {
                 </label>
                 <label>
                   <span className="mb-1 block text-sm font-semibold text-slate-700">Periodicidad</span>
-                  <div className="grid grid-cols-[110px_1fr] gap-2">
-                    <input type="number" min="1" value={plan.periodicity_value ?? ''} disabled={mode === 'view'} onChange={(event) => updatePlan('periodicity_value', event.target.value ? Number(event.target.value) : null)} className="w-full rounded-lg border border-slate-300 px-3 py-2 disabled:bg-slate-100" />
-                    <select value={plan.periodicity_unit ?? ''} disabled={mode === 'view'} onChange={(event) => updatePlan('periodicity_unit', (event.target.value || null) as Plan['periodicity_unit'])} className="w-full rounded-lg border border-slate-300 px-3 py-2 disabled:bg-slate-100">
-                      <option value="">Sin definir</option>
-                      {periodicityOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-                    </select>
-                  </div>
+                  <select
+                    value={periodicityKey(plan)}
+                    disabled={mode === 'view'}
+                    onChange={(event) => {
+                      const option = periodicityOptions.find((item) => item.key === event.target.value)
+                      if (!option) return
+                      updatePlan('periodicity_value', option.value)
+                      updatePlan('periodicity_unit', option.unit)
+                    }}
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 disabled:bg-slate-100"
+                  >
+                    {periodicityOptions.map((option) => (
+                      <option key={option.key} value={option.key}>{option.label}</option>
+                    ))}
+                  </select>
                 </label>
                 <label>
                   <span className="mb-1 block text-sm font-semibold text-slate-700">Fecha de inicio</span>
@@ -584,6 +648,13 @@ export default function MaintenancePamDetailPage() {
             Último registro: {executionLabel(latestExecution.result)}
           </div>
         )}
+        <UnsavedChangesDialog
+          open={dialogOpen}
+          onCancel={cancelNavigation}
+          onDiscard={discardNavigation}
+          onSaveAndContinue={saveAndNavigate}
+          saving={navigatingAndSaving}
+        />
       </div>
     </div>
   )

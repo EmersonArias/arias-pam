@@ -103,6 +103,16 @@ function periodicityKey(plan: Plan | null) {
   return match?.key ?? 'OTHER'
 }
 
+function displayMaintenanceName(plan: Plan | null, frequency: string | null) {
+  if (!plan) return ''
+  if (frequency === 'DAILY' && /DIARIO\/SEMANAL/i.test(plan.name)) {
+    return plan.name
+      .replace(/DIARIO\/SEMANAL/gi, 'DIARIO')
+      .replace(/^_+/, '')
+  }
+  return plan.name
+}
+
 function formatDate(value: string | null) {
   if (!value) return 'Pendiente de primera revisión'
   const date = value.length > 10
@@ -135,6 +145,7 @@ export default function MaintenancePamDetailPage() {
   const { apparatusId } = useParams<{ apparatusId: string }>()
   const [searchParams] = useSearchParams()
   const requestedPlanId = searchParams.get('planId')
+  const requestedFrequency = searchParams.get('frequency')
 
   const [asset, setAsset] = useState<Asset | null>(null)
   const [baselineAsset, setBaselineAsset] = useState<Asset | null>(null)
@@ -531,7 +542,7 @@ export default function MaintenancePamDetailPage() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <label>
                   <span className="mb-1 block text-sm font-semibold text-slate-700">Mantenimiento</span>
-                  <input value={plan.name} disabled={mode === 'view'} onChange={(event) => updatePlan('name', event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 disabled:bg-slate-100" />
+                  <input value={displayMaintenanceName(plan, requestedFrequency)} disabled={mode === 'view'} onChange={(event) => updatePlan('name', event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 disabled:bg-slate-100" />
                 </label>
                 <label>
                   <span className="mb-1 block text-sm font-semibold text-slate-700">Tipo</span>

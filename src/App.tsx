@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router-dom'
+import { Navigate, Routes, Route } from 'react-router-dom'
 import BooksPage from './pages/Books/BooksPage'
 import LoginPage from './features/auth/pages/LoginPage'
 import ActivateAccountPage from './features/auth/pages/ActivateAccountPage'
@@ -53,7 +53,7 @@ export default function App() {
         <Route path="/profile" element={<MyProfilePage />} />
         <Route path="/reports" element={<ReportsPage />} />
         <Route path="/pam" element={<PamPage />} />
-        <Route path="/planning" element={<PlanningPage />} />
+        <Route path="/planning" element={<Navigate to="/pam" replace />} />
         <Route path="/providers" element={<ProvidersPage />} />
         <Route path="/actions" element={<ActionsPage />} />
       <Route path="/assets" element={<AssetsPage />} />

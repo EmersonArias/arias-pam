@@ -14,16 +14,16 @@
 
 BEGIN;
 
-UPDATE public.maintenance_plans mp
+UPDATE public.maintenance_plans AS mp
 SET
   apparatus_registry_id = ar.id,
   description = NULL,
   updated_at = now()
-FROM public.pam_maintenance_plan_links l
-JOIN public.apparatus_registry ar
-  ON ar.hotel_id = mp.hotel_id
- AND ar.source_id = l.source_apparatus_id
+FROM public.pam_maintenance_plan_links AS l
+JOIN public.apparatus_registry AS ar
+  ON ar.source_id = l.source_apparatus_id
 WHERE l.maintenance_plan_id = mp.id
+  AND ar.hotel_id = mp.hotel_id
   AND (
     mp.apparatus_registry_id IS DISTINCT FROM ar.id
     OR mp.description IS NOT NULL

@@ -318,14 +318,7 @@ export default function MaintenanceConfigurationPage() {
   }
 
   function useTemplate(template: typeof templateRules[number]) {
-    setRuleForm({
-      ...emptyRule(),
-      name: template.name,
-      description: template.description,
-      trigger_event: template.trigger_event,
-      conditionsText: JSON.stringify(template.conditions),
-      actionsText: JSON.stringify(template.actions),
-    })
+    setRuleForm(ruleFormFromTemplate(template))
     setRuleFormOpen(true)
     setError('')
   }

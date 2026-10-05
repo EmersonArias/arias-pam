@@ -275,7 +275,7 @@ export default function MaintenancePage() {
     setSelectedId(plan.id)
     setExecutionFormOpen(false)
     setError("")
-    const [c, config, executionQuery, linkQuery] = await Promise.all([
+    const [c, config, executionQuery, photoQuery, linkQuery] = await Promise.all([
       supabase.from("maintenance_controls")
         .select("id, label, input_type, unit, min_value, max_value, required")
         .eq("maintenance_plan_id", plan.id)

@@ -90,14 +90,6 @@ const templateRules = [
   },
 ]
 
-function describeRule(rule: Rule) {
-  const actions: string[] = []
-  if (rule.actions.create_work_order) actions.push('crear OT')
-  if (rule.actions.notify_maintenance_chief) actions.push('avisar al Jefe de Mantenimiento')
-  if (rule.actions.priority) actions.push('prioridad ' + String(rule.actions.priority).toLowerCase())
-  return actions.join(' · ') || 'Sin acciones definidas'
-}
-
 const priorityValues = {
   CRITICAL: 10,
   HIGH: 50,
@@ -143,15 +135,16 @@ function ruleFormFromTemplate(template: typeof templateRules[number]) {
     description: template.description,
     trigger_event: template.trigger_event,
     overdueDays: String(
-      typeof template.conditions.overdue_days_min === 'number'
-        ? template.conditions.overdue_days_min
+      typeof (template.conditions as Record<string, unknown>).overdue_days_min === 'number'
+        ? (template.conditions as Record<string, unknown>).overdue_days_min
         : 1,
     ),
     createWorkOrder: actions.create_work_order === true,
-    workType:
+    workType: (
       actions.work_type === 'CORRECTIVE' || actions.work_type === 'ACTUATION'
         ? actions.work_type
-        : 'PREVENTIVE',
+        : 'PREVENTIVE'
+    ) as 'PREVENTIVE' | 'CORRECTIVE' | 'ACTUATION',
     notifyMaintenanceChief: actions.notify_maintenance_chief !== false,
     notifyAssignee: actions.notify_assignee === true,
     priority: priority as RulePriority,

@@ -1,5 +1,5 @@
 import { useEffect, useState, type ChangeEvent, type FormEvent } from "react"
-import { AlertTriangle, Bell, CalendarClock, CheckCircle2, Clock3, Download, ImagePlus, Mail, PlayCircle, Plus, Save, Trash2, Upload } from "lucide-react"
+import { AlertTriangle, Bell, CalendarClock, Camera, CheckCircle2, Clock3, Download, ImagePlus, Mail, PlayCircle, Plus, Save, Trash2, Upload } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import { supabase } from "../../../lib/supabase"
 import { useHotelScope } from "../../../shared/context/HotelScopeContext"
@@ -529,11 +529,15 @@ export default function MaintenancePage() {
     event.target.value = ""
   }
 
-  function handlePlanPhotoFiles(event: ChangeEvent<HTMLInputElement>) {
-    const selected = Array.from(event.target.files ?? []).filter((file) => file.type.startsWith("image/"))
+  function addPlanPhotoFiles(files: File[]) {
+    const selected = files.filter((file) => file.type.startsWith("image/"))
     if (selected.length) {
       setPendingPlanPhotos((current) => [...current, ...selected])
     }
+  }
+
+  function handlePlanPhotoFiles(event: ChangeEvent<HTMLInputElement>) {
+    addPlanPhotoFiles(Array.from(event.target.files ?? []))
     event.target.value = ""
   }
 
@@ -899,11 +903,24 @@ export default function MaintenancePage() {
                     <h2 className="font-semibold">Fotografías del mantenimiento</h2>
                     <p className="text-xs text-slate-500">Fotos de referencia del mantenimiento. Se guardan al pulsar «Guardar mantenimiento».</p>
                   </div>
-                  <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg border bg-white px-3 py-2 text-sm font-medium hover:bg-slate-50">
-                    <ImagePlus size={16} />
-                    Añadir fotografías
-                    <input type="file" multiple accept="image/*" onChange={handlePlanPhotoFiles} className="hidden" />
-                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg border bg-white px-3 py-2 text-sm font-medium hover:bg-slate-50">
+                      <Camera size={16} />
+                      Hacer foto
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        onChange={handlePlanPhotoFiles}
+                        className="hidden"
+                      />
+                    </label>
+                    <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg border bg-white px-3 py-2 text-sm font-medium hover:bg-slate-50">
+                      <ImagePlus size={16} />
+                      Galería
+                      <input type="file" multiple accept="image/*" onChange={handlePlanPhotoFiles} className="hidden" />
+                    </label>
+                  </div>
                 </div>
 
                 {pendingPlanPhotos.length > 0 && (
@@ -1057,16 +1074,23 @@ export default function MaintenancePage() {
                     </label>
                   </div>
 
-                  <label className="mt-5 block rounded-xl border bg-white p-3">
+                  <div className="mt-5 rounded-xl border bg-white p-3">
                     <span className="mb-1 block text-sm font-semibold">Evidencias</span>
                     <span className="block text-xs text-slate-500">
                       Puedes adjuntar fotografías o PDF de la ejecución.
                     </span>
-                    <span className="mt-2 inline-flex items-center gap-2 rounded-lg border bg-slate-50 px-3 py-2 text-sm cursor-pointer">
-                      <Upload size={16} />
-                      Seleccionar archivos
-                      <input type="file" multiple accept="image/*,.pdf" onChange={handleEvidenceFiles} className="hidden" />
-                    </span>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border bg-slate-50 px-3 py-2 text-sm">
+                        <Camera size={16} />
+                        Hacer foto
+                        <input type="file" accept="image/*" capture="environment" onChange={handleEvidenceFiles} className="hidden" />
+                      </label>
+                      <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border bg-slate-50 px-3 py-2 text-sm">
+                        <Upload size={16} />
+                        Galería / archivos
+                        <input type="file" multiple accept="image/*,.pdf" onChange={handleEvidenceFiles} className="hidden" />
+                      </label>
+                    </div>
                     {pendingEvidenceFiles.length > 0 && (
                       <div className="mt-2 text-xs text-slate-600">
                         {pendingEvidenceFiles.map((file) => file.name).join(" · ")}

@@ -201,7 +201,7 @@ export default function MaintenanceConfigurationPage() {
   const hotelId = currentHotel?.id ?? ''
   const [config, setConfig] = useState<HotelConfig | null>(null)
   const [rules, setRules] = useState<Rule[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [ruleSaving, setRuleSaving] = useState(false)
   const [error, setError] = useState('')

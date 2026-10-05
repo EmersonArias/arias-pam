@@ -52,7 +52,7 @@ CREATE POLICY maintenance_work_order_evidence_insert
       SELECT 1
       FROM public.maintenance_work_orders wo
       WHERE wo.id = work_order_id
-        AND wo.hotel_id = hotel_id
+        AND wo.hotel_id = public.maintenance_work_order_evidence.hotel_id
     )
   );
 

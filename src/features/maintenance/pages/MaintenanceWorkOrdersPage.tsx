@@ -63,9 +63,20 @@ const typeLabels: Record<WorkOrder['work_type'], string> = {
   ACTUATION: 'Actuación',
 }
 
-function statusClass(status: WorkOrder['status']) {
-  if (status === 'COMPLETED') return 'bg-emerald-100 text-emerald-700'
-  if (status === 'IN_PROGRESS') return 'bg-blue-100 text-blue-700'
+function isOverdue(item: WorkOrder) {
+  return item.status === 'PENDING'
+    && Boolean(item.scheduled_date)
+    && item.scheduled_date! < new Date().toISOString().slice(0, 10)
+}
+
+function displayStatusLabel(item: WorkOrder) {
+  return isOverdue(item) ? 'Vencida' : statusLabels[item.status]
+}
+
+function displayStatusClass(item: WorkOrder) {
+  if (isOverdue(item)) return 'bg-rose-100 text-rose-700'
+  if (item.status === 'COMPLETED') return 'bg-emerald-100 text-emerald-700'
+  if (item.status === 'IN_PROGRESS') return 'bg-blue-100 text-blue-700'
   return 'bg-amber-100 text-amber-700'
 }
 
@@ -370,7 +381,7 @@ export default function MaintenanceWorkOrdersPage() {
                         <div className="text-sm font-bold text-slate-800">{item.ot_number}</div>
                         <div className="mt-1 text-xs font-medium text-slate-600">{item.maintenance_plan_name}</div>
                       </div>
-                      <span className={'shrink-0 rounded-full px-2 py-1 text-[10px] font-semibold ' + statusClass(item.status)}>{statusLabels[item.status]}</span>
+                      <span className={'shrink-0 rounded-full px-2 py-1 text-[10px] font-semibold ' + displayStatusClass(item)}>{displayStatusLabel(item)}</span>
                     </div>
                     <div className="mt-2 text-[10px] text-slate-500">
                       {item.apparatus_code ?? '—'} · {item.apparatus_name ?? 'Equipo no disponible'}
@@ -419,7 +430,7 @@ export default function MaintenanceWorkOrdersPage() {
                       </td>
                       <td className="px-3 py-3 text-slate-600">{item.assigned_user_name ?? 'Sin asignar'}</td>
                       <td className="whitespace-nowrap px-3 py-3">
-                        <span className={'inline-flex rounded-full px-2 py-1 text-[10px] font-semibold ' + statusClass(item.status)}>{statusLabels[item.status]}</span>
+                        <span className={'inline-flex rounded-full px-2 py-1 text-[10px] font-semibold ' + displayStatusClass(item)}>{displayStatusLabel(item)}</span>
                       </td>
                     </tr>
                   ))}
@@ -438,7 +449,7 @@ export default function MaintenanceWorkOrdersPage() {
                 <div>
                   <div className="text-xl font-bold text-slate-900">{selected.ot_number}</div>
                   <div className="mt-1 text-sm text-slate-600">{selected.maintenance_plan_name}</div>
-                  <span className={'mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ' + statusClass(selected.status)}>{statusLabels[selected.status]}</span>
+                  <span className={'mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ' + displayStatusClass(selected)}>{displayStatusLabel(selected)}</span>
                 </div>
 
                 <div className="grid gap-2 rounded-xl border bg-slate-50 p-3 text-sm text-slate-700">
@@ -561,8 +572,15 @@ export default function MaintenanceWorkOrdersPage() {
                 </div>
 
                 {selected.status === 'PENDING' && (
-                  <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-xs text-amber-800">
-                    <AlertTriangle className="mb-1 inline-block" size={15} /> Esta OT está pendiente de ejecución.
+                  <div className={
+                    isOverdue(selected)
+                      ? 'rounded-xl border border-rose-200 bg-rose-50 px-3 py-3 text-xs text-rose-800'
+                      : 'rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-xs text-amber-800'
+                  }>
+                    <AlertTriangle className="mb-1 inline-block" size={15} />
+                    {isOverdue(selected)
+                      ? 'Esta OT está pendiente y ha superado su fecha prevista.'
+                      : 'Esta OT está pendiente de ejecución.'}
                   </div>
                 )}
 

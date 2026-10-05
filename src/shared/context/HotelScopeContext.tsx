@@ -192,7 +192,31 @@ export function HotelScopeProvider({ children }: { children: ReactNode }) {
     )
   }
 
-  return <HotelScopeContext.Provider value={value}>{children}</HotelScopeContext.Provider>
+  return (
+    <HotelScopeContext.Provider value={value}>
+      {session && hotels.length > 1 && hotel && (
+        <div className="fixed left-1/2 top-2 z-[100] -translate-x-1/2">
+          <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white/95 px-2.5 py-1.5 shadow-lg backdrop-blur sm:px-3">
+            <span className="hidden text-[10px] font-semibold uppercase tracking-wide text-slate-400 sm:inline">Hotel activo</span>
+            <select
+              value={hotel.id}
+              onChange={(event) => void setHotel(event.target.value)}
+              className="max-w-[58vw] border-0 bg-transparent px-1 py-0.5 text-xs font-semibold text-slate-800 outline-none sm:max-w-[320px] sm:text-sm"
+              aria-label="Cambiar hotel activo"
+            >
+              {hotels.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.code} · {item.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      )}
+
+      {children}
+    </HotelScopeContext.Provider>
+  )
 }
 
 export function useHotelScope() {

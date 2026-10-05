@@ -269,7 +269,7 @@ export default function MaintenanceWorkOrdersPage() {
           </section>
 
           <aside className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div className="border-b px-4 py-3 text-sm font-semibold">Ficha de OT</div>
+            <div className="border-b px-4 py-3 text-sm font-semibold">Detalle de OT</div>
             {selected ? (
               <div className="space-y-4 p-4">
                 <div>

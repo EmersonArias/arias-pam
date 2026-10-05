@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { useAuth } from '../../../features/auth/context/AuthProvider'
-import { supabase } from '../../../lib/supabase'
+import { useAuth } from '../../features/auth/context/AuthProvider'
+import { supabase } from '../../lib/supabase'
 
 export type HotelScope = {
   id: string
@@ -65,8 +65,9 @@ export function HotelScopeProvider({ children }: { children: ReactNode }) {
         .eq('user_id', session.user.id)
         .eq('active', true)
 
+      const assignmentRows = (assignments.data ?? []) as Array<{ hotel_id: string | null }>
       const hotelIds = Array.from(
-        new Set((assignments.data ?? []).map((row) => row.hotel_id).filter(Boolean)),
+        new Set(assignmentRows.map((row) => row.hotel_id).filter((id): id is string => Boolean(id))),
       )
 
       if (hotelIds.length) {

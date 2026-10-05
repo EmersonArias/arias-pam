@@ -98,17 +98,109 @@ function describeRule(rule: Rule) {
   return actions.join(' · ') || 'Sin acciones definidas'
 }
 
+const priorityValues = {
+  CRITICAL: 10,
+  HIGH: 50,
+  NORMAL: 100,
+  LOW: 200,
+} as const
+
+type RulePriority = keyof typeof priorityValues
+
+function priorityLabel(value: number) {
+  if (value <= priorityValues.CRITICAL) return 'Crítica'
+  if (value <= priorityValues.HIGH) return 'Alta'
+  if (value <= priorityValues.NORMAL) return 'Normal'
+  return 'Baja'
+}
+
 function emptyRule() {
   return {
     name: '',
     description: '',
     trigger_event: 'PAM_JOB_OVERDUE' as TriggerEvent,
-    conditionsText: '{"overdue":true}',
-    actionsText: '{"create_work_order":true,"notify_maintenance_chief":true,"priority":"HIGH"}',
-    priority: 100,
+    overdueDays: '1',
+    createWorkOrder: true,
+    workType: 'PREVENTIVE' as 'PREVENTIVE' | 'CORRECTIVE' | 'ACTUATION',
+    notifyMaintenanceChief: true,
+    notifyAssignee: false,
+    priority: 'HIGH' as RulePriority,
     active: true,
   }
 }
+
+function ruleFormFromTemplate(template: typeof templateRules[number]) {
+  const actions = template.actions as Record<string, unknown>
+  const priority =
+    actions.priority === 'CRITICAL' ? 'CRITICAL' :
+    actions.priority === 'HIGH' ? 'HIGH' :
+    actions.priority === 'LOW' ? 'LOW' :
+    'NORMAL'
+
+  return {
+    ...emptyRule(),
+    name: template.name,
+    description: template.description,
+    trigger_event: template.trigger_event,
+    overdueDays: String(
+      typeof template.conditions.overdue_days_min === 'number'
+        ? template.conditions.overdue_days_min
+        : 1,
+    ),
+    createWorkOrder: actions.create_work_order === true,
+    workType:
+      actions.work_type === 'CORRECTIVE' || actions.work_type === 'ACTUATION'
+        ? actions.work_type
+        : 'PREVENTIVE',
+    notifyMaintenanceChief: actions.notify_maintenance_chief !== false,
+    notifyAssignee: actions.notify_assignee === true,
+    priority: priority as RulePriority,
+    active: true,
+  }
+}
+
+function buildRuleConditions(form: ReturnType<typeof emptyRule>): Record<string, unknown> {
+  switch (form.trigger_event) {
+    case 'PAM_JOB_OVERDUE':
+      return {
+        overdue: true,
+        overdue_days_min: Math.max(0, Number(form.overdueDays) || 0),
+      }
+    case 'EXECUTION_NOT_CONFORM':
+      return { result: 'NOT_CONFORM' }
+    case 'EXECUTION_WITH_ISSUES':
+      return { result: 'COMPLETED_WITH_ISSUES' }
+    case 'CONTROL_OUT_OF_RANGE':
+      return { control_status: 'OUT_OF_RANGE' }
+    default:
+      return {}
+  }
+}
+
+function buildRuleActions(form: ReturnType<typeof emptyRule>): Record<string, unknown> {
+  return {
+    create_work_order: form.createWorkOrder,
+    ...(form.createWorkOrder ? { work_type: form.workType } : {}),
+    notify_maintenance_chief: form.notifyMaintenanceChief,
+    notify_assignee: form.notifyAssignee,
+  }
+}
+
+function describeRule(rule: Rule) {
+  const actions: string[] = []
+  if (rule.actions.create_work_order) {
+    const workType = rule.actions.work_type === 'CORRECTIVE'
+      ? 'OT correctiva'
+      : rule.actions.work_type === 'ACTUATION'
+        ? 'Actuación'
+        : 'OT preventiva'
+    actions.push(workType)
+  }
+  if (rule.actions.notify_maintenance_chief) actions.push('aviso al Jefe de Mantenimiento')
+  if (rule.actions.notify_assignee) actions.push('aviso al responsable')
+  return actions.join(' · ') || 'Sin acciones definidas'
+}
+
 
 export default function MaintenanceConfigurationPage() {
   const navigate = useNavigate()
@@ -244,14 +336,8 @@ export default function MaintenanceConfigurationPage() {
       return
     }
 
-    let conditions: Record<string, unknown>
-    let actions: Record<string, unknown>
-
-    try {
-      conditions = JSON.parse(ruleForm.conditionsText)
-      actions = JSON.parse(ruleForm.actionsText)
-    } catch {
-      setError('Las condiciones y acciones deben ser JSON válido.')
+    if (ruleForm.trigger_event === 'PAM_JOB_OVERDUE' && Number(ruleForm.overdueDays) < 0) {
+      setError('Los días de vencimiento no pueden ser negativos.')
       return
     }
 
@@ -266,9 +352,9 @@ export default function MaintenanceConfigurationPage() {
         name: ruleForm.name.trim(),
         description: ruleForm.description.trim() || null,
         trigger_event: ruleForm.trigger_event,
-        conditions,
-        actions,
-        priority: Math.max(0, Number(ruleForm.priority) || 0),
+        conditions: buildRuleConditions(ruleForm),
+        actions: buildRuleActions(ruleForm),
+        priority: priorityValues[ruleForm.priority],
         active: ruleForm.active,
         created_by: userId,
         updated_by: userId,
@@ -440,20 +526,85 @@ export default function MaintenanceConfigurationPage() {
                   <div className="mb-4 flex items-start justify-between gap-3">
                     <div>
                       <h3 className="font-semibold">Nueva regla automática</h3>
-                      <p className="text-xs text-slate-500">La configuración se almacena ahora; el motor ejecutará las reglas cuando activemos la automatización.</p>
+                      <p className="text-xs text-slate-500">Configura la regla con opciones claras. La parte técnica se guarda automáticamente.</p>
                     </div>
                     <button type="button" onClick={() => setRuleFormOpen(false)} className="rounded-lg border bg-white px-3 py-2 text-sm">Cancelar</button>
                   </div>
+
                   <div className="grid gap-3 md:grid-cols-2">
-                    <label><span className="mb-1 block text-sm font-medium">Nombre</span><input value={ruleForm.name} onChange={(e) => setRuleForm((c) => ({ ...c, name: e.target.value }))} className="w-full rounded-xl border bg-white px-3 py-2" placeholder="Ej.: OT crítica por vencimiento" /></label>
-                    <label><span className="mb-1 block text-sm font-medium">Evento</span><select value={ruleForm.trigger_event} onChange={(e) => setRuleForm((c) => ({ ...c, trigger_event: e.target.value as TriggerEvent }))} className="w-full rounded-xl border bg-white px-3 py-2">{(Object.keys(triggerLabels) as TriggerEvent[]).map((event) => <option key={event} value={event}>{triggerLabels[event]}</option>)}</select></label>
-                    <label className="md:col-span-2"><span className="mb-1 block text-sm font-medium">Descripción</span><textarea rows={2} value={ruleForm.description} onChange={(e) => setRuleForm((c) => ({ ...c, description: e.target.value }))} className="w-full rounded-xl border bg-white px-3 py-2" /></label>
-                    <label><span className="mb-1 block text-sm font-medium">Condiciones</span><textarea rows={5} value={ruleForm.conditionsText} onChange={(e) => setRuleForm((c) => ({ ...c, conditionsText: e.target.value }))} className="w-full rounded-xl border bg-white px-3 py-2 font-mono text-xs" /></label>
-                    <label><span className="mb-1 block text-sm font-medium">Acciones</span><textarea rows={5} value={ruleForm.actionsText} onChange={(e) => setRuleForm((c) => ({ ...c, actionsText: e.target.value }))} className="w-full rounded-xl border bg-white px-3 py-2 font-mono text-xs" /></label>
-                    <label><span className="mb-1 block text-sm font-medium">Prioridad</span><input type="number" min={0} value={ruleForm.priority} onChange={(e) => setRuleForm((c) => ({ ...c, priority: Number(e.target.value) }))} className="w-full rounded-xl border bg-white px-3 py-2" /></label>
-                    <label className="flex items-center gap-2 self-end text-sm"><input type="checkbox" checked={ruleForm.active} onChange={(e) => setRuleForm((c) => ({ ...c, active: e.target.checked }))} />Regla activa</label>
+                    <label>
+                      <span className="mb-1 block text-sm font-medium">Nombre de la regla</span>
+                      <input value={ruleForm.name} onChange={(e) => setRuleForm((current) => ({ ...current, name: e.target.value }))} className="w-full rounded-xl border bg-white px-3 py-2" placeholder="Ej.: OT por mantenimiento vencido" />
+                    </label>
+                    <label>
+                      <span className="mb-1 block text-sm font-medium">Cuándo ocurre</span>
+                      <select value={ruleForm.trigger_event} onChange={(e) => setRuleForm((current) => ({ ...current, trigger_event: e.target.value as TriggerEvent }))} className="w-full rounded-xl border bg-white px-3 py-2">
+                        {(Object.keys(triggerLabels) as TriggerEvent[]).map((event) => <option key={event} value={event}>{triggerLabels[event]}</option>)}
+                      </select>
+                    </label>
+                    <label className="md:col-span-2">
+                      <span className="mb-1 block text-sm font-medium">Descripción</span>
+                      <textarea rows={2} value={ruleForm.description} onChange={(e) => setRuleForm((current) => ({ ...current, description: e.target.value }))} className="w-full rounded-xl border bg-white px-3 py-2" placeholder="Explica qué debe hacer esta regla." />
+                    </label>
                   </div>
-                  <div className="mt-4 flex justify-end"><ActionButton icon={Save} label={ruleSaving ? 'Guardando…' : 'Guardar regla'} tone="primary" onClick={() => void saveRule()} disabled={ruleSaving} /></div>
+
+                  {ruleForm.trigger_event === 'PAM_JOB_OVERDUE' && (
+                    <div className="mt-4 rounded-xl border bg-white p-4">
+                      <div className="text-sm font-semibold text-slate-800">Condición</div>
+                      <label className="mt-3 block max-w-md">
+                        <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Antigüedad del vencimiento</span>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-sm text-slate-600">Aplicar cuando lleve al menos</span>
+                          <input type="number" min={0} value={ruleForm.overdueDays} onChange={(e) => setRuleForm((current) => ({ ...current, overdueDays: e.target.value }))} className="w-24 rounded-xl border px-3 py-2" />
+                          <span className="text-sm text-slate-600">día(s) vencido</span>
+                        </div>
+                      </label>
+                    </div>
+                  )}
+
+                  <div className="mt-4 rounded-xl border bg-white p-4">
+                    <div className="text-sm font-semibold text-slate-800">Entonces</div>
+                    <div className="mt-3 grid gap-3 md:grid-cols-2">
+                      <label className="flex items-center gap-2 rounded-xl border bg-slate-50 px-3 py-2 text-sm">
+                        <input type="checkbox" checked={ruleForm.createWorkOrder} onChange={(e) => setRuleForm((current) => ({ ...current, createWorkOrder: e.target.checked }))} />
+                        Crear OT automáticamente
+                      </label>
+                      <label className="flex items-center gap-2 rounded-xl border bg-slate-50 px-3 py-2 text-sm">
+                        <input type="checkbox" checked={ruleForm.notifyMaintenanceChief} onChange={(e) => setRuleForm((current) => ({ ...current, notifyMaintenanceChief: e.target.checked }))} />
+                        Avisar al Jefe de Mantenimiento
+                      </label>
+                      <label className="flex items-center gap-2 rounded-xl border bg-slate-50 px-3 py-2 text-sm">
+                        <input type="checkbox" checked={ruleForm.notifyAssignee} onChange={(e) => setRuleForm((current) => ({ ...current, notifyAssignee: e.target.checked }))} />
+                        Avisar al responsable asignado
+                      </label>
+                      <label>
+                        <span className="mb-1 block text-sm font-medium">Tipo de OT</span>
+                        <select value={ruleForm.workType} disabled={!ruleForm.createWorkOrder} onChange={(e) => setRuleForm((current) => ({ ...current, workType: e.target.value as typeof current.workType }))} className="w-full rounded-xl border bg-white px-3 py-2 disabled:bg-slate-100">
+                          <option value="PREVENTIVE">Preventiva</option>
+                          <option value="CORRECTIVE">Correctiva</option>
+                          <option value="ACTUATION">Actuación</option>
+                        </select>
+                      </label>
+                      <label>
+                        <span className="mb-1 block text-sm font-medium">Importancia</span>
+                        <select value={ruleForm.priority} onChange={(e) => setRuleForm((current) => ({ ...current, priority: e.target.value as RulePriority }))} className="w-full rounded-xl border bg-white px-3 py-2">
+                          <option value="CRITICAL">Crítica</option>
+                          <option value="HIGH">Alta</option>
+                          <option value="NORMAL">Normal</option>
+                          <option value="LOW">Baja</option>
+                        </select>
+                      </label>
+                    </div>
+                  </div>
+
+                  <label className="mt-4 flex items-center gap-2 text-sm">
+                    <input type="checkbox" checked={ruleForm.active} onChange={(e) => setRuleForm((current) => ({ ...current, active: e.target.checked }))} />
+                    Regla activa
+                  </label>
+
+                  <div className="mt-4 flex justify-end">
+                    <ActionButton icon={Save} label={ruleSaving ? 'Guardando…' : 'Guardar regla'} tone="primary" onClick={() => void saveRule()} disabled={ruleSaving} />
+                  </div>
                 </div>
               )}
 
@@ -471,7 +622,7 @@ export default function MaintenanceConfigurationPage() {
                           <div className="flex flex-wrap items-center gap-2">
                             <span className="font-semibold">{rule.name}</span>
                             <span className={rule.active ? 'rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-semibold text-emerald-700' : 'rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-500'}>{rule.active ? 'Activa' : 'Inactiva'}</span>
-                            <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-600">P{rule.priority}</span>
+                            <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-600">Importancia: {priorityLabel(rule.priority)}</span>
                           </div>
                           <div className="mt-1 text-xs text-slate-500">{triggerLabels[rule.trigger_event]}</div>
                           {rule.description && <p className="mt-2 text-sm text-slate-600">{rule.description}</p>}

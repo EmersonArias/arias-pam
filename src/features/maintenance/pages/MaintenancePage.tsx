@@ -1096,7 +1096,7 @@ export default function MaintenancePage() {
                         {pendingEvidenceFiles.map((file) => file.name).join(" · ")}
                       </div>
                     )}
-                  </label>
+                  </div>
 
                   {controls.length > 0 && (
                     <div className="mt-5 space-y-3">

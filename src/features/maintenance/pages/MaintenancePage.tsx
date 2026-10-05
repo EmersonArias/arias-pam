@@ -815,7 +815,17 @@ export default function MaintenancePage() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="truncate font-medium">{plan.name}</div>
-                    <div className="mt-1 text-xs text-slate-500">{plan.apparatus?.code ?? "—"} · {plan.apparatus?.name ?? "Equipo no disponible"}</div>
+                    <div className="mt-1 text-xs text-slate-500">
+                      {(() => {
+                        const equipment = plan.apparatus
+                          ? [{ code: plan.apparatus.code, name: plan.apparatus.name }]
+                          : (planEquipment[plan.id] ?? [])
+                        if (equipment.length === 0) return "Equipo no disponible"
+                        if (equipment.length === 1) return equipment[0].code + " · " + equipment[0].name
+                        return equipment.slice(0, 2).map((item) => item.code + " · " + item.name).join(" · ")
+                          + (equipment.length > 2 ? " · +" + (equipment.length - 2) : "")
+                      })()}
+                    </div>
                   </div>
                   <span className={
                     "shrink-0 rounded-full px-2 py-1 text-[10px] font-semibold " +
@@ -829,19 +839,6 @@ export default function MaintenancePage() {
                   }>
                     {planState(plan.next_due_date, plan.active)}
                   </span>
-                </div>
-                <div className="mt-1 text-xs text-slate-500">
-                  {(() => {
-                    const direct = plan.apparatus
-                      ? [{ code: plan.apparatus.code, name: plan.apparatus.name }]
-                      : (planEquipment[plan.id] ?? [])
-                    const equipmentText = direct.length === 0
-                      ? "Equipo no disponible"
-                      : direct.length === 1
-                        ? direct[0].code + " — " + direct[0].name
-                        : direct.slice(0, 2).map((item) => item.code + " — " + item.name).join(" · ") + (direct.length > 2 ? " · +" + (direct.length - 2) : "")
-                    return equipmentText
-                  })()}
                 </div>
                 <div className="mt-1 text-xs text-slate-500">
                   Próxima: {plan.next_due_date

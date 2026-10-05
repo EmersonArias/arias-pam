@@ -6,7 +6,7 @@ import { BackButton, HomeButton } from '../../../shared/components/navigation/Na
 
 const actions = [
   ['Trabajo diario', 'Tareas preventivas y trabajos pendientes.', ListTodo, '/maintenance/configuration'],
-  ['OT', 'Incidencias y órdenes de trabajo.', Wrench, '/actions'],
+  ['OT', 'Órdenes de trabajo preventivas y operativas.', Wrench, '/maintenance/work-orders'],
   ['Ejecuciones', 'Registrar el trabajo realizado sobre un mantenimiento.', ClipboardCheck, '/maintenance/configuration'],
   ['Actuaciones', 'Trabajos, reparaciones y sustituciones.', FilePlus2, '/actions'],
 ] as const

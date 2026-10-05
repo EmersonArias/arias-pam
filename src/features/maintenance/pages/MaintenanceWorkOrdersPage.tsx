@@ -1,11 +1,22 @@
-import { useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, CheckCircle2, Clock3, FileText, RefreshCw, UserRound, Wrench } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { AlertTriangle, CheckCircle2, Clock3, FileText, Image, RefreshCw, Trash2, Upload, UserRound, Wrench } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import BrandLogo from '../../../shared/components/branding/BrandLogo'
 import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
 import IconButton from '../../../shared/components/buttons/IconButton'
 import { useHotelScope } from '../../../shared/context/HotelScopeContext'
 import { supabase } from '../../../lib/supabase'
+
+type WorkOrderEvidence = {
+  id: string
+  storage_path: string
+  file_name: string
+  mime_type: string
+  file_size: number
+  uploaded_by: string | null
+  uploaded_at: string
+  url: string
+}
 
 type WorkOrder = {
   id: string
@@ -88,6 +99,10 @@ export default function MaintenanceWorkOrdersPage() {
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [evidence, setEvidence] = useState<WorkOrderEvidence[]>([])
+  const [evidenceLoading, setEvidenceLoading] = useState(false)
+  const [evidenceSaving, setEvidenceSaving] = useState(false)
+  const photoInputRef = useRef<HTMLInputElement | null>(null)
 
   async function loadData() {
     if (!hotel?.id) {
@@ -125,6 +140,133 @@ export default function MaintenanceWorkOrdersPage() {
   useEffect(() => {
     void loadData()
   }, [hotel?.id])
+
+  async function loadEvidence(workOrderId: string) {
+    setEvidenceLoading(true)
+    setEvidence([])
+
+    const result = await supabase
+      .from('maintenance_work_order_evidence')
+      .select('id, storage_path, file_name, mime_type, file_size, uploaded_by, uploaded_at')
+      .eq('work_order_id', workOrderId)
+      .order('uploaded_at', { ascending: false })
+
+    if (result.error) {
+      setError(result.error.message)
+      setEvidenceLoading(false)
+      return
+    }
+
+    const resolved = await Promise.all(
+      (result.data ?? []).map(async (item) => {
+        const signed = await supabase
+          .storage
+          .from('maintenance-evidence')
+          .createSignedUrl(item.storage_path, 3600)
+
+        if (signed.error || !signed.data?.signedUrl) return null
+
+        return {
+          ...item,
+          url: signed.data.signedUrl,
+        } as WorkOrderEvidence
+      }),
+    )
+
+    setEvidence(resolved.filter(Boolean) as WorkOrderEvidence[])
+    setEvidenceLoading(false)
+  }
+
+  useEffect(() => {
+    if (!selectedId) {
+      setEvidence([])
+      return
+    }
+    void loadEvidence(selectedId)
+  }, [selectedId])
+
+  async function uploadPhotos(files: File[]) {
+    if (!hotel?.id || !selected) return
+
+    const imageFiles = files.filter((file) => file.type.startsWith('image/'))
+    if (!imageFiles.length) {
+      setError('Selecciona al menos una fotografía.')
+      return
+    }
+
+    setEvidenceSaving(true)
+    setError('')
+
+    try {
+      for (const file of imageFiles) {
+        const safeName = file.name.replace(/[^a-zA-Z0-9._-]+/g, '_')
+        const storagePath = `${hotel.id}/${selected.id}/${crypto.randomUUID()}-${safeName}`
+
+        const upload = await supabase
+          .storage
+          .from('maintenance-evidence')
+          .upload(storagePath, file, {
+            contentType: file.type,
+            upsert: false,
+          })
+
+        if (upload.error) throw upload.error
+
+        const insert = await supabase
+          .from('maintenance_work_order_evidence')
+          .insert({
+            hotel_id: hotel.id,
+            work_order_id: selected.id,
+            storage_path: storagePath,
+            file_name: file.name,
+            mime_type: file.type,
+            file_size: file.size,
+            uploaded_by: (await supabase.auth.getUser()).data.user?.id ?? null,
+          })
+
+        if (insert.error) {
+          await supabase.storage.from('maintenance-evidence').remove([storagePath])
+          throw insert.error
+        }
+      }
+
+      await loadEvidence(selected.id)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se han podido guardar las fotografías.')
+    } finally {
+      setEvidenceSaving(false)
+      if (photoInputRef.current) photoInputRef.current.value = ''
+    }
+  }
+
+  async function removePhoto(item: WorkOrderEvidence) {
+    if (!selected) return
+
+    setEvidenceSaving(true)
+    setError('')
+
+    try {
+      const storageResult = await supabase
+        .storage
+        .from('maintenance-evidence')
+        .remove([item.storage_path])
+
+      if (storageResult.error) throw storageResult.error
+
+      const result = await supabase
+        .from('maintenance_work_order_evidence')
+        .delete()
+        .eq('id', item.id)
+
+      if (result.error) throw result.error
+
+      setEvidence((current) => current.filter((entry) => entry.id !== item.id))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se ha podido eliminar la fotografía.')
+    } finally {
+      setEvidenceSaving(false)
+    }
+  }
 
   const filteredRecords = useMemo(() => {
     const query = search.trim().toLocaleLowerCase('es')
@@ -318,6 +460,70 @@ export default function MaintenanceWorkOrdersPage() {
                     <div className="whitespace-pre-wrap text-sm leading-6 text-slate-700">{getWorkDescription(selected)}</div>
                   </div>
                 )}
+
+
+                <div className="rounded-xl border border-slate-200 bg-white p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+                        <Image size={17} />
+                        Fotografías
+                      </div>
+                      <div className="mt-0.5 text-xs text-slate-500">Evidencias de la ejecución de esta OT.</div>
+                    </div>
+                    <div>
+                      <input
+                        ref={photoInputRef}
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        className="hidden"
+                        onChange={(event) => {
+                          const files = Array.from(event.target.files ?? [])
+                          if (files.length) void uploadPhotos(files)
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => photoInputRef.current?.click()}
+                        disabled={evidenceSaving}
+                        className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <Upload size={15} />
+                        {evidenceSaving ? 'Guardando…' : 'Añadir fotos'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {evidenceLoading ? (
+                    <div className="mt-3 text-xs text-slate-400">Cargando fotografías…</div>
+                  ) : evidence.length ? (
+                    <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                      {evidence.map((item) => (
+                        <div key={item.id} className="group relative overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+                          <a href={item.url} target="_blank" rel="noreferrer" className="block aspect-square">
+                            <img src={item.url} alt={item.file_name} className="h-full w-full object-cover" />
+                          </a>
+                          <button
+                            type="button"
+                            onClick={() => void removePhoto(item)}
+                            disabled={evidenceSaving}
+                            aria-label={`Eliminar ${item.file_name}`}
+                            title="Eliminar fotografía"
+                            className="absolute right-1.5 top-1.5 inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-slate-600 shadow-sm hover:bg-white disabled:opacity-50"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                          <div className="truncate border-t bg-white px-2 py-1.5 text-[10px] text-slate-500">{item.file_name}</div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="mt-3 rounded-lg border border-dashed border-slate-300 px-3 py-4 text-center text-xs text-slate-400">
+                      Todavía no hay fotografías registradas.
+                    </div>
+                  )}
+                </div>
 
                 {selected.observations && (
                   <div>

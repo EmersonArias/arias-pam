@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { AlertTriangle, ArrowDownUp, Bell, CalendarClock, CheckCircle2, PlayCircle, Plus, Save, Settings2, Trash2, UserRound } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../../lib/supabase'

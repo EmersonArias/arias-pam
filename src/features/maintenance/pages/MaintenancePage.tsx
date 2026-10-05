@@ -2,6 +2,7 @@ import { useEffect, useState, type ChangeEvent, type FormEvent } from "react"
 import { AlertTriangle, Bell, CalendarClock, CheckCircle2, Clock3, Download, Mail, PlayCircle, Plus, Save, Trash2, Upload } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import { supabase } from "../../../lib/supabase"
+import { useHotelScope } from "../../../shared/context/HotelScopeContext"
 import ActionButton from "../../../shared/components/buttons/ActionButton"
 import { BackButton, HomeButton } from "../../../shared/components/navigation/NavigationButtons"
 import BrandLogo from "../../../shared/components/branding/BrandLogo"
@@ -119,6 +120,7 @@ const emptyControl: Control = { label: "", input_type: "NUMBER", unit: "", min_v
 export default function MaintenancePage() {
   const navigate = useNavigate()
   const { alert: showAlert } = useSystemDialog()
+  const { hotel } = useHotelScope()
   const [hotelId, setHotelId] = useState("")
   const [apparatus, setApparatus] = useState<Apparatus[]>([])
   const [planApparatus, setPlanApparatus] = useState<Apparatus[]>([])
@@ -148,14 +150,13 @@ export default function MaintenancePage() {
   async function loadBase() {
     setLoading(true)
     setError("")
-    const hotel = await supabase.from("hotels").select("id").eq("active", true).order("name").limit(1).maybeSingle()
-    if (hotel.error || !hotel.data?.id) {
-      setError(hotel.error?.message ?? "No se ha podido determinar el hotel activo.")
+    if (!hotel?.id) {
+      setError("No se ha seleccionado un hotel de trabajo.")
       setLoading(false)
       return
     }
 
-    const id = hotel.data.id as string
+    const id = hotel.id
     setHotelId(id)
 
     await supabase.rpc("refresh_maintenance_due_alerts", { target_hotel_id: id })
@@ -187,7 +188,7 @@ export default function MaintenancePage() {
     }
     setLoading(false)
   }
-  useEffect(() => { void loadBase() }, [])
+  useEffect(() => { void loadBase() }, [hotel?.id])
 
   function setField<K extends keyof FormState>(field: K, value: FormState[K]) { setForm((current) => ({ ...current, [field]: value })) }
   function newPlan() {

@@ -44,6 +44,7 @@ type Plan = {
 
 type Execution = {
   id: string
+  work_order_id: string | null
   scheduled_date: string | null
   executed_at: string | null
   result: 'COMPLETED' | 'COMPLETED_WITH_ISSUES' | 'NOT_CONFORM' | 'CANCELLED'
@@ -58,6 +59,7 @@ type WorkOrder = {
   scheduled_date: string | null
   status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED'
   generation_mode: 'AUTO' | 'MANUAL'
+  completion_timing: 'ON_TIME' | 'OUT_OF_DATE' | null
 }
 
 const hotelAssetCodes: Record<number, string> = {
@@ -170,11 +172,17 @@ function workOrderIsOverdue(order: WorkOrder) {
 }
 
 function workOrderDisplayLabel(order: WorkOrder) {
+  if (order.status === 'COMPLETED' && order.completion_timing === 'OUT_OF_DATE') {
+    return 'Finalizada · Fuera de fecha'
+  }
   return workOrderIsOverdue(order) ? 'Vencida' : workOrderStatusLabel(order.status)
 }
 
 function workOrderDisplayTone(order: WorkOrder) {
   if (workOrderIsOverdue(order)) return 'bg-rose-100 text-rose-700'
+  if (order.status === 'COMPLETED' && order.completion_timing === 'OUT_OF_DATE') {
+    return 'bg-amber-100 text-amber-700'
+  }
   return workOrderStatusTone(order.status)
 }
 
@@ -293,12 +301,12 @@ export default function MaintenancePamDetailPage() {
       ? await Promise.all([
           supabase
             .from('maintenance_executions')
-            .select('id, scheduled_date, executed_at, result, performer_name, performer_company, observations')
+            .select('id, work_order_id, scheduled_date, executed_at, result, performer_name, performer_company, observations')
             .eq('maintenance_plan_id', selectedPlan.id)
             .order('executed_at', { ascending: false, nullsFirst: false }),
           supabase
             .from('maintenance_work_orders')
-            .select('id, ot_number, scheduled_date, status, generation_mode')
+            .select('id, ot_number, scheduled_date, status, generation_mode, completion_timing')
             .eq('maintenance_plan_id', selectedPlan.id)
             .order('scheduled_date', { ascending: false, nullsFirst: false }),
         ])
@@ -346,9 +354,14 @@ export default function MaintenancePamDetailPage() {
   const latestExecution = executions[0] ?? null
 
   const historyRows = useMemo(() => {
+    const executionByWorkOrderId = new Map<string, Execution>()
     const executionByDate = new Map<string, Execution[]>()
 
     for (const execution of executions) {
+      if (execution.work_order_id) {
+        executionByWorkOrderId.set(execution.work_order_id, execution)
+      }
+
       const date = execution.scheduled_date ?? execution.executed_at?.slice(0, 10) ?? ''
       if (!date) continue
       const rows = executionByDate.get(date) ?? []
@@ -358,12 +371,16 @@ export default function MaintenancePamDetailPage() {
 
     const rows = workOrders.map((order) => {
       const date = order.scheduled_date ?? ''
-      const matchingExecution = executionByDate.get(date)?.[0] ?? null
+      const matchingExecution =
+        executionByWorkOrderId.get(order.id)
+        ?? executionByDate.get(date)?.[0]
+        ?? null
       const isCancelled = matchingExecution?.result === 'CANCELLED'
+
       return {
         key: 'ot-' + order.id,
         date: date || matchingExecution?.executed_at?.slice(0, 10) || '',
-        isCancelled
+        statusLabel: isCancelled
           ? 'No realizada'
           : workOrderDisplayLabel(order),
         statusTone: isCancelled
@@ -374,10 +391,17 @@ export default function MaintenancePamDetailPage() {
       }
     })
 
+    const linkedExecutionIds = new Set(
+      workOrders
+        .map((order) => executionByWorkOrderId.get(order.id)?.id)
+        .filter(Boolean),
+    )
     const workOrderDates = new Set(workOrders.map((order) => order.scheduled_date).filter(Boolean))
+
     for (const execution of executions) {
       const date = execution.scheduled_date ?? execution.executed_at?.slice(0, 10) ?? ''
-      if (!date || workOrderDates.has(date)) continue
+      if (!date || linkedExecutionIds.has(execution.id) || workOrderDates.has(date)) continue
+
       rows.push({
         key: 'execution-' + execution.id,
         date,
@@ -571,11 +595,34 @@ export default function MaintenancePamDetailPage() {
         return
       }
 
+      const openWorkOrderQuery = await supabase
+        .from('maintenance_work_orders')
+        .select('id, ot_number, scheduled_date')
+        .eq('maintenance_plan_id', plan.id)
+        .in('status', ['PENDING', 'IN_PROGRESS'])
+        .order('scheduled_date', { ascending: true, nullsFirst: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (openWorkOrderQuery.error) {
+        setErrorMessage('No se ha podido localizar la OT pendiente: ' + openWorkOrderQuery.error.message)
+        return
+      }
+
+      const openWorkOrder = openWorkOrderQuery.data
+        ? {
+            id: String(openWorkOrderQuery.data.id),
+            otNumber: String(openWorkOrderQuery.data.ot_number),
+            scheduledDate: openWorkOrderQuery.data.scheduled_date as string | null,
+          }
+        : null
+
       const { error } = await supabase
         .from('maintenance_executions')
         .insert({
           maintenance_plan_id: plan.id,
-          scheduled_date: reviewDate,
+          work_order_id: openWorkOrder?.id ?? null,
+          scheduled_date: openWorkOrder?.scheduledDate ?? null,
           executed_at: new Date(reviewDate + 'T12:00:00').toISOString(),
           executed_by: userId,
           performer_name: performerName,
@@ -585,11 +632,17 @@ export default function MaintenancePamDetailPage() {
         })
 
       if (error) {
-        setErrorMessage('Error registrando la revisión: ' + error.message)
+        setErrorMessage('Error registrando la ejecución: ' + error.message)
         return
       }
 
-      setMessage('Revisión registrada. La próxima revisión se recalculará según la periodicidad.')
+      setMessage(
+        openWorkOrder?.scheduledDate && openWorkOrder.scheduledDate !== reviewDate
+          ? 'OT ' + openWorkOrder.otNumber + ' finalizada y guardada fuera de fecha.'
+          : openWorkOrder
+            ? 'OT ' + openWorkOrder.otNumber + ' finalizada correctamente.'
+            : 'Ejecución registrada sin una OT abierta asociada.',
+      )
       await load()
     } finally {
       setRegistering(false)

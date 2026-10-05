@@ -13,15 +13,11 @@ type HotelScopeContextValue = {
   hotels: HotelScope[]
   loading: boolean
   isPlatformAdmin: boolean
-  setHotel: (hotelId: string) => void
+  setHotel: (hotelId: string) => Promise<void>
   refreshHotels: () => Promise<void>
 }
 
 const HotelScopeContext = createContext<HotelScopeContextValue | undefined>(undefined)
-
-function storageKey(userId: string) {
-  return `arias.activeHotelId:${userId}`
-}
 
 export function HotelScopeProvider({ children }: { children: ReactNode }) {
   const { session, loading: authLoading } = useAuth()
@@ -89,33 +85,43 @@ export function HotelScopeProvider({ children }: { children: ReactNode }) {
 
     setHotels(loadedHotels)
 
-    const savedId = window.localStorage.getItem(storageKey(session.user.id))
-    const savedHotel = loadedHotels.find((item) => item.id === savedId) ?? null
+    const activeQuery = await supabase.rpc('get_active_hotel')
+    const activeHotel = activeQuery.error ? null : ((activeQuery.data?.[0] ?? activeQuery.data) as HotelScope | null)
 
-    if (savedHotel) {
-      setHotelState(savedHotel)
+    const selected =
+      activeHotel && loadedHotels.some((item) => item.id === activeHotel.id)
+        ? loadedHotels.find((item) => item.id === activeHotel.id) ?? null
+        : null
+
+    if (selected) {
+      setHotelState(selected)
     } else if (loadedHotels.length === 1) {
-      setHotelState(loadedHotels[0])
-      window.localStorage.setItem(storageKey(session.user.id), loadedHotels[0].id)
+      const onlyHotel = loadedHotels[0]
+      const setResult = await supabase.rpc('set_active_hotel', { target_hotel_id: onlyHotel.id })
+      if (!setResult.error) setHotelState(onlyHotel)
+      else setHotelState(null)
     } else {
       setHotelState(null)
-      window.localStorage.removeItem(storageKey(session.user.id))
     }
 
     setLoading(false)
   }
-
   useEffect(() => {
     if (authLoading) return
     void refreshHotels()
   }, [authLoading, session?.user.id])
 
-  function setHotel(hotelId: string) {
+  async function setHotel(hotelId: string) {
     const selected = hotels.find((item) => item.id === hotelId)
     if (!selected || !session?.user.id) return
 
+    const result = await supabase.rpc('set_active_hotel', {
+      target_hotel_id: selected.id,
+    })
+
+    if (result.error) return
+
     setHotelState(selected)
-    window.localStorage.setItem(storageKey(session.user.id), selected.id)
     window.dispatchEvent(new CustomEvent('arias:hotel-change', { detail: selected.id }))
   }
 

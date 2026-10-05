@@ -163,6 +163,21 @@ function workOrderStatusLabel(status: WorkOrder['status']) {
   }
 }
 
+function workOrderIsOverdue(order: WorkOrder) {
+  return order.status === 'PENDING'
+    && Boolean(order.scheduled_date)
+    && order.scheduled_date! < todayLocalDate()
+}
+
+function workOrderDisplayLabel(order: WorkOrder) {
+  return workOrderIsOverdue(order) ? 'Vencida' : workOrderStatusLabel(order.status)
+}
+
+function workOrderDisplayTone(order: WorkOrder) {
+  if (workOrderIsOverdue(order)) return 'bg-rose-100 text-rose-700'
+  return workOrderStatusTone(order.status)
+}
+
 function workOrderStatusTone(status: WorkOrder['status']) {
   switch (status) {
     case 'COMPLETED': return 'bg-emerald-100 text-emerald-700'
@@ -348,8 +363,12 @@ export default function MaintenancePamDetailPage() {
       return {
         key: 'ot-' + order.id,
         date: date || matchingExecution?.executed_at?.slice(0, 10) || '',
-        statusLabel: isCancelled ? 'No realizada' : workOrderStatusLabel(order.status),
-        statusTone: isCancelled ? 'bg-slate-200 text-slate-700' : workOrderStatusTone(order.status),
+        isCancelled
+          ? 'No realizada'
+          : workOrderDisplayLabel(order),
+        statusTone: isCancelled
+          ? 'bg-slate-200 text-slate-700'
+          : workOrderDisplayTone(order),
         otNumber: order.ot_number,
         execution: matchingExecution,
       }

@@ -1,5 +1,5 @@
 import { useEffect, useState, type ChangeEvent, type FormEvent } from "react"
-import { AlertTriangle, Bell, CalendarClock, CheckCircle2, Clock3, Download, Mail, PlayCircle, Plus, Save, Trash2, Upload } from "lucide-react"
+import { AlertTriangle, Bell, CalendarClock, CheckCircle2, Clock3, Download, ImagePlus, Mail, PlayCircle, Plus, Save, Trash2, Upload } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import { supabase } from "../../../lib/supabase"
 import { useHotelScope } from "../../../shared/context/HotelScopeContext"
@@ -31,6 +31,16 @@ type EvidenceFile = {
   type: string
   size: number
   uploaded_at: string
+}
+type PlanPhoto = {
+  id: string
+  storage_path: string
+  file_name: string
+  mime_type: string
+  file_size: number
+  uploaded_by: string | null
+  uploaded_at: string
+  signed_url?: string
 }
 type MaintenanceAlert = {
   id: string
@@ -117,6 +127,31 @@ const emptyForm: FormState = {
 }
 const emptyControl: Control = { label: "", input_type: "NUMBER", unit: "", min_value: "", max_value: "", required: true }
 
+const PERIODICITY_OPTIONS = [
+  { value: "1-DAY", label: "Diario", periodicity_value: 1, periodicity_unit: "DAY" as const },
+  { value: "1-WEEK", label: "Semanal", periodicity_value: 1, periodicity_unit: "WEEK" as const },
+  { value: "2-WEEK", label: "Quincenal", periodicity_value: 2, periodicity_unit: "WEEK" as const },
+  { value: "1-MONTH", label: "Mensual", periodicity_value: 1, periodicity_unit: "MONTH" as const },
+  { value: "2-MONTH", label: "Bimensual", periodicity_value: 2, periodicity_unit: "MONTH" as const },
+  { value: "3-MONTH", label: "Trimestral", periodicity_value: 3, periodicity_unit: "MONTH" as const },
+  { value: "6-MONTH", label: "Semestral", periodicity_value: 6, periodicity_unit: "MONTH" as const },
+  { value: "1-YEAR", label: "Anual", periodicity_value: 1, periodicity_unit: "YEAR" as const },
+] as const
+
+function periodicitySelectValue(value: number | null, unit: FormState["periodicity_unit"]) {
+  const option = PERIODICITY_OPTIONS.find(
+    (item) => item.periodicity_value === value && item.periodicity_unit === unit,
+  )
+  return option?.value ?? ""
+}
+
+function periodicityLabel(value: number | null, unit: FormState["periodicity_unit"]) {
+  const option = PERIODICITY_OPTIONS.find(
+    (item) => item.periodicity_value === value && item.periodicity_unit === unit,
+  )
+  return option?.label ?? "Periodicidad no definida"
+}
+
 export default function MaintenancePage() {
   const navigate = useNavigate()
   const { alert: showAlert } = useSystemDialog()
@@ -134,6 +169,8 @@ export default function MaintenancePage() {
   const [executionFormOpen, setExecutionFormOpen] = useState(false)
   const [executionValues, setExecutionValues] = useState<ExecutionValue[]>([])
   const [pendingEvidenceFiles, setPendingEvidenceFiles] = useState<File[]>([])
+  const [planPhotos, setPlanPhotos] = useState<PlanPhoto[]>([])
+  const [pendingPlanPhotos, setPendingPlanPhotos] = useState<File[]>([])
   const [executionForm, setExecutionForm] = useState<ExecutionFormState>({
     scheduled_date: "",
     executed_at: localDateTimeValue(),
@@ -200,6 +237,8 @@ export default function MaintenancePage() {
     setExecutionFormOpen(false)
     setExecutionValues([])
     setPendingEvidenceFiles([])
+    setPlanPhotos([])
+    setPendingPlanPhotos([])
     setExecutionForm({
       scheduled_date: "",
       executed_at: localDateTimeValue(),
@@ -229,13 +268,24 @@ export default function MaintenancePage() {
         .select("id, maintenance_plan_id, scheduled_date, executed_at, executed_by, performer_name, performer_company, result, observations, evidence_files")
         .eq("maintenance_plan_id", plan.id)
         .order("executed_at", { ascending: false, nullsFirst: false }),
+      supabase.from("maintenance_plan_photos")
+        .select("id, storage_path, file_name, mime_type, file_size, uploaded_by, uploaded_at")
+        .eq("maintenance_plan_id", plan.id)
+        .order("uploaded_at", { ascending: false }),
       supabase.from("pam_maintenance_plan_links")
         .select("source_group_id, source_apparatus_id")
         .eq("maintenance_plan_id", plan.id)
         .maybeSingle(),
     ])
-    if (c.error || config.error || executionQuery.error || linkQuery.error) {
-      setError(c.error?.message ?? config.error?.message ?? executionQuery.error?.message ?? linkQuery.error?.message ?? "No se ha podido cargar el mantenimiento.")
+    if (c.error || config.error || executionQuery.error || photoQuery.error || linkQuery.error) {
+      setError(
+        c.error?.message
+        ?? config.error?.message
+        ?? executionQuery.error?.message
+        ?? photoQuery.error?.message
+        ?? linkQuery.error?.message
+        ?? "No se ha podido cargar el mantenimiento.",
+      )
       return
     }
 
@@ -269,6 +319,21 @@ export default function MaintenancePage() {
       min_value: row.min_value?.toString() ?? "", max_value: row.max_value?.toString() ?? "", required: row.required,
     })))
     setExecutions((executionQuery.data ?? []) as Execution[])
+
+    const loadedPlanPhotos = await Promise.all(
+      (photoQuery.data ?? []).map(async (photo) => {
+        const signed = await supabase.storage
+          .from("maintenance-evidence")
+          .createSignedUrl(photo.storage_path, 300)
+        return {
+          ...photo,
+          signed_url: signed.data?.signedUrl ?? undefined,
+        } as PlanPhoto
+      }),
+    )
+    setPlanPhotos(loadedPlanPhotos)
+    setPendingPlanPhotos([])
+
     setExecutionValues(loadedControls.map((row) => ({ controlId: row.id, value: "" })))
 
     let resolvedPlanApparatus: Apparatus[] = []
@@ -364,13 +429,21 @@ export default function MaintenancePage() {
     event.preventDefault(); if (saving) return; setSaving(true); setError("")
     if (!hotelId || !form.apparatus_registry_id || !form.name.trim()) { setError("Indica el equipo o instalación y el nombre del mantenimiento."); setSaving(false); return }
     if (form.maintenance_type === "EXTERNAL" && !form.external_company.trim()) { setError("Indica la empresa mantenedora para un mantenimiento externo."); setSaving(false); return }
-    if (form.periodicity_unit !== "VARIABLE" && (!Number.isInteger(Number(form.periodicity_value)) || Number(form.periodicity_value) <= 0)) { setError("La periodicidad debe ser un número entero mayor que cero."); setSaving(false); return }
+    if (!periodicitySelectValue(
+      Number(form.periodicity_value),
+      form.periodicity_unit,
+    )) {
+      setError("Selecciona una periodicidad válida.")
+      setSaving(false)
+      return
+    }
     const numericControls = controls.filter((control) => control.label.trim() && control.input_type === "NUMBER")
     if (numericControls.some((control) => control.min_value && control.max_value && Number(control.min_value) > Number(control.max_value))) { setError("Hay un rango de control incorrecto."); setSaving(false); return }
     const planFields = {
       hotel_id: hotelId, apparatus_registry_id: form.apparatus_registry_id, name: form.name.trim(), description: form.description.trim() || null,
       maintenance_type: form.maintenance_type, external_company: form.maintenance_type === "EXTERNAL" ? form.external_company.trim() : null,
-      periodicity_value: form.periodicity_unit === "VARIABLE" ? null : Number(form.periodicity_value), periodicity_unit: form.periodicity_unit,
+      periodicity_value: Number(form.periodicity_value),
+      periodicity_unit: form.periodicity_unit,
       start_date: form.start_date || null, active: form.active,
     }
     let planId = selectedId
@@ -417,6 +490,15 @@ export default function MaintenancePage() {
     await supabase.from("maintenance_alert_emails").delete().eq("alert_config_id", configId)
     const emails = parseEmails(form.external_emails)
     if (emails.length) { const result = await supabase.from("maintenance_alert_emails").insert(emails.map((email) => ({ alert_config_id: configId, email }))); if (result.error) { setError(result.error.message); setSaving(false); return } }
+
+    if (pendingPlanPhotos.length) {
+      const uploaded = await uploadPendingPlanPhotos(planId)
+      if (!uploaded) {
+        setSaving(false)
+        return
+      }
+    }
+
     await loadBase(); setSelectedId(planId); setSaving(false)
     await showAlert({ title: "Mantenimiento guardado", message: "La configuración se ha guardado correctamente.", variant: "info" })
   }
@@ -424,6 +506,101 @@ export default function MaintenancePage() {
   function handleEvidenceFiles(event: ChangeEvent<HTMLInputElement>) {
     setPendingEvidenceFiles(Array.from(event.target.files ?? []))
     event.target.value = ""
+  }
+
+  function handlePlanPhotoFiles(event: ChangeEvent<HTMLInputElement>) {
+    const selected = Array.from(event.target.files ?? []).filter((file) => file.type.startsWith("image/"))
+    if (selected.length) {
+      setPendingPlanPhotos((current) => [...current, ...selected])
+    }
+    event.target.value = ""
+  }
+
+  async function openPlanPhoto(path: string) {
+    const result = await supabase.storage.from("maintenance-evidence").createSignedUrl(path, 300)
+    if (result.error || !result.data?.signedUrl) {
+      setError(result.error?.message ?? "No se ha podido abrir la fotografía.")
+      return
+    }
+    window.open(result.data.signedUrl, "_blank", "noopener,noreferrer")
+  }
+
+  async function uploadPendingPlanPhotos(planId: string) {
+    if (!hotelId || pendingPlanPhotos.length === 0) return true
+
+    const currentUser = await supabase.auth.getUser()
+    const uploaded: PlanPhoto[] = []
+
+    for (let index = 0; index < pendingPlanPhotos.length; index += 1) {
+      const file = pendingPlanPhotos[index]
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]+/g, "_")
+      const storagePath =
+        hotelId
+        + "/maintenance-plans/"
+        + planId
+        + "/"
+        + crypto.randomUUID()
+        + "-"
+        + safeName
+
+      const upload = await supabase.storage.from("maintenance-evidence").upload(storagePath, file, {
+        upsert: false,
+        contentType: file.type || "application/octet-stream",
+      })
+
+      if (upload.error) {
+        setPendingPlanPhotos((current) => current.slice(index))
+        setError("El mantenimiento se ha guardado, pero una fotografía no pudo subirse: " + upload.error.message)
+        return false
+      }
+
+      const inserted = await supabase.from("maintenance_plan_photos").insert({
+        hotel_id: hotelId,
+        maintenance_plan_id: planId,
+        storage_path: storagePath,
+        file_name: file.name,
+        mime_type: file.type,
+        file_size: file.size,
+        uploaded_by: currentUser.data.user?.id ?? null,
+      }).select("id, storage_path, file_name, mime_type, file_size, uploaded_by, uploaded_at").single()
+
+      if (inserted.error || !inserted.data) {
+        await supabase.storage.from("maintenance-evidence").remove([storagePath])
+        setPendingPlanPhotos((current) => current.slice(index))
+        setError("El mantenimiento se ha guardado, pero no se pudo registrar la fotografía: " + (inserted.error?.message ?? "Error desconocido."))
+        return false
+      }
+
+      const signed = await supabase.storage.from("maintenance-evidence").createSignedUrl(storagePath, 300)
+      uploaded.push({
+        ...inserted.data,
+        signed_url: signed.data?.signedUrl ?? undefined,
+      } as PlanPhoto)
+    }
+
+    setPlanPhotos((current) => [...uploaded, ...current])
+    setPendingPlanPhotos([])
+    return true
+  }
+
+  async function deletePlanPhoto(photo: PlanPhoto) {
+    const storageResult = await supabase.storage.from("maintenance-evidence").remove([photo.storage_path])
+    if (storageResult.error) {
+      setError(storageResult.error.message)
+      return
+    }
+
+    const databaseResult = await supabase
+      .from("maintenance_plan_photos")
+      .delete()
+      .eq("id", photo.id)
+
+    if (databaseResult.error) {
+      setError(databaseResult.error.message)
+      return
+    }
+
+    setPlanPhotos((current) => current.filter((item) => item.id !== photo.id))
   }
 
   async function openEvidence(path: string) {
@@ -664,12 +841,100 @@ export default function MaintenancePage() {
                 <label className="md:col-span-2"><span className="mb-1 block text-sm font-medium">Descripción</span><textarea value={form.description} onChange={(e) => setField("description", e.target.value)} rows={3} className="w-full rounded-xl border px-3 py-2" /></label>
                 <label><span className="mb-1 block text-sm font-medium">Tipo</span><select value={form.maintenance_type} onChange={(e) => setField("maintenance_type", e.target.value as FormState["maintenance_type"])} className="w-full rounded-xl border bg-white px-3 py-2"><option value="INTERNAL">Interno</option><option value="EXTERNAL">Externo</option></select></label>
                 {form.maintenance_type === "EXTERNAL" && <label><span className="mb-1 block text-sm font-medium">Empresa mantenedora</span><input value={form.external_company} onChange={(e) => setField("external_company", e.target.value)} placeholder="Ej.: KONE" className="w-full rounded-xl border px-3 py-2" /></label>}
-                <label><span className="mb-1 block text-sm font-medium">Periodicidad</span><div className="grid grid-cols-[110px_1fr] gap-2"><input type="number" min={1} value={form.periodicity_value} disabled={form.periodicity_unit === "VARIABLE"} onChange={(e) => setField("periodicity_value", e.target.value)} className="rounded-xl border px-3 py-2 disabled:bg-slate-100" /><select value={form.periodicity_unit} onChange={(e) => setField("periodicity_unit", e.target.value as FormState["periodicity_unit"])} className="rounded-xl border bg-white px-3 py-2"><option value="DAY">Día(s)</option><option value="WEEK">Semana(s)</option><option value="MONTH">Mes(es)</option><option value="YEAR">Año(s)</option><option value="VARIABLE">Variable</option></select></div></label>
+                <label>
+                  <span className="mb-1 block text-sm font-medium">Periodicidad</span>
+                  <select
+                    value={periodicitySelectValue(Number(form.periodicity_value), form.periodicity_unit)}
+                    onChange={(event) => {
+                      const option = PERIODICITY_OPTIONS.find((item) => item.value === event.target.value)
+                      if (!option) return
+                      setField("periodicity_value", String(option.periodicity_value))
+                      setField("periodicity_unit", option.periodicity_unit)
+                    }}
+                    className="w-full rounded-xl border bg-white px-3 py-2"
+                  >
+                    <option value="">Selecciona una periodicidad…</option>
+                    {PERIODICITY_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </select>
+                  <span className="mt-1 block text-xs text-slate-500">
+                    {periodicityLabel(Number(form.periodicity_value), form.periodicity_unit)}
+                  </span>
+                </label>
                 <label><span className="mb-1 block text-sm font-medium">Inicio</span><input type="date" value={form.start_date} onChange={(e) => setField("start_date", e.target.value)} className="w-full rounded-xl border px-3 py-2" /></label>
                 <label className="flex items-center gap-2 self-end text-sm"><input type="checkbox" checked={form.active} onChange={(e) => setField("active", e.target.checked)} />Mantenimiento activo</label>
               </div>
               <section className="rounded-2xl border bg-slate-50 p-3 sm:p-4">
-                <div className="mb-3 flex items-center justify-between"><div><h2 className="font-semibold">Controles de la revisión</h2><p className="text-xs text-slate-500">Cada control valida su propio valor y puede generar su propia alerta.</p></div><button type="button" onClick={() => setControls((current) => [...current, { ...emptyControl }])} className="inline-flex items-center gap-1 rounded-lg border bg-white px-3 py-2 text-sm"><Plus size={16} />Añadir control</button></div>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <h2 className="font-semibold">Fotografías del mantenimiento</h2>
+                    <p className="text-xs text-slate-500">Fotos de referencia del mantenimiento. Se guardan al pulsar «Guardar mantenimiento».</p>
+                  </div>
+                  <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg border bg-white px-3 py-2 text-sm font-medium hover:bg-slate-50">
+                    <ImagePlus size={16} />
+                    Añadir fotografías
+                    <input type="file" multiple accept="image/*" onChange={handlePlanPhotoFiles} className="hidden" />
+                  </label>
+                </div>
+
+                {pendingPlanPhotos.length > 0 && (
+                  <div className="mt-3 rounded-xl border border-blue-100 bg-blue-50/60 p-3">
+                    <div className="text-sm font-semibold text-slate-800">Pendientes de guardar</div>
+                    <div className="mt-1 text-xs text-slate-600">{pendingPlanPhotos.map((file) => file.name).join(" · ")}</div>
+                  </div>
+                )}
+
+                {planPhotos.length > 0 ? (
+                  <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                    {planPhotos.map((photo) => (
+                      <div key={photo.id} className="overflow-hidden rounded-xl border bg-white">
+                        <button
+                          type="button"
+                          onClick={() => void openPlanPhoto(photo.storage_path)}
+                          className="block aspect-[4/3] w-full bg-slate-100"
+                          title="Abrir fotografía"
+                        >
+                          {photo.signed_url ? (
+                            <img src={photo.signed_url} alt={photo.file_name} className="h-full w-full object-cover" />
+                          ) : (
+                            <div className="flex h-full items-center justify-center text-xs text-slate-500">Vista no disponible</div>
+                          )}
+                        </button>
+                        <div className="flex items-center justify-between gap-2 p-2">
+                          <span className="truncate text-xs text-slate-600" title={photo.file_name}>{photo.file_name}</span>
+                          <button
+                            type="button"
+                            onClick={() => void deletePlanPhoto(photo)}
+                            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50"
+                            title="Eliminar fotografía"
+                            aria-label={"Eliminar " + photo.file_name}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="mt-3 rounded-xl border border-dashed border-slate-300 bg-white p-5 text-center text-xs text-slate-500">
+                    No hay fotografías asociadas a este mantenimiento.
+                  </div>
+                )}
+              </section>
+
+              <section className="rounded-2xl border bg-slate-50 p-3 sm:p-4">
+                <div className="mb-3 flex items-start justify-between gap-3">
+                  <div>
+                    <h2 className="font-semibold">Controles de la revisión</h2>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Un control es una comprobación concreta que se registra al ejecutar este mantenimiento. Por ejemplo: temperatura, presión o un estado Sí / No. Puede tener unidad, límites y ser obligatorio.
+                    </p>
+                  </div>
+                  <button type="button" onClick={() => setControls((current) => [...current, { ...emptyControl }])} className="inline-flex shrink-0 items-center gap-1 rounded-lg border bg-white px-3 py-2 text-sm">
+                    <Plus size={16} />Añadir control
+                  </button>
+                </div>
                 <div className="space-y-3">{controls.map((control, index) => <div key={control.id ?? "new-" + index} className="rounded-xl border bg-white p-3"><div className="grid gap-3 md:grid-cols-[1.5fr_1fr_1fr_1fr_auto]"><input value={control.label} onChange={(e) => updateControl(index, "label", e.target.value)} placeholder="Ej.: Cloro libre" className="rounded-lg border px-3 py-2" /><select value={control.input_type} onChange={(e) => updateControl(index, "input_type", e.target.value)} className="rounded-lg border bg-white px-3 py-2"><option value="NUMBER">Número</option><option value="TEXT">Texto</option><option value="BOOLEAN">Sí / No</option><option value="DATE">Fecha</option><option value="TIME">Hora</option><option value="SELECT">Selección</option></select><input value={control.unit} onChange={(e) => updateControl(index, "unit", e.target.value)} placeholder="Unidad" className="rounded-lg border px-3 py-2" /><div className="grid grid-cols-2 gap-2"><input type="number" value={control.min_value} disabled={control.input_type !== "NUMBER"} onChange={(e) => updateControl(index, "min_value", e.target.value)} placeholder="Mín." className="rounded-lg border px-3 py-2 disabled:bg-slate-100" /><input type="number" value={control.max_value} disabled={control.input_type !== "NUMBER"} onChange={(e) => updateControl(index, "max_value", e.target.value)} placeholder="Máx." className="rounded-lg border px-3 py-2 disabled:bg-slate-100" /></div><button type="button" onClick={() => setControls((current) => current.filter((_, currentIndex) => currentIndex !== index))} className="inline-flex h-10 items-center justify-center rounded-lg border border-rose-200 text-rose-600" title="Eliminar control"><Trash2 size={17} /></button></div><label className="mt-3 inline-flex items-center gap-2 text-sm text-slate-600"><input type="checkbox" checked={control.required} onChange={(e) => updateControl(index, "required", e.target.checked)} />Dato obligatorio para considerar realizada la revisión</label></div>)}</div>
               </section>
               <section className="rounded-2xl border bg-slate-50 p-3 sm:p-4">

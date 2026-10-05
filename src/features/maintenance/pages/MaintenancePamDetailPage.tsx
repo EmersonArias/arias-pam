@@ -637,11 +637,15 @@ export default function MaintenancePamDetailPage() {
       }
 
       setMessage(
-        openWorkOrder?.scheduledDate && openWorkOrder.scheduledDate !== reviewDate
-          ? 'OT ' + openWorkOrder.otNumber + ' finalizada y guardada fuera de fecha.'
-          : openWorkOrder
-            ? 'OT ' + openWorkOrder.otNumber + ' finalizada correctamente.'
-            : 'Ejecución registrada sin una OT abierta asociada.',
+        reviewResult === 'CANCELLED'
+          ? openWorkOrder
+            ? 'OT ' + openWorkOrder.otNumber + ' marcada como no realizada. Permanece pendiente.'
+            : 'Ejecución cancelada y registrada.'
+          : openWorkOrder?.scheduledDate && openWorkOrder.scheduledDate !== reviewDate
+            ? 'OT ' + openWorkOrder.otNumber + ' finalizada y guardada fuera de fecha.'
+            : openWorkOrder
+              ? 'OT ' + openWorkOrder.otNumber + ' finalizada correctamente.'
+              : 'Ejecución registrada sin una OT abierta asociada.',
       )
       await load()
     } finally {

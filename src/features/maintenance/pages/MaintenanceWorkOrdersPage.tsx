@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { AlertTriangle, CheckCircle2, Clock3, FileText, Image, RefreshCw, Trash2, Upload, UserRound, Wrench } from 'lucide-react'
+import { AlertTriangle, Camera, CheckCircle2, Clock3, FileText, Image, RefreshCw, Trash2, Upload, UserRound, Wrench } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import BrandLogo from '../../../shared/components/branding/BrandLogo'
 import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
@@ -481,17 +481,41 @@ export default function MaintenanceWorkOrdersPage() {
                         onChange={(event) => {
                           const files = Array.from(event.target.files ?? [])
                           if (files.length) void uploadPhotos(files)
+                          event.target.value = ''
                         }}
                       />
-                      <button
-                        type="button"
-                        onClick={() => photoInputRef.current?.click()}
-                        disabled={evidenceSaving}
-                        className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        <Upload size={15} />
-                        {evidenceSaving ? 'Guardando…' : 'Añadir fotos'}
-                      </button>
+                      <input
+                        id="work-order-camera-input"
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        className="hidden"
+                        onChange={(event) => {
+                          const files = Array.from(event.target.files ?? [])
+                          if (files.length) void uploadPhotos(files)
+                          event.target.value = ''
+                        }}
+                      />
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => document.getElementById('work-order-camera-input')?.click()}
+                          disabled={evidenceSaving}
+                          className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <Camera size={15} />
+                          Hacer foto
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => photoInputRef.current?.click()}
+                          disabled={evidenceSaving}
+                          className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <Upload size={15} />
+                          {evidenceSaving ? 'Guardando…' : 'Galería'}
+                        </button>
+                      </div>
                     </div>
                   </div>
 

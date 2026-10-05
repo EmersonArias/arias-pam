@@ -58,6 +58,27 @@ function statusClass(status: WorkOrder['status']) {
   return 'bg-amber-100 text-amber-700'
 }
 
+function getWorkDescription(item: WorkOrder) {
+  const description = item.description?.trim() ?? ''
+  const technicalOrigin = description.startsWith('Origen ')
+    || description.includes(' PAM ')
+    || description.includes(' Excel ')
+
+  if (technicalOrigin) {
+    const maintenanceLabel = item.maintenance_type === 'EXTERNAL'
+      ? 'mantenimiento preventivo externo'
+      : 'mantenimiento preventivo'
+    const equipment = item.apparatus_name ?? item.apparatus_code
+
+    return equipment
+      ? `Realizar ${maintenanceLabel} en ${equipment}.`
+      : `Realizar ${maintenanceLabel}.`
+  }
+
+  return description || null
+}
+
+
 export default function MaintenanceWorkOrdersPage() {
   const navigate = useNavigate()
   const { hotel } = useHotelScope()
@@ -291,10 +312,10 @@ export default function MaintenanceWorkOrdersPage() {
                   </div>
                 ) : null}
 
-                {selected.description && (
+                {getWorkDescription(selected) && (
                   <div>
-                    <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Descripción</div>
-                    <div className="whitespace-pre-wrap text-sm leading-6 text-slate-700">{selected.description}</div>
+                    <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Trabajo a realizar</div>
+                    <div className="whitespace-pre-wrap text-sm leading-6 text-slate-700">{getWorkDescription(selected)}</div>
                   </div>
                 )}
 

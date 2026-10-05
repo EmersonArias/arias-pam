@@ -145,13 +145,6 @@ function periodicitySelectValue(value: number | null, unit: FormState["periodici
   return option?.value ?? ""
 }
 
-function periodicityLabel(value: number | null, unit: FormState["periodicity_unit"]) {
-  const option = PERIODICITY_OPTIONS.find(
-    (item) => item.periodicity_value === value && item.periodicity_unit === unit,
-  )
-  return option?.label ?? "Periodicidad no definida"
-}
-
 export default function MaintenancePage() {
   const navigate = useNavigate()
   const { alert: showAlert } = useSystemDialog()
@@ -858,9 +851,6 @@ export default function MaintenancePage() {
                       <option key={option.value} value={option.value}>{option.label}</option>
                     ))}
                   </select>
-                  <span className="mt-1 block text-xs text-slate-500">
-                    {periodicityLabel(Number(form.periodicity_value), form.periodicity_unit)}
-                  </span>
                 </label>
                 <label><span className="mb-1 block text-sm font-medium">Inicio</span><input type="date" value={form.start_date} onChange={(e) => setField("start_date", e.target.value)} className="w-full rounded-xl border px-3 py-2" /></label>
                 <label className="flex items-center gap-2 self-end text-sm"><input type="checkbox" checked={form.active} onChange={(e) => setField("active", e.target.checked)} />Mantenimiento activo</label>

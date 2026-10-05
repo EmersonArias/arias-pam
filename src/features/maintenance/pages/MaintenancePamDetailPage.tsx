@@ -52,6 +52,14 @@ type Execution = {
   observations: string | null
 }
 
+type WorkOrder = {
+  id: string
+  ot_number: string
+  scheduled_date: string | null
+  status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED'
+  generation_mode: 'AUTO' | 'MANUAL'
+}
+
 const hotelAssetCodes: Record<number, string> = {
   8: 'COC-CAM-01',
   93: 'BMB-FIL-01',
@@ -147,6 +155,22 @@ function executionTone(result: Execution['result']) {
   }
 }
 
+function workOrderStatusLabel(status: WorkOrder['status']) {
+  switch (status) {
+    case 'COMPLETED': return 'Finalizada'
+    case 'IN_PROGRESS': return 'En curso'
+    default: return 'Pendiente'
+  }
+}
+
+function workOrderStatusTone(status: WorkOrder['status']) {
+  switch (status) {
+    case 'COMPLETED': return 'bg-emerald-100 text-emerald-700'
+    case 'IN_PROGRESS': return 'bg-blue-100 text-blue-700'
+    default: return 'bg-amber-100 text-amber-700'
+  }
+}
+
 function todayLocalDate() {
   const now = new Date()
   const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
@@ -199,6 +223,7 @@ export default function MaintenancePamDetailPage() {
   const [plan, setPlan] = useState<Plan | null>(null)
   const [baselinePlan, setBaselinePlan] = useState<Plan | null>(null)
   const [executions, setExecutions] = useState<Execution[]>([])
+  const [workOrders, setWorkOrders] = useState<WorkOrder[]>([])
   const [mode, setMode] = useState<FormMode>('view')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -249,16 +274,30 @@ export default function MaintenancePamDetailPage() {
       availablePlans[0] ??
       null
 
-    const executionQuery = selectedPlan
-      ? await supabase
-          .from('maintenance_executions')
-          .select('id, scheduled_date, executed_at, result, performer_name, performer_company, observations')
-          .eq('maintenance_plan_id', selectedPlan.id)
-          .order('executed_at', { ascending: false, nullsFirst: false })
-      : { data: [], error: null }
+    const [executionQuery, workOrderQuery] = selectedPlan
+      ? await Promise.all([
+          supabase
+            .from('maintenance_executions')
+            .select('id, scheduled_date, executed_at, result, performer_name, performer_company, observations')
+            .eq('maintenance_plan_id', selectedPlan.id)
+            .order('executed_at', { ascending: false, nullsFirst: false }),
+          supabase
+            .from('maintenance_work_orders')
+            .select('id, ot_number, scheduled_date, status, generation_mode')
+            .eq('maintenance_plan_id', selectedPlan.id)
+            .order('scheduled_date', { ascending: false, nullsFirst: false }),
+        ])
+      : [
+          { data: [], error: null },
+          { data: [], error: null },
+        ]
 
-    if (executionQuery.error) {
-      setErrorMessage(executionQuery.error.message)
+    if (executionQuery.error || workOrderQuery.error) {
+      setErrorMessage(
+        executionQuery.error?.message
+        ?? workOrderQuery.error?.message
+        ?? 'No se ha podido cargar el histórico de mantenimiento.',
+      )
       setLoading(false)
       return
     }
@@ -268,6 +307,7 @@ export default function MaintenancePamDetailPage() {
     setPlan(selectedPlan)
     setBaselinePlan(selectedPlan)
     setExecutions((executionQuery.data ?? []) as Execution[])
+    setWorkOrders((workOrderQuery.data ?? []) as WorkOrder[])
     setReviewDate(new Date().toISOString().slice(0, 10))
     setReviewCompany(scheduledExecutor(loadedAsset, selectedPlan))
     setReviewObservations('')
@@ -289,6 +329,49 @@ export default function MaintenancePamDetailPage() {
   )
 
   const latestExecution = executions[0] ?? null
+
+  const historyRows = useMemo(() => {
+    const executionByDate = new Map<string, Execution[]>()
+
+    for (const execution of executions) {
+      const date = execution.scheduled_date ?? execution.executed_at?.slice(0, 10) ?? ''
+      if (!date) continue
+      const rows = executionByDate.get(date) ?? []
+      rows.push(execution)
+      executionByDate.set(date, rows)
+    }
+
+    const rows = workOrders.map((order) => {
+      const date = order.scheduled_date ?? ''
+      const matchingExecution = executionByDate.get(date)?.[0] ?? null
+      const isCancelled = matchingExecution?.result === 'CANCELLED'
+      return {
+        key: 'ot-' + order.id,
+        date: date || matchingExecution?.executed_at?.slice(0, 10) || '',
+        statusLabel: isCancelled ? 'No realizada' : workOrderStatusLabel(order.status),
+        statusTone: isCancelled ? 'bg-slate-200 text-slate-700' : workOrderStatusTone(order.status),
+        otNumber: order.ot_number,
+        execution: matchingExecution,
+      }
+    })
+
+    const workOrderDates = new Set(workOrders.map((order) => order.scheduled_date).filter(Boolean))
+    for (const execution of executions) {
+      const date = execution.scheduled_date ?? execution.executed_at?.slice(0, 10) ?? ''
+      if (!date || workOrderDates.has(date)) continue
+      rows.push({
+        key: 'execution-' + execution.id,
+        date,
+        statusLabel: executionLabel(execution.result),
+        statusTone: executionTone(execution.result),
+        otNumber: '—',
+        execution,
+      })
+    }
+
+    return rows
+      .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+  }, [workOrders, executions])
 
   const isDirty =
     mode !== 'view' &&
@@ -739,18 +822,22 @@ export default function MaintenancePamDetailPage() {
             <div>
               <h2 className="text-lg font-bold text-slate-900">Histórico de revisiones</h2>
               <p className="text-xs text-slate-500">
-                {latestValidExecution
-                  ? 'Última revisión válida: ' + formatDate(latestValidExecution.executed_at)
-                  : 'Todavía no existe una revisión válida registrada.'}
+                {historyRows.length
+                  ? 'Las revisiones pendientes y realizadas se muestran vinculadas a sus OTs.'
+                  : latestValidExecution
+                    ? 'Última revisión válida: ' + formatDate(latestValidExecution.executed_at)
+                    : 'Todavía no hay revisiones ni OTs registradas.'}
               </p>
             </div>
           </div>
 
           <div className="overflow-auto">
-            <table className="w-full min-w-[720px] border-collapse text-[12px]">
+            <table className="w-full min-w-[900px] border-collapse text-[12px]">
               <thead>
                 <tr className="border-b bg-slate-50 text-left text-[10px] uppercase tracking-wide text-slate-500">
-                  <th className="px-2 py-1.5 font-semibold">Fecha</th>
+                  <th className="px-2 py-1.5 font-semibold">Fecha programada</th>
+                  <th className="px-2 py-1.5 font-semibold">Estado</th>
+                  <th className="px-2 py-1.5 font-semibold">OT</th>
                   <th className="px-2 py-1.5 font-semibold">Resultado</th>
                   <th className="px-2 py-1.5 font-semibold">Realizada por</th>
                   <th className="px-2 py-1.5 font-semibold">Empresa</th>
@@ -758,16 +845,28 @@ export default function MaintenancePamDetailPage() {
                 </tr>
               </thead>
               <tbody>
-                {executions.map((item) => (
-                  <tr key={item.id} className="border-b border-slate-100">
-                    <td className="px-2 py-1.5">{formatDate(item.executed_at)}</td>
-                    <td className="px-2 py-1.5"><span className={'inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-semibold ' + executionTone(item.result)}>{executionLabel(item.result)}</span></td>
-                    <td className="px-2 py-1.5">{item.performer_name || '—'}</td>
-                    <td className="px-2 py-1.5">{item.performer_company || '—'}</td>
-                    <td className="px-2 py-1.5">{item.observations || '—'}</td>
+                {historyRows.map((row) => (
+                  <tr key={row.key} className="border-b border-slate-100">
+                    <td className="px-2 py-1.5">{formatDate(row.date)}</td>
+                    <td className="px-2 py-1.5">
+                      <span className={'inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-semibold ' + row.statusTone}>
+                        {row.statusLabel}
+                      </span>
+                    </td>
+                    <td className="px-2 py-1.5 font-semibold text-slate-800">{row.otNumber}</td>
+                    <td className="px-2 py-1.5">
+                      {row.execution ? (
+                        <span className={'inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-semibold ' + executionTone(row.execution.result)}>
+                          {executionLabel(row.execution.result)}
+                        </span>
+                      ) : '—'}
+                    </td>
+                    <td className="px-2 py-1.5">{row.execution?.performer_name || '—'}</td>
+                    <td className="px-2 py-1.5">{row.execution?.performer_company || '—'}</td>
+                    <td className="px-2 py-1.5">{row.execution?.observations || '—'}</td>
                   </tr>
                 ))}
-                {executions.length === 0 && <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-slate-500">Todavía no hay revisiones registradas.</td></tr>}
+                {historyRows.length === 0 && <tr><td colSpan={7} className="px-4 py-8 text-center text-sm text-slate-500">Todavía no hay revisiones ni OTs registradas.</td></tr>}
               </tbody>
             </table>
           </div>

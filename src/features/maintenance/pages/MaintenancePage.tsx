@@ -23,6 +23,13 @@ type Plan = {
   active: boolean
   apparatus?: { code: string; name: string } | null
 }
+type PlanEquipment = {
+  id: string
+  code: string
+  name: string
+  plant: string | null
+  location: string | null
+}
 type Recipient = { user_id: string; full_name: string | null; email: string | null; role_name: string }
 type Control = { id?: string; label: string; input_type: "NUMBER" | "TEXT" | "BOOLEAN" | "DATE" | "TIME" | "SELECT"; unit: string; min_value: string; max_value: string; required: boolean }
 type EvidenceFile = {
@@ -153,6 +160,7 @@ export default function MaintenancePage() {
   const [apparatus, setApparatus] = useState<Apparatus[]>([])
   const [planApparatus, setPlanApparatus] = useState<Apparatus[]>([])
   const [plans, setPlans] = useState<Plan[]>([])
+  const [planEquipment, setPlanEquipment] = useState<Record<string, PlanEquipment[]>>({})
   const [recipients, setRecipients] = useState<Recipient[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [controls, setControls] = useState<Control[]>([])
@@ -191,11 +199,15 @@ export default function MaintenancePage() {
 
     await supabase.rpc("refresh_maintenance_due_alerts", { target_hotel_id: id })
 
-    const [a, p, r, al] = await Promise.all([
+    const [a, p, r, al, ps] = await Promise.all([
       supabase.from("apparatus_registry").select("id, code, name, plant, location, source_id").eq("hotel_id", id).eq("active", true).order("code"),
       supabase.from("maintenance_plans").select("id, apparatus_registry_id, name, description, maintenance_type, external_company, periodicity_value, periodicity_unit, start_date, next_due_date, active, apparatus_registry(code, name)").eq("hotel_id", id).order("next_due_date", { ascending: true, nullsFirst: false }),
       supabase.rpc("get_maintenance_alert_recipients", { target_hotel_id: id }),
       supabase.from("maintenance_alerts").select("id, maintenance_plan_id, alert_type, severity, title, message, due_date, triggered_at").eq("hotel_id", id).is("resolved_at", null).order("triggered_at", { ascending: false }),
+      supabase.from("pam_maintenance_schedule")
+        .select("maintenance_plan_id, apparatus_registry_id, apparatus_code, apparatus_name, plant, location")
+        .eq("hotel_id", id)
+        .not("apparatus_registry_id", "is", null),
     ])
 
     const firstError = a.error ?? p.error ?? r.error ?? al.error
@@ -212,7 +224,23 @@ export default function MaintenancePage() {
       })) as Apparatus[]
       setApparatus(loadedApparatus)
       if (!selectedId) setPlanApparatus(loadedApparatus)
+      const resolvedByPlan: Record<string, PlanEquipment[]> = {}
+      for (const row of ps.data ?? []) {
+        if (!row.maintenance_plan_id || !row.apparatus_registry_id) continue
+        const current = resolvedByPlan[row.maintenance_plan_id] ?? []
+        if (current.some((item) => item.id === row.apparatus_registry_id)) continue
+        current.push({
+          id: row.apparatus_registry_id,
+          code: row.apparatus_code ?? "—",
+          name: row.apparatus_name ?? "Equipo",
+          plant: row.plant ?? null,
+          location: row.location ?? null,
+        })
+        resolvedByPlan[row.maintenance_plan_id] = current
+      }
+
       setPlans((p.data ?? []) as unknown as Plan[])
+      setPlanEquipment(resolvedByPlan)
       setRecipients((r.data ?? []) as Recipient[])
       setAlerts((al.data ?? []) as MaintenanceAlert[])
     }
@@ -801,6 +829,19 @@ export default function MaintenancePage() {
                   }>
                     {planState(plan.next_due_date, plan.active)}
                   </span>
+                </div>
+                <div className="mt-1 text-xs text-slate-500">
+                  {(() => {
+                    const direct = plan.apparatus
+                      ? [{ code: plan.apparatus.code, name: plan.apparatus.name }]
+                      : (planEquipment[plan.id] ?? [])
+                    const equipmentText = direct.length === 0
+                      ? "Equipo no disponible"
+                      : direct.length === 1
+                        ? direct[0].code + " — " + direct[0].name
+                        : direct.slice(0, 2).map((item) => item.code + " — " + item.name).join(" · ") + (direct.length > 2 ? " · +" + (direct.length - 2) : "")
+                    return equipmentText
+                  })()}
                 </div>
                 <div className="mt-1 text-xs text-slate-500">
                   Próxima: {plan.next_due_date

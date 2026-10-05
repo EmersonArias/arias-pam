@@ -28,6 +28,7 @@ type WorkOrder = {
   description: string | null
   work_type: 'PREVENTIVE' | 'CORRECTIVE' | 'ACTUATION'
   status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED'
+  completion_timing: 'ON_TIME' | 'OUT_OF_DATE' | null
   assigned_user_id: string | null
   assigned_user_name: string | null
   assigned_user_email: string | null
@@ -70,11 +71,15 @@ function isOverdue(item: WorkOrder) {
 }
 
 function displayStatusLabel(item: WorkOrder) {
+  if (item.status === 'COMPLETED' && item.completion_timing === 'OUT_OF_DATE') {
+    return 'Finalizada · Fuera de fecha'
+  }
   return isOverdue(item) ? 'Vencida' : statusLabels[item.status]
 }
 
 function displayStatusClass(item: WorkOrder) {
   if (isOverdue(item)) return 'bg-rose-100 text-rose-700'
+  if (item.status === 'COMPLETED' && item.completion_timing === 'OUT_OF_DATE') return 'bg-amber-100 text-amber-700'
   if (item.status === 'COMPLETED') return 'bg-emerald-100 text-emerald-700'
   if (item.status === 'IN_PROGRESS') return 'bg-blue-100 text-blue-700'
   return 'bg-amber-100 text-amber-700'
@@ -584,7 +589,13 @@ export default function MaintenanceWorkOrdersPage() {
                   </div>
                 )}
 
-                {selected.status === 'COMPLETED' && (
+                {selected.status === 'COMPLETED' && selected.completion_timing === 'OUT_OF_DATE' && (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-xs text-amber-800">
+                    <AlertTriangle className="mb-1 inline-block" size={15} /> Esta OT fue completada fuera de la fecha prevista y queda registrada como <strong>Fuera de fecha</strong>.
+                  </div>
+                )}
+
+                {selected.status === 'COMPLETED' && selected.completion_timing !== 'OUT_OF_DATE' && (
                   <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-3 text-xs text-emerald-800">
                     <CheckCircle2 className="mb-1 inline-block" size={15} /> Ejecución completada.
                   </div>

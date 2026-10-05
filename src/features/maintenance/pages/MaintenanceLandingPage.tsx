@@ -1,5 +1,5 @@
 
-import { Building2, ClipboardList, FileCheck2, ListChecks, Wrench } from 'lucide-react'
+import { Building2, ClipboardList, FileCheck2, ListChecks, Settings2, Wrench } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import BrandLogo from '../../../shared/components/branding/BrandLogo'
 import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
@@ -42,6 +42,12 @@ const cards: Card[] = [
     icon: FileCheck2,
     href: '/maintenance/audit',
   },
+  {
+    title: 'Configuración',
+    description: 'Automatización de OT, asignación, avisos y reglas por hotel.',
+    icon: Settings2,
+    href: '/maintenance/configuration',
+  },
 ]
 
 export default function MaintenanceLandingPage() {
@@ -74,7 +80,7 @@ export default function MaintenanceLandingPage() {
             </p>
           </section>
 
-          <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
             {cards.map((card) => {
               const Icon = card.icon
               return (

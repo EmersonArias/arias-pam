@@ -5,9 +5,9 @@ import BrandLogo from '../../../shared/components/branding/BrandLogo'
 import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
 
 const actions = [
-  ['Trabajo diario', 'Tareas preventivas y trabajos pendientes.', ListTodo, '/maintenance/configuration'],
+  ['Trabajo diario', 'Tareas preventivas y trabajos pendientes.', ListTodo, '/maintenance/pam'],
   ['OT', 'Órdenes de trabajo preventivas y operativas.', Wrench, '/maintenance/work-orders'],
-  ['Ejecuciones', 'Registrar el trabajo realizado sobre un mantenimiento.', ClipboardCheck, '/maintenance/configuration'],
+  ['Ejecuciones', 'Registrar el trabajo realizado sobre un mantenimiento.', ClipboardCheck, '/maintenance/plans'],
   ['Actuaciones', 'Trabajos, reparaciones y sustituciones.', FilePlus2, '/actions'],
 ] as const
 

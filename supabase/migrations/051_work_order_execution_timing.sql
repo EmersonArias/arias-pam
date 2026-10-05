@@ -191,19 +191,25 @@ REVOKE ALL ON FUNCTION public.complete_work_order_from_maintenance_execution() F
 -- UNA ÚNICA OT
 -- =========================================================
 
-UPDATE public.maintenance_executions me
-SET work_order_id = matched.id
-FROM LATERAL (
+UPDATE public.maintenance_executions AS me
+SET work_order_id = (
   SELECT wo.id
-  FROM public.maintenance_work_orders wo
+  FROM public.maintenance_work_orders AS wo
   WHERE wo.maintenance_plan_id = me.maintenance_plan_id
     AND wo.scheduled_date = me.scheduled_date
     AND wo.status = 'COMPLETED'
   ORDER BY wo.completed_at ASC NULLS LAST, wo.created_at ASC
   LIMIT 1
-) matched
+)
 WHERE me.work_order_id IS NULL
-  AND me.scheduled_date IS NOT NULL;
+  AND me.scheduled_date IS NOT NULL
+  AND EXISTS (
+    SELECT 1
+    FROM public.maintenance_work_orders AS wo
+    WHERE wo.maintenance_plan_id = me.maintenance_plan_id
+      AND wo.scheduled_date = me.scheduled_date
+      AND wo.status = 'COMPLETED'
+  );
 
 -- =========================================================
 -- VISTA OPERATIVA DE OT

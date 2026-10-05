@@ -59,7 +59,6 @@ export default function BooksPage() {
   const [search, setSearch] = useState('')
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [adminMenuOpen, setAdminMenuOpen] = useState(false)
-  const [isPlatformAdmin, setIsPlatformAdmin] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
   const [maintenanceAlerts, setMaintenanceAlerts] = useState<MaintenanceAlert[]>([])
   const alertsGridRef = useRef<HTMLElement | null>(null)
@@ -89,31 +88,6 @@ export default function BooksPage() {
     }
   }
 
-  useEffect(() => {
-    let mounted = true
-
-    async function loadAdministrationAccess() {
-      if (!session?.user.id) {
-        if (mounted) setIsPlatformAdmin(false)
-        return
-      }
-
-      const { data, error } = await supabase
-        .from('platform_admins')
-        .select('active')
-        .eq('user_id', session.user.id)
-        .maybeSingle()
-
-      if (!mounted) return
-      setIsPlatformAdmin(!error && data?.active === true)
-    }
-
-    void loadAdministrationAccess()
-
-    return () => {
-      mounted = false
-    }
-  }, [session?.user.id])
 
   useEffect(() => {
     let mounted = true

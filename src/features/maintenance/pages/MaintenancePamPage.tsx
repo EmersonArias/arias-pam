@@ -5,6 +5,7 @@ import BrandLogo from '../../../shared/components/branding/BrandLogo'
 import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
 import IconButton from '../../../shared/components/buttons/IconButton'
 import { supabase } from '../../../lib/supabase'
+import { useHotelScope } from '../../../shared/context/HotelScopeContext'
 
 type FrequencyKey =
   | 'DAILY'
@@ -249,6 +250,7 @@ function uniqueWorks(
 
 export default function MaintenancePamPage() {
   const navigate = useNavigate()
+  const { hotel } = useHotelScope()
   const [sourceGroups, setSourceGroups] = useState<SourceGroup[]>([])
   const [sourceMarks, setSourceMarks] = useState<SourceMark[]>([])
   const [planLinks, setPlanLinks] = useState<PlanLink[]>([])
@@ -264,21 +266,13 @@ export default function MaintenancePamPage() {
     setLoading(true)
     setError('')
 
-    const hotel = await supabase
-      .from('hotels')
-      .select('id')
-      .eq('active', true)
-      .order('name')
-      .limit(1)
-      .maybeSingle()
-
-    if (hotel.error || !hotel.data?.id) {
-      setError(hotel.error?.message ?? 'No se ha podido determinar el hotel activo.')
+    if (!hotel?.id) {
+      setError('No se ha seleccionado un hotel de trabajo.')
       setLoading(false)
       return
     }
 
-    const hotelId = hotel.data.id as string
+    const hotelId = hotel.id
 
     const [groupsQuery, marksQuery, apparatusQuery, linksQuery, executionsQuery, plansQuery] = await Promise.all([
       supabase
@@ -340,7 +334,7 @@ export default function MaintenancePamPage() {
 
   useEffect(() => {
     void loadPAM()
-  }, [])
+  }, [hotel?.id])
 
   const frequencyWorks = useMemo(() => {
     const apparatusBySourceId = new Map<number, Apparatus>()

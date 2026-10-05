@@ -8,6 +8,7 @@ import UnsavedChangesDialog from '../../../shared/components/navigation/UnsavedC
 import { useEscapeAsCancel } from '../../../shared/hooks/useEscapeAsCancel'
 import { useGuardedNavigation } from '../../../shared/hooks/useGuardedNavigation'
 import { supabase } from '../../../lib/supabase'
+import { ariasAuth } from '../../../core/auth/authService'
 
 type Asset = {
   id: string
@@ -454,16 +455,28 @@ export default function MaintenancePamDetailPage() {
     setErrorMessage('')
 
     try {
-      const { data: userData } = await supabase.auth.getUser()
-      const userId = userData.user?.id ?? null
+      const { data: sessionData } = await ariasAuth.getSession()
+      const sessionUser = sessionData?.user ?? null
+      const userId = sessionUser?.id ?? null
+      const performerName =
+        sessionUser?.fullName?.trim() ||
+        sessionUser?.loginIdentifier?.trim() ||
+        sessionUser?.email?.trim() ||
+        null
+
+      if (!userId) {
+        setErrorMessage('No se ha podido identificar al usuario de la sesión.')
+        return
+      }
 
       const { error } = await supabase
         .from('maintenance_executions')
         .insert({
           maintenance_plan_id: plan.id,
           scheduled_date: reviewDate,
-          executed_at: reviewResult === 'CANCELLED' ? new Date(reviewDate + 'T12:00:00').toISOString() : new Date(reviewDate + 'T12:00:00').toISOString(),
+          executed_at: new Date(reviewDate + 'T12:00:00').toISOString(),
           executed_by: userId,
+          performer_name: performerName,
           performer_company: reviewCompany.trim() || null,
           result: reviewResult,
           observations: reviewObservations.trim() || null,

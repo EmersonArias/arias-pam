@@ -26,6 +26,12 @@ BEGIN;
 DELETE FROM public.maintenance_work_order_evidence;
 DELETE FROM public.maintenance_work_orders;
 
+-- Una única OT abierta por mantenimiento: evita duplicados incluso
+-- si dos ejecuciones del generador coinciden.
+CREATE UNIQUE INDEX IF NOT EXISTS ux_maintenance_work_orders_one_open_per_plan
+  ON public.maintenance_work_orders (maintenance_plan_id)
+  WHERE status IN ('PENDING', 'IN_PROGRESS');
+
 -- =========================================================
 -- GENERACIÓN AUTOMÁTICA CORREGIDA
 -- =========================================================
@@ -179,8 +185,7 @@ BEGIN
         'AUTO',
         NULL
       )
-      ON CONFLICT (maintenance_plan_id, scheduled_date)
-      DO NOTHING;
+      ON CONFLICT DO NOTHING;
 
       IF FOUND THEN
         inserted_count := inserted_count + 1;

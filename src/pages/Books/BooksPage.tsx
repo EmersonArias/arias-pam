@@ -13,6 +13,7 @@ import BrandLogo from '../../shared/components/branding/BrandLogo'
 import { useAuth } from '../../features/auth/context/AuthProvider'
 import { ariasAuth } from '../../core/auth/authService'
 import { supabase } from '../../lib/supabase'
+import { useHotelScope } from '../../shared/context/HotelScopeContext'
 
 type HomeRegister = {
   icon: string
@@ -54,6 +55,7 @@ const registers: HomeRegister[] = [
 export default function BooksPage() {
   const navigate = useNavigate()
   const { session } = useAuth()
+  const { hotel, hotels, isPlatformAdmin, setHotel } = useHotelScope()
   const [search, setSearch] = useState('')
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [adminMenuOpen, setAdminMenuOpen] = useState(false)
@@ -124,30 +126,7 @@ export default function BooksPage() {
 
       setNotificationsLoading(true)
 
-      const { data: assignment, error: assignmentError } = await supabase
-        .from('user_hotel_roles')
-        .select('hotel_id')
-        .eq('user_id', session.user.id)
-        .eq('active', true)
-        .limit(1)
-        .maybeSingle()
-
-      if (assignmentError || !assignment?.hotel_id) {
-        if (mounted) {
-          setMaintenanceAlerts([])
-          setNotificationsLoading(false)
-        }
-        return
-      }
-
-      const { data: hotel, error: hotelError } = await supabase
-        .from('hotels')
-        .select('id')
-        .eq('id', assignment.hotel_id)
-        .eq('active', true)
-        .maybeSingle()
-
-      if (hotelError || !hotel) {
+      if (!hotel?.id) {
         if (mounted) {
           setMaintenanceAlerts([])
           setNotificationsLoading(false)
@@ -174,22 +153,14 @@ export default function BooksPage() {
     return () => {
       mounted = false
     }
-  }, [session?.user.id])
+  }, [session?.user.id, hotel?.id])
 
   async function refreshNotifications() {
     if (!session?.user.id) return
 
     setNotificationsLoading(true)
 
-    const { data: assignment, error: assignmentError } = await supabase
-      .from('user_hotel_roles')
-      .select('hotel_id')
-      .eq('user_id', session.user.id)
-      .eq('active', true)
-      .limit(1)
-      .maybeSingle()
-
-    if (assignmentError || !assignment?.hotel_id) {
+    if (!hotel?.id) {
       setMaintenanceAlerts([])
       setNotificationsLoading(false)
       return
@@ -198,7 +169,7 @@ export default function BooksPage() {
     const { data, error } = await supabase
       .from('maintenance_alerts')
       .select('id, alert_type, severity, title, message, due_date, triggered_at')
-      .eq('hotel_id', assignment.hotel_id)
+      .eq('hotel_id', hotel.id)
       .is('resolved_at', null)
       .order('triggered_at', { ascending: false })
       .limit(20)
@@ -262,6 +233,25 @@ export default function BooksPage() {
             </label>
 
             <div className="flex items-center justify-center gap-2 sm:justify-end">
+              <div className="hidden items-center gap-2 rounded-full border border-slate-200 bg-white px-2.5 py-1.5 sm:flex">
+                {isPlatformAdmin && hotels.length > 1 ? (
+                  <select
+                    value={hotel?.id ?? ''}
+                    onChange={(event) => setHotel(event.target.value)}
+                    className="max-w-[220px] bg-transparent text-xs font-semibold text-slate-700 outline-none"
+                    aria-label="Hotel actual"
+                    title="Cambiar hotel"
+                  >
+                    {hotels.map((item) => (
+                      <option key={item.id} value={item.id}>{item.name}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <span className="max-w-[220px] truncate text-xs font-semibold text-slate-700" title={hotel?.name ?? 'Hotel actual'}>
+                    {hotel?.name ?? 'Hotel actual'}
+                  </span>
+                )}
+              </div>
               <button
                 type="button"
                 onClick={() => void toggleFullscreen()}

@@ -1,13 +1,12 @@
 import { useEffect, useState } from 'react'
 import { AlertTriangle, ArrowDownUp, Bell, CalendarClock, CheckCircle2, PlayCircle, Plus, Save, Settings2, Trash2, UserRound } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import { useHotelScope } from '../../../shared/context/HotelScopeContext'
 import { supabase } from '../../../lib/supabase'
 import BrandLogo from '../../../shared/components/branding/BrandLogo'
 import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
 import ActionButton from '../../../shared/components/buttons/ActionButton'
 import { useSystemDialog } from '../../../shared/components/dialogs/SystemDialogProvider'
-
-type Hotel = { id: string; name: string }
 
 type HotelConfig = {
   hotel_id: string
@@ -198,7 +197,7 @@ function describeRule(rule: Rule) {
 export default function MaintenanceConfigurationPage() {
   const navigate = useNavigate()
   const { alert: showAlert } = useSystemDialog()
-  const [currentHotel, setCurrentHotel] = useState<Hotel | null>(null)
+  const { hotel: currentHotel } = useHotelScope()
   const hotelId = currentHotel?.id ?? ''
   const [config, setConfig] = useState<HotelConfig | null>(null)
   const [rules, setRules] = useState<Rule[]>([])
@@ -209,49 +208,7 @@ export default function MaintenanceConfigurationPage() {
   const [ruleFormOpen, setRuleFormOpen] = useState(false)
   const [ruleForm, setRuleForm] = useState(emptyRule())
 
-  async function loadCurrentHotel() {
-    setLoading(true)
-    setError('')
 
-    const { data: userData, error: userError } = await supabase.auth.getUser()
-    const userId = userData.user?.id ?? null
-
-    if (userError || !userId) {
-      setError(userError?.message ?? 'No se ha podido identificar la sesión actual.')
-      setLoading(false)
-      return
-    }
-
-    const assignment = await supabase
-      .from('user_hotel_roles')
-      .select('hotel_id')
-      .eq('user_id', userId)
-      .eq('active', true)
-      .limit(1)
-      .maybeSingle()
-
-    if (assignment.error || !assignment.data?.hotel_id) {
-      setError(assignment.error?.message ?? 'El usuario no tiene un hotel activo asignado.')
-      setLoading(false)
-      return
-    }
-
-    const hotelQuery = await supabase
-      .from('hotels')
-      .select('id, name')
-      .eq('id', assignment.data.hotel_id)
-      .eq('active', true)
-      .maybeSingle()
-
-    if (hotelQuery.error || !hotelQuery.data) {
-      setError(hotelQuery.error?.message ?? 'No se ha podido cargar el hotel actual.')
-      setLoading(false)
-      return
-    }
-
-    setCurrentHotel(hotelQuery.data as Hotel)
-    setLoading(false)
-  }
   async function loadHotelConfig(targetHotelId: string) {
     if (!targetHotelId) {
       setConfig(null)
@@ -284,11 +241,11 @@ export default function MaintenanceConfigurationPage() {
   }
 
   useEffect(() => {
-    void loadCurrentHotel()
-  }, [])
-
-  useEffect(() => {
     if (hotelId) void loadHotelConfig(hotelId)
+    else {
+      setConfig(null)
+      setRules([])
+    }
   }, [hotelId])
 
   function setConfigField<K extends keyof Omit<HotelConfig, 'hotel_id'>>(field: K, value: HotelConfig[K]) {

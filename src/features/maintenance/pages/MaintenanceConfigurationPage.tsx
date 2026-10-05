@@ -205,8 +205,8 @@ function describeRule(rule: Rule) {
 export default function MaintenanceConfigurationPage() {
   const navigate = useNavigate()
   const { alert: showAlert } = useSystemDialog()
-  const [hotels, setHotels] = useState<Hotel[]>([])
-  const [hotelId, setHotelId] = useState('')
+  const [currentHotel, setCurrentHotel] = useState<Hotel | null>(null)
+  const hotelId = currentHotel?.id ?? ''
   const [config, setConfig] = useState<HotelConfig | null>(null)
   const [rules, setRules] = useState<Rule[]>([])
   const [loading, setLoading] = useState(true)
@@ -216,32 +216,49 @@ export default function MaintenanceConfigurationPage() {
   const [ruleFormOpen, setRuleFormOpen] = useState(false)
   const [ruleForm, setRuleForm] = useState(emptyRule())
 
-  const currentHotel = useMemo(() => hotels.find((hotel) => hotel.id === hotelId) ?? null, [hotels, hotelId])
-
-  async function loadHotels() {
+  async function loadCurrentHotel() {
     setLoading(true)
     setError('')
-    const result = await supabase
-      .from('hotels')
-      .select('id, name')
-      .eq('active', true)
-      .order('name')
 
-    if (result.error) {
-      setError(result.error.message)
+    const { data: userData, error: userError } = await supabase.auth.getUser()
+    const userId = userData.user?.id ?? null
+
+    if (userError || !userId) {
+      setError(userError?.message ?? 'No se ha podido identificar la sesión actual.')
       setLoading(false)
       return
     }
 
-    const loadedHotels = (result.data ?? []) as Hotel[]
-    setHotels(loadedHotels)
-    const selectedHotelId = hotelId && loadedHotels.some((hotel) => hotel.id === hotelId)
-      ? hotelId
-      : loadedHotels[0]?.id ?? ''
-    setHotelId(selectedHotelId)
+    const assignment = await supabase
+      .from('user_hotel_roles')
+      .select('hotel_id')
+      .eq('user_id', userId)
+      .eq('active', true)
+      .limit(1)
+      .maybeSingle()
+
+    if (assignment.error || !assignment.data?.hotel_id) {
+      setError(assignment.error?.message ?? 'El usuario no tiene un hotel activo asignado.')
+      setLoading(false)
+      return
+    }
+
+    const hotelQuery = await supabase
+      .from('hotels')
+      .select('id, name')
+      .eq('id', assignment.data.hotel_id)
+      .eq('active', true)
+      .maybeSingle()
+
+    if (hotelQuery.error || !hotelQuery.data) {
+      setError(hotelQuery.error?.message ?? 'No se ha podido cargar el hotel actual.')
+      setLoading(false)
+      return
+    }
+
+    setCurrentHotel(hotelQuery.data as Hotel)
     setLoading(false)
   }
-
   async function loadHotelConfig(targetHotelId: string) {
     if (!targetHotelId) {
       setConfig(null)
@@ -274,7 +291,7 @@ export default function MaintenanceConfigurationPage() {
   }
 
   useEffect(() => {
-    void loadHotels()
+    void loadCurrentHotel()
   }, [])
 
   useEffect(() => {
@@ -439,15 +456,13 @@ export default function MaintenanceConfigurationPage() {
 
         {error && <div className="mb-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">{error}</div>}
 
-        <div className="mb-3 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-end sm:justify-between">
-          <label className="w-full max-w-xl">
-            <span className="mb-1 block text-sm font-semibold">Hotel</span>
-            <select value={hotelId} onChange={(event) => setHotelId(event.target.value)} className="w-full rounded-xl border px-3 py-2">
-              {hotels.map((hotel) => <option key={hotel.id} value={hotel.id}>{hotel.name}</option>)}
-            </select>
-          </label>
+        <div className="mb-3 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Hotel actual</div>
+            <div className="mt-1 truncate text-base font-bold text-slate-900">{currentHotel?.name ?? '—'}</div>
+          </div>
           <div className="flex gap-2 text-xs text-slate-500">
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1"><CheckCircle2 size={14} />Configuración aislada por hotel</span>
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1"><CheckCircle2 size={14} />Configuración por hotel</span>
             <button type="button" onClick={() => void simulate()} className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 font-semibold hover:bg-slate-200"><PlayCircle size={14} />Simular</button>
           </div>
         </div>

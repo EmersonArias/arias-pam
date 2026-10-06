@@ -159,9 +159,7 @@ export default function BooksPage() {
         return
       }
 
-      const { data, error } = await supabase
-        .from('maintenance_alerts')
-        const alerts = await loadMaintenanceAlerts(hotel.id)
+      const alerts = await loadMaintenanceAlerts(hotel.id)
 
       if (!mounted) return
 
@@ -187,9 +185,7 @@ export default function BooksPage() {
       return
     }
 
-    const { data, error } = await supabase
-      .from('maintenance_alerts')
-      const alerts = await loadMaintenanceAlerts(hotel.id)
+    const alerts = await loadMaintenanceAlerts(hotel.id)
 
     setMaintenanceAlerts(alerts)
     setNotificationsLoading(false)

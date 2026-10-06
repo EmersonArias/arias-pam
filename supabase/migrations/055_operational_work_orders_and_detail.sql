@@ -57,10 +57,10 @@ CREATE INDEX IF NOT EXISTS ix_maintenance_work_orders_hotel_priority
 -- =========================================================
 -- VISTA OPERATIVA: PREVENTIVAS + CORRECTIVAS + ACTUACIONES
 -- =========================================================
--- Importante: la vista ya existía desde migración 051.
--- PostgreSQL no permite que CREATE OR REPLACE VIEW cambie el orden o
--- el nombre de columnas existentes. Por eso conservamos exactamente
--- las columnas existentes y añadimos las nuevas al final.
+-- La vista ya existía desde la migración 051.
+-- PostgreSQL obliga a conservar el nombre y el orden de las columnas
+-- existentes al usar CREATE OR REPLACE VIEW. Las nuevas columnas se
+-- añaden únicamente al final.
 
 CREATE OR REPLACE VIEW public.maintenance_work_orders_resolved
 WITH (security_invoker = true)
@@ -85,6 +85,7 @@ SELECT
   mp.code AS maintenance_plan_code,
   mp.name AS maintenance_plan_name,
   mp.maintenance_type,
+  mp.apparatus_registry_id,
   ar.code AS apparatus_code,
   ar.name AS apparatus_name,
   ar.plant,
@@ -99,7 +100,7 @@ SELECT
   wo.generation_mode,
   wo.completion_timing,
   wo.parent_work_order_id,
-  wo.apparatus_registry_id,
+  wo.apparatus_registry_id AS work_order_apparatus_registry_id,
   wo.priority,
   COALESCE(wo.apparatus_registry_id, mp.apparatus_registry_id) AS resolved_apparatus_registry_id
 FROM public.maintenance_work_orders wo

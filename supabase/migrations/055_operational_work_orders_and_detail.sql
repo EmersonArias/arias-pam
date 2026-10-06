@@ -57,6 +57,10 @@ CREATE INDEX IF NOT EXISTS ix_maintenance_work_orders_hotel_priority
 -- =========================================================
 -- VISTA OPERATIVA: PREVENTIVAS + CORRECTIVAS + ACTUACIONES
 -- =========================================================
+-- Importante: la vista ya existía desde migración 051.
+-- PostgreSQL no permite que CREATE OR REPLACE VIEW cambie el orden o
+-- el nombre de columnas existentes. Por eso conservamos exactamente
+-- las columnas existentes y añadimos las nuevas al final.
 
 CREATE OR REPLACE VIEW public.maintenance_work_orders_resolved
 WITH (security_invoker = true)
@@ -66,8 +70,6 @@ SELECT
   wo.hotel_id,
   wo.scheduled_job_id,
   wo.maintenance_plan_id,
-  wo.parent_work_order_id,
-  wo.apparatus_registry_id,
   wo.title,
   wo.description,
   wo.work_type,
@@ -80,15 +82,13 @@ SELECT
   wo.completed_at,
   wo.completed_by,
   wo.observations,
-  wo.priority,
   mp.code AS maintenance_plan_code,
   mp.name AS maintenance_plan_name,
   mp.maintenance_type,
-  COALESCE(wo.apparatus_registry_id, mp.apparatus_registry_id) AS resolved_apparatus_registry_id,
-  COALESCE(wo_ar.code, ar.code) AS apparatus_code,
-  COALESCE(wo_ar.name, ar.name) AS apparatus_name,
-  COALESCE(wo_ar.plant, ar.plant) AS plant,
-  COALESCE(wo_ar.location, ar.location) AS location,
+  ar.code AS apparatus_code,
+  ar.name AS apparatus_name,
+  ar.plant,
+  ar.location,
   j.plan_year,
   j.month_number,
   j.week_slot,
@@ -97,7 +97,11 @@ SELECT
   wo.updated_at,
   wo.ot_number,
   wo.generation_mode,
-  wo.completion_timing
+  wo.completion_timing,
+  wo.parent_work_order_id,
+  wo.apparatus_registry_id,
+  wo.priority,
+  COALESCE(wo.apparatus_registry_id, mp.apparatus_registry_id) AS resolved_apparatus_registry_id
 FROM public.maintenance_work_orders wo
 LEFT JOIN public.maintenance_plans mp
   ON mp.id = wo.maintenance_plan_id
@@ -105,8 +109,6 @@ LEFT JOIN public.maintenance_scheduled_jobs j
   ON j.id = wo.scheduled_job_id
 LEFT JOIN public.apparatus_registry ar
   ON ar.id = mp.apparatus_registry_id
-LEFT JOIN public.apparatus_registry wo_ar
-  ON wo_ar.id = wo.apparatus_registry_id
 LEFT JOIN public.profiles p
   ON p.id = wo.assigned_user_id;
 

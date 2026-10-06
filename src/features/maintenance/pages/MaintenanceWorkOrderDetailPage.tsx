@@ -44,7 +44,6 @@ function statusTone(item:WorkOrder){
   if(item.scheduled_date && item.scheduled_date < new Date().toISOString().slice(0,10)) return 'bg-rose-100 text-rose-700'
   return 'bg-amber-100 text-amber-700'
 }
-function fmtDate(v:string|null){ return v ? new Date(v + (v.length===10?'T12:00:00':'')).toLocaleDateString('es-ES') : '—' }
 function fmtDateTime(v:string|null){ return v ? new Date(v).toLocaleString('es-ES') : '—' }
 
 export default function MaintenanceWorkOrderDetailPage(){

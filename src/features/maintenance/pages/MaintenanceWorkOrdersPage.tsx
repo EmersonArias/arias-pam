@@ -22,7 +22,7 @@ type WorkOrder = {
   id: string
   hotel_id: string
   scheduled_job_id: string
-  maintenance_plan_id: string
+  maintenance_plan_id: string | null
   ot_number: string
   title: string
   description: string | null
@@ -37,7 +37,7 @@ type WorkOrder = {
   completed_at: string | null
   completed_by: string | null
   observations: string | null
-  maintenance_plan_name: string
+  maintenance_plan_name: string | null
   maintenance_type: 'INTERNAL' | 'EXTERNAL'
   apparatus_registry_id: string | null
   apparatus_code: string | null
@@ -378,7 +378,7 @@ export default function MaintenanceWorkOrdersPage() {
                   <button
                     key={item.id}
                     type="button"
-                    onClick={() => setSelectedId(item.id)}
+                    onClick={() => navigate('/maintenance/work-orders/' + item.id)}
                     className={'w-full rounded-xl border p-3 text-left ' + (item.id === selectedId ? 'border-blue-200 bg-blue-50' : 'border-slate-200 bg-white')}
                   >
                     <div className="flex items-start justify-between gap-2">
@@ -418,7 +418,7 @@ export default function MaintenanceWorkOrdersPage() {
                   {filteredRecords.map((item) => (
                     <tr
                       key={item.id}
-                      onClick={() => setSelectedId(item.id)}
+                      onClick={() => navigate('/maintenance/work-orders/' + item.id)}
                       className={'cursor-pointer border-b border-slate-100 transition ' + (item.id === selectedId ? 'bg-blue-50' : 'hover:bg-slate-50')}
                     >
                       <td className="whitespace-nowrap px-3 py-3 font-bold text-slate-800">{item.ot_number}</td>

@@ -85,6 +85,21 @@ function displayStatusClass(item: WorkOrder) {
   return 'bg-amber-100 text-amber-700'
 }
 
+function getMaintenanceDisplay(item: WorkOrder) {
+  if (item.work_type === 'PREVENTIVE') {
+    const maintenance = item.maintenance_plan_name?.trim() || 'PREVENTIVO'
+    const equipment = item.apparatus_name?.trim() || item.apparatus_code?.trim() || ''
+    return equipment ? maintenance + ' · ' + equipment : maintenance
+  }
+
+  const prefix = item.ot_number + ' — '
+  if (item.title.startsWith(prefix)) {
+    return item.title.slice(prefix.length).trim() || typeLabels[item.work_type]
+  }
+
+  return item.title.trim() || typeLabels[item.work_type]
+}
+
 function getWorkDescription(item: WorkOrder) {
   const description = item.description?.trim() ?? ''
   const technicalOrigin = description.startsWith('Origen ')
@@ -384,7 +399,7 @@ export default function MaintenanceWorkOrdersPage() {
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <div className="text-sm font-bold text-slate-800">{item.ot_number}</div>
-                        <div className="mt-1 text-xs font-medium text-slate-600">{item.maintenance_plan_name}</div>
+                        <div className="mt-1 text-xs font-semibold text-slate-700">{getMaintenanceDisplay(item)}</div>
                       </div>
                       <span className={'shrink-0 rounded-full px-2 py-1 text-[10px] font-semibold ' + displayStatusClass(item)}>{displayStatusLabel(item)}</span>
                     </div>
@@ -423,7 +438,7 @@ export default function MaintenanceWorkOrdersPage() {
                     >
                       <td className="whitespace-nowrap px-3 py-3 font-bold text-slate-800">{item.ot_number}</td>
                       <td className="px-3 py-3">
-                        <div className="font-semibold text-slate-700">{item.maintenance_plan_name}</div>
+                        <div className="font-semibold text-slate-700">{getMaintenanceDisplay(item)}</div>
                         <div className="mt-0.5 text-[10px] text-slate-400">{typeLabels[item.work_type]}</div>
                       </td>
                       <td className="px-3 py-3">

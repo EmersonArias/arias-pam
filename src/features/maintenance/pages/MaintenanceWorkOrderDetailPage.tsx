@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { AlertTriangle, ArrowLeft, Camera, CheckCircle2, Clock3, FileText, Image, Save, Upload, UserRound, Wrench, X } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, Camera, CheckCircle2, FileText, Image, Save, Upload, UserRound, Wrench, X } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
 import BrandLogo from '../../../shared/components/branding/BrandLogo'
 import { HomeButton } from '../../../shared/components/navigation/NavigationButtons'

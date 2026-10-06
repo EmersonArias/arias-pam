@@ -24,12 +24,16 @@ type HomeRegister = {
 
 type MaintenanceAlert = {
   id: string
+  maintenance_plan_id: string
   alert_type: 'UPCOMING_REVIEW' | 'DUE_TODAY' | 'OVERDUE_REVIEW' | 'OUT_OF_RANGE'
   severity: 'INFO' | 'WARNING' | 'CRITICAL'
   title: string
   message: string
   due_date: string | null
   triggered_at: string
+  apparatus_registry_id: string | null
+  apparatus_code: string | null
+  apparatus_name: string | null
 }
 
 const registers: HomeRegister[] = [
@@ -89,6 +93,53 @@ export default function BooksPage() {
   }
 
 
+
+  async function loadMaintenanceAlerts(hotelId: string) {
+    const result = await supabase
+      .from('maintenance_alerts')
+      .select('id, maintenance_plan_id, alert_type, severity, title, message, due_date, triggered_at')
+      .eq('hotel_id', hotelId)
+      .is('resolved_at', null)
+      .order('triggered_at', { ascending: false })
+      .limit(20)
+
+    if (result.error) return []
+
+    const rawAlerts = (result.data ?? []) as Array<Omit<MaintenanceAlert, 'apparatus_registry_id' | 'apparatus_code' | 'apparatus_name'>>
+    const planIds = [...new Set(rawAlerts.map((item) => item.maintenance_plan_id).filter(Boolean))]
+    if (!planIds.length) return rawAlerts.map((item) => ({ ...item, apparatus_registry_id: null, apparatus_code: null, apparatus_name: null }))
+
+    const plansQuery = await supabase
+      .from('maintenance_plans')
+      .select('id, apparatus_registry_id')
+      .in('id', planIds)
+
+    const plans = (plansQuery.data ?? []) as Array<{ id: string; apparatus_registry_id: string | null }>
+    const apparatusIds = [...new Set(plans.map((item) => item.apparatus_registry_id).filter(Boolean))] as string[]
+
+    const apparatusQuery = apparatusIds.length
+      ? await supabase
+          .from('apparatus_registry')
+          .select('id, code, name')
+          .in('id', apparatusIds)
+      : { data: [], error: null }
+
+    const apparatus = (apparatusQuery.data ?? []) as Array<{ id: string; code: string | null; name: string | null }>
+    const planMap = new Map(plans.map((item) => [item.id, item]))
+    const apparatusMap = new Map(apparatus.map((item) => [item.id, item]))
+
+    return rawAlerts.map((alert) => {
+      const plan = planMap.get(alert.maintenance_plan_id)
+      const asset = plan?.apparatus_registry_id ? apparatusMap.get(plan.apparatus_registry_id) : undefined
+      return {
+        ...alert,
+        apparatus_registry_id: asset?.id ?? null,
+        apparatus_code: asset?.code ?? null,
+        apparatus_name: asset?.name ?? null,
+      }
+    })
+  }
+
   useEffect(() => {
     let mounted = true
 
@@ -110,15 +161,11 @@ export default function BooksPage() {
 
       const { data, error } = await supabase
         .from('maintenance_alerts')
-        .select('id, alert_type, severity, title, message, due_date, triggered_at')
-        .eq('hotel_id', hotel.id)
-        .is('resolved_at', null)
-        .order('triggered_at', { ascending: false })
-        .limit(20)
+        const alerts = await loadMaintenanceAlerts(hotel.id)
 
       if (!mounted) return
 
-      setMaintenanceAlerts(error ? [] : ((data ?? []) as MaintenanceAlert[]))
+      setMaintenanceAlerts(alerts)
       setNotificationsLoading(false)
     }
 
@@ -142,13 +189,9 @@ export default function BooksPage() {
 
     const { data, error } = await supabase
       .from('maintenance_alerts')
-      .select('id, alert_type, severity, title, message, due_date, triggered_at')
-      .eq('hotel_id', hotel.id)
-      .is('resolved_at', null)
-      .order('triggered_at', { ascending: false })
-      .limit(20)
+      const alerts = await loadMaintenanceAlerts(hotel.id)
 
-    setMaintenanceAlerts(error ? [] : ((data ?? []) as MaintenanceAlert[]))
+    setMaintenanceAlerts(alerts)
     setNotificationsLoading(false)
   }
 
@@ -397,6 +440,7 @@ export default function BooksPage() {
                   if (register.path) navigate(register.path)
                 }}
                 disabled={register.comingSoon}
+                aria-label={register.comingSoon ? register.name + ' — en preparación' : 'Entrar en ' + register.name}
                 className="group flex min-h-[100px] flex-col items-stretch overflow-hidden rounded-2xl border border-slate-200 bg-white text-left shadow-[0_8px_18px_rgba(15,23,42,0.08)] transition-all duration-200 hover:-translate-y-2 hover:scale-[1.025] hover:border-slate-300 hover:shadow-[0_18px_32px_rgba(15,23,42,0.18)] active:translate-y-0 active:scale-[0.99]"
               >
                 <div className="flex min-h-[66px] flex-1 flex-col items-center justify-center px-2 py-1.5">
@@ -408,9 +452,11 @@ export default function BooksPage() {
                   </span>
                 </div>
 
-                <div className="border-t border-slate-200 px-2.5 py-1.5 text-center text-[9px] text-slate-400">
-                  {register.comingSoon ? 'En preparación' : 'Abrir módulo'}
-                </div>
+                {register.comingSoon && (
+                  <div className="border-t border-slate-200 px-2.5 py-1.5 text-center text-[9px] font-semibold text-slate-400">
+                    En preparación
+                  </div>
+                )}
               </button>
             ))}
           </div>
@@ -466,12 +512,15 @@ export default function BooksPage() {
                     <button
                       key={alert.id}
                       type="button"
-                      onClick={() => navigate('/maintenance')}
+                      onClick={() => navigate(alert.apparatus_registry_id ? `/maintenance/pam/${alert.apparatus_registry_id}?planId=${alert.maintenance_plan_id}` : '/maintenance')}
                       className="w-full rounded-xl border border-slate-200 bg-white p-3 text-left shadow-sm"
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
                           <div className="truncate text-xs font-semibold text-slate-800">{alert.title}</div>
+                          <div className="mt-0.5 truncate text-[10px] font-semibold text-slate-600">
+                            {alert.apparatus_code ? alert.apparatus_code + ' · ' : ''}{alert.apparatus_name ?? 'Equipo no identificado'}
+                          </div>
                           <div className="mt-1 line-clamp-2 text-[10px] text-slate-500">{alert.message}</div>
                         </div>
                         <span className={`shrink-0 rounded-full px-2 py-1 text-[9px] font-semibold ${statusClass}`}>{statusLabel}</span>
@@ -527,7 +576,7 @@ export default function BooksPage() {
                     return (
                       <tr
                         key={alert.id}
-                        onClick={() => navigate('/maintenance')}
+                        onClick={() => navigate(alert.apparatus_registry_id ? `/maintenance/pam/${alert.apparatus_registry_id}?planId=${alert.maintenance_plan_id}` : '/maintenance')}
                         className="cursor-pointer border-b border-slate-100 transition hover:bg-slate-50"
                       >
                         <td className="whitespace-nowrap px-3 py-2">
@@ -538,6 +587,9 @@ export default function BooksPage() {
                         <td className="max-w-[520px] px-3 py-2">
                           <div className="truncate font-semibold text-slate-800">
                             {alert.title}
+                          </div>
+                          <div className="truncate text-[10px] font-semibold text-slate-600">
+                            {alert.apparatus_code ? alert.apparatus_code + ' · ' : ''}{alert.apparatus_name ?? 'Equipo no identificado'}
                           </div>
                           <div className="truncate text-[10px] text-slate-500">
                             {alert.message}

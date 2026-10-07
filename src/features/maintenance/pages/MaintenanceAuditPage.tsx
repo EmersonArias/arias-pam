@@ -5,7 +5,7 @@ import BrandLogo from '../../../shared/components/branding/BrandLogo'
 import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
 
 const items = [
-  ['Registros', 'Consulta de registros oficiales y sus historiales.', ClipboardList, '/maintenance/records'],
+  ['Registros', 'Consulta de registros oficiales y sus historiales.', ClipboardList, '/maintenance/audit/records'],
   ['Certificados e informes', 'Documentación emitida por empresas y mantenedores.', FileCheck2, '/reports'],
   ['Evidencias', 'Fotografías y documentos asociados a ejecuciones.', ImageIcon, '/maintenance/records'],
   ['Histórico', 'Consulta de actuaciones y ejecuciones realizadas.', Archive, '/maintenance/operation'],

@@ -5,7 +5,7 @@ import BrandLogo from '../../../shared/components/branding/BrandLogo'
 import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
 
 const records = [
-  ['Preventivo diario / semanal', 'Registro preventivo de frecuencia corta.', FileText],
+  ['Preventivo diario', 'Registro preventivo de frecuencia corta.', FileText],
   ['Piscina exterior', 'Registro de medidas y controles diarios.', Waves],
   ['Piscina SPA', 'Registro de medidas y controles del SPA.', Waves],
   ['Autocontrol Legionella', 'Registro de controles y seguimiento.', FileText],
@@ -16,7 +16,7 @@ const records = [
   ['Elementos fotoluminiscentes', 'Registro de comprobaciones.', FileText],
   ['Luces de emergencia', 'Registro de comprobaciones y revisiones.', FileText],
   ['Puertas cortafuegos', 'Registro de inspecciones.', FileText],
-  ['Sistemas CI', 'Registro de inspecciones de protección contra incendios.', FileText],
+  ['PCI', 'Registro de inspecciones de protección contra incendios.', FileText],
   ['Calibraciones', 'Registro de calibraciones realizadas.', Ruler],
 ] as const
 

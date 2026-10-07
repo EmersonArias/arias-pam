@@ -100,7 +100,7 @@ export default function MaintenanceWorkOrderDetailPage(){
     }).eq('id',order.id)
     setSaving(false)
     if(q.error){setError(q.error.message);return}
-    setMessage('OT actualizada correctamente.');await load()
+    setMessage('Ticket actualizado correctamente.');await load()
   }
 
   async function startOrder(){
@@ -109,7 +109,7 @@ export default function MaintenanceWorkOrderDetailPage(){
     const q=await supabase.rpc('start_maintenance_work_order',{target_work_order_id:order.id})
     setWorking(false)
     if(q.error){setError(q.error.message);return}
-    setMessage('OT iniciada.');await load()
+    setMessage('Ticket iniciado.');await load()
   }
   async function completeOrder(){
     if(!order)return
@@ -120,8 +120,8 @@ export default function MaintenanceWorkOrderDetailPage(){
     setWorking(false)
     if(q.error){setError(q.error.message);return}
     setMessage(order.work_type==='PREVENTIVE'
-      ? 'OT preventiva finalizada. La próxima revisión y la siguiente OT se han generado automáticamente.'
-      : 'OT finalizada correctamente.')
+      ? 'Ticket preventivo finalizado. La próxima revisión y el siguiente ticket se han generado automáticamente.'
+      : 'Ticket finalizado correctamente.')
     await load()
   }
   async function uploadPhotos(files:File[]){
@@ -169,11 +169,11 @@ export default function MaintenanceWorkOrderDetailPage(){
     if(q.error){setError(q.error.message);return}
     setCorrectiveOpen(false);setCorrectiveTitle('');setCorrectiveDescription('');setCorrectivePriority('HIGH')
     const created=q.data as WorkOrder
-    navigate('/maintenance/work-orders/'+created.id)
+    navigate('/maintenance/tickets/'+created.id)
   }
 
   if(loading)return <div className="min-h-screen bg-slate-100 p-4"><div className="mx-auto max-w-5xl rounded-2xl bg-white p-6 shadow-lg text-sm">Cargando ficha de OT…</div></div>
-  if(!order)return <div className="min-h-screen bg-slate-100 p-4"><div className="mx-auto max-w-5xl rounded-2xl bg-white p-6 shadow-lg"><p className="text-sm text-rose-700">{error||'OT no encontrada.'}</p><button type="button" onClick={()=>navigate('/maintenance/work-orders')} className="mt-4 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white">Volver a OTs</button></div></div>
+  if(!order)return <div className="min-h-screen bg-slate-100 p-4"><div className="mx-auto max-w-5xl rounded-2xl bg-white p-6 shadow-lg"><p className="text-sm text-rose-700">{error||'Ticket no encontrado.'}</p><button type="button" onClick={()=>navigate('/maintenance/tickets')} className="mt-4 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white">Volver a tickets</button></div></div>
 
   return <div className="min-h-screen bg-slate-100 px-3 py-3 text-slate-900 sm:px-5 sm:py-5">
     <div className="mx-auto max-w-5xl">
@@ -181,9 +181,9 @@ export default function MaintenanceWorkOrderDetailPage(){
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
             <BrandLogo onActivate={()=>navigate('/')} className="h-9 w-auto shrink-0 object-contain sm:h-11"/>
-            <div><div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Orden de trabajo</div><h1 className="text-xl font-bold sm:text-2xl">{order.ot_number}</h1><p className="text-xs text-slate-500 sm:text-sm">{hotel?.name??'Hotel'} · {typeLabels[order.work_type]}</p></div>
+            <div><div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Ticket</div><h1 className="text-xl font-bold sm:text-2xl">{order.ot_number}</h1><p className="text-xs text-slate-500 sm:text-sm">{hotel?.name??'Hotel'} · {typeLabels[order.work_type]}</p></div>
           </div>
-          <div className="arias-mobile-header-actions flex items-center gap-2"><button type="button" onClick={()=>navigate('/maintenance/work-orders')} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50"><ArrowLeft size={17}/>Volver</button><HomeButton onHome={()=>navigate('/')}/></div>
+          <div className="arias-mobile-header-actions flex items-center gap-2"><button type="button" onClick={()=>navigate('/maintenance/tickets')} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50"><ArrowLeft size={17}/>Volver</button><HomeButton onHome={()=>navigate('/')}/></div>
         </div>
       </header>
 
@@ -194,19 +194,19 @@ export default function MaintenanceWorkOrderDetailPage(){
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div><div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Estado</div><span className={'mt-1 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold '+statusTone(order)}>{statusLabel(order)}</span></div>
             <div className="flex flex-wrap gap-2">
-              {order.status==='PENDING'&&<button type="button" onClick={()=>void startOrder()} disabled={working} className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 disabled:opacity-50"><Wrench size={16}/>Iniciar OT</button>}
-              {order.status!=='COMPLETED'&&<button type="button" onClick={()=>void completeOrder()} disabled={working} className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"><CheckCircle2 size={16}/>Finalizar OT</button>}
+              {order.status==='PENDING'&&<button type="button" onClick={()=>void startOrder()} disabled={working} className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 disabled:opacity-50"><Wrench size={16}/>Iniciar ticket</button>}
+              {order.status!=='COMPLETED'&&<button type="button" onClick={()=>void completeOrder()} disabled={working} className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"><CheckCircle2 size={16}/>Finalizar ticket</button>}
             </div>
           </div>
           {order.status!=='COMPLETED'&&<div className="mt-4 grid gap-3 sm:grid-cols-[240px_1fr]">
-            <label><span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Resultado de cierre</span><select value={result} onChange={e=>setResult(e.target.value as typeof result)} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm">{resultOptions.map(x=><option key={x.value} value={x.value}>{x.label}</option>)}</select></label>
-            <div className="flex items-end text-xs text-slate-500">En una OT preventiva, finalizar desde aquí registra la ejecución real, recalcula la próxima revisión y genera la siguiente OT automáticamente.</div>
+            <label><span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Resultado de finalización</span><select value={result} onChange={e=>setResult(e.target.value as typeof result)} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm">{resultOptions.map(x=><option key={x.value} value={x.value}>{x.label}</option>)}</select></label>
+            <div className="flex items-end text-xs text-slate-500">En un ticket preventivo, finalizar desde aquí registra la ejecución real, recalcula la próxima revisión y genera el siguiente ticket automáticamente.</div>
           </div>}
         </section>
 
         <section className="grid gap-4 lg:grid-cols-2">
           <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            <div className="mb-3 text-sm font-semibold">Datos de la OT</div>
+            <div className="mb-3 text-sm font-semibold">Datos del ticket</div>
             <label className="block"><span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Título</span><input value={order.title} onChange={e=>setOrder({...order,title:e.target.value})} disabled={!canEdit} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"/></label>
             <label className="mt-3 block"><span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Descripción / trabajo a realizar</span><textarea value={order.description??''} onChange={e=>setOrder({...order,description:e.target.value})} rows={5} disabled={!canEdit} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"/></label>
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -236,7 +236,7 @@ export default function MaintenanceWorkOrderDetailPage(){
 
         <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div><div className="flex items-center gap-2 text-sm font-semibold"><Image size={17}/>Fotografías</div><div className="mt-0.5 text-xs text-slate-500">Evidencias de esta OT.</div></div>
+            <div><div className="flex items-center gap-2 text-sm font-semibold"><Image size={17}/>Fotografías</div><div className="mt-0.5 text-xs text-slate-500">Evidencias de este ticket.</div></div>
             {canEdit ? (
               <div className="flex flex-wrap gap-2">
                 <input ref={galleryRef} type="file" accept="image/*" multiple className="hidden" onChange={e=>{const f=Array.from(e.target.files??[]);if(f.length)void uploadPhotos(f);e.target.value=''}}/>
@@ -253,15 +253,15 @@ export default function MaintenanceWorkOrderDetailPage(){
 
         {canEdit && <section className="rounded-2xl border border-rose-200 bg-rose-50 p-4 shadow-sm">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div><div className="flex items-center gap-2 text-sm font-semibold text-rose-900"><AlertTriangle size={18}/>Avería detectada</div><p className="mt-1 text-xs leading-5 text-rose-800">Crea una OT correctiva vinculada a esta OT con el equipo y la trazabilidad de origen.</p></div>
-            <button type="button" onClick={()=>setCorrectiveOpen(true)} disabled={working} className="inline-flex items-center justify-center rounded-xl bg-rose-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-rose-800 disabled:opacity-50">+ Crear OT correctiva</button>
+            <div><div className="flex items-center gap-2 text-sm font-semibold text-rose-900"><AlertTriangle size={18}/>Avería detectada</div><p className="mt-1 text-xs leading-5 text-rose-800">Crea una OT correctiva vinculada a este ticket con el equipo y la trazabilidad de origen.</p></div>
+            <button type="button" onClick={()=>setCorrectiveOpen(true)} disabled={working} className="inline-flex items-center justify-center rounded-xl bg-rose-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-rose-800 disabled:opacity-50">+ Crear ticket correctivo</button>
           </div>
           {correctiveOpen&&<div className="mt-4 rounded-xl border border-rose-200 bg-white p-4">
-            <div className="flex items-center justify-between"><h2 className="text-sm font-semibold">Nueva OT correctiva</h2><button type="button" onClick={()=>setCorrectiveOpen(false)} className="p-2 text-slate-500"><X size={17}/></button></div>
+            <div className="flex items-center justify-between"><h2 className="text-sm font-semibold">Nuevo ticket correctivo</h2><button type="button" onClick={()=>setCorrectiveOpen(false)} className="p-2 text-slate-500"><X size={17}/></button></div>
             <label className="mt-3 block"><span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Avería / título</span><input value={correctiveTitle} onChange={e=>setCorrectiveTitle(e.target.value)} placeholder="Ej. Cámara 3 sin señal" className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"/></label>
             <label className="mt-3 block"><span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Descripción del problema</span><textarea value={correctiveDescription} onChange={e=>setCorrectiveDescription(e.target.value)} rows={4} placeholder="Síntomas, comprobaciones, ubicación exacta…" className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"/></label>
             <label className="mt-3 block max-w-xs"><span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Prioridad</span><select value={correctivePriority} onChange={e=>setCorrectivePriority(e.target.value as WorkOrder['priority'])} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm">{Object.entries(priorityLabels).map(([k,v])=><option key={k} value={k}>{v}</option>)}</select></label>
-            <div className="mt-4 flex justify-end gap-2"><button type="button" onClick={()=>setCorrectiveOpen(false)} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold">Cancelar</button><button type="button" onClick={()=>void createCorrective()} disabled={working||!correctiveTitle.trim()} className="rounded-xl bg-rose-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Crear OT correctiva</button></div>
+            <div className="mt-4 flex justify-end gap-2"><button type="button" onClick={()=>setCorrectiveOpen(false)} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold">Cancelar</button><button type="button" onClick={()=>void createCorrective()} disabled={working||!correctiveTitle.trim()} className="rounded-xl bg-rose-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Crear ticket correctivo</button></div>
           </div>}
         </section>}
       </main>

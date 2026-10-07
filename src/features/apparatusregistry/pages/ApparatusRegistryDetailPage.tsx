@@ -658,14 +658,14 @@ export default function ApparatusRegistryDetailPage() {
     <div className="min-h-screen bg-slate-100 p-3 sm:p-5">
       <div className="mx-auto max-w-5xl">
         <div className="mb-4 rounded-2xl bg-white p-3 shadow-lg sm:p-4">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-3">
+          <div className="grid gap-3 sm:gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+            <div className="flex min-w-0 items-center gap-3">
               <BrandLogo
                 onActivate={() => requestNavigation('/')}
-                className="h-11 w-auto object-contain sm:h-13"
+                className="h-11 w-[104px] shrink-0 object-contain sm:h-13 sm:w-auto"
               />
-              <div>
-                <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">
+              <div className="min-w-0">
+                <h1 className="text-2xl font-bold leading-tight text-slate-900 sm:text-3xl">
                   Equipos e instalaciones
                 </h1>
                 <p className="text-sm text-slate-500">
@@ -674,7 +674,7 @@ export default function ApparatusRegistryDetailPage() {
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center justify-end gap-2">
+            <div className="grid w-full grid-cols-2 gap-2 lg:flex lg:w-auto lg:flex-wrap lg:items-center lg:justify-end">
               <BackButton
                 onBack={() => {
                   if (mode === 'view') {

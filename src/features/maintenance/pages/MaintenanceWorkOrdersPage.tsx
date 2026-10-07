@@ -390,7 +390,7 @@ export default function MaintenanceWorkOrdersPage() {
             <div className="flex min-w-0 items-center gap-3">
               <BrandLogo onActivate={() => navigate('/')} className="h-9 w-auto shrink-0 object-contain sm:h-11" />
               <div className="min-w-0">
-                <h1 className="text-xl font-bold leading-tight sm:text-2xl">Órdenes de trabajo</h1>
+                <h1 className="text-xl font-bold leading-tight sm:text-2xl">Tickets</h1>
                 <p className="text-xs text-slate-500 sm:text-sm">Tickets preventivos y operativos de {hotel?.name ?? 'hotel actual'}</p>
               </div>
             </div>
@@ -427,7 +427,7 @@ export default function MaintenanceWorkOrdersPage() {
         }>
           {generationMode === 'AUTO'
             ? `Generación automática de tickets preventivos: activa · anticipación ${generationLeadDays} día${generationLeadDays === 1 ? '' : 's'}.`
-            : 'Generación automática de OT: desactivada para este hotel. Los tickets preventivos no se crearán automáticamente mientras esté en modo Manual.'}
+            : 'Generación automática de tickets preventivos: desactivada para este hotel. Los tickets preventivos no se crearán automáticamente mientras esté en modo Manual.'}
         </div>
 
         <section className="mb-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">

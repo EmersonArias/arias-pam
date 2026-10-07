@@ -81,102 +81,98 @@ svg {
 }
 
 @media (max-width: 640px) {
-  button {
+  .arias-suite-app button {
     min-height: 44px;
     touch-action: manipulation;
   }
 
-  input,
-  select,
-  textarea {
+  .arias-suite-app input,
+  .arias-suite-app select,
+  .arias-suite-app textarea {
     min-height: 44px;
     font-size: 16px;
   }
 
-  textarea {
+  .arias-suite-app textarea {
     min-height: 96px;
   }
 
-  .arias-page-card {
+  .arias-suite-app .arias-page-card {
     border-radius: 1rem !important;
   }
 
-  .arias-grid-toolbar,
-  .arias-form-actions {
+  .arias-suite-app .arias-grid-toolbar,
+  .arias-suite-app .arias-form-actions {
     width: 100%;
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0.5rem;
   }
 
-  .arias-grid-toolbar > button:not(.arias-icon-button),
-  .arias-form-actions > button:not(.arias-icon-button) {
+  .arias-suite-app .arias-grid-toolbar > button:not(.arias-icon-button),
+  .arias-suite-app .arias-form-actions > button:not(.arias-icon-button) {
     width: 100%;
     min-width: 0;
   }
 
-  .arias-grid-toolbar > .arias-icon-button,
-  .arias-form-actions > .arias-icon-button {
+  .arias-suite-app .arias-grid-toolbar > .arias-icon-button,
+  .arias-suite-app .arias-form-actions > .arias-icon-button {
     justify-self: center;
   }
 
-  .arias-mobile-header-actions {
+  .arias-suite-app .arias-mobile-header-actions {
     width: 100%;
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0.5rem;
   }
 
-  .arias-mobile-header-actions > * {
+  .arias-suite-app .arias-mobile-header-actions > * {
     min-width: 0;
   }
 
-  .arias-mobile-header-actions .arias-grid-toolbar,
-  .arias-mobile-header-actions .arias-form-actions {
+  .arias-suite-app .arias-mobile-header-actions .arias-grid-toolbar,
+  .arias-suite-app .arias-mobile-header-actions .arias-form-actions {
     grid-column: 1 / -1;
   }
 
-  .arias-mobile-section {
+  .arias-suite-app .arias-mobile-section {
     padding: 0.875rem !important;
   }
-}
 
-@media (max-width: 640px) {
-  .min-h-screen.bg-slate-100 {
+  .arias-suite-app .min-h-screen.bg-slate-100 {
     padding: 0.5rem !important;
   }
 
-  .flex.flex-wrap.items-center.justify-end.gap-2 {
+  .arias-suite-app .flex.flex-wrap.items-center.justify-end.gap-2 {
     width: 100%;
     display: grid !important;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0.5rem;
   }
 
-  .flex.flex-wrap.items-center.justify-end.gap-2 > .arias-grid-toolbar,
-  .flex.flex-wrap.items-center.justify-end.gap-2 > .arias-form-actions {
+  .arias-suite-app .flex.flex-wrap.items-center.justify-end.gap-2 > .arias-grid-toolbar,
+  .arias-suite-app .flex.flex-wrap.items-center.justify-end.gap-2 > .arias-form-actions {
     grid-column: 1 / -1;
   }
 
-  .flex.flex-wrap.items-center.justify-end.gap-2 > .arias-action-button {
+  .arias-suite-app .flex.flex-wrap.items-center.justify-end.gap-2 > .arias-action-button {
     width: 100%;
     min-width: 0;
   }
 
-  .flex.flex-wrap.items-center.justify-end.gap-2 > .arias-icon-button {
+  .arias-suite-app .flex.flex-wrap.items-center.justify-end.gap-2 > .arias-icon-button {
     justify-self: center;
   }
 
-  /* Evita que textos largos rompan las tarjetas en pantallas estrechas. */
-  [class*="max-w-7xl"],
-  [class*="max-w-6xl"],
-  [class*="max-w-5xl"],
-  [class*="max-w-4xl"] {
+  .arias-suite-app [class*="max-w-7xl"],
+  .arias-suite-app [class*="max-w-6xl"],
+  .arias-suite-app [class*="max-w-5xl"],
+  .arias-suite-app [class*="max-w-4xl"] {
     min-width: 0;
   }
 
-  /* Áreas con tablas conservan desplazamiento horizontal en lugar de deformar la pantalla. */
-  table {
+  .arias-suite-app table {
     max-width: none;
   }
 }

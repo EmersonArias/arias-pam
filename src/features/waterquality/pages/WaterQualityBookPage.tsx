@@ -462,6 +462,12 @@ export default function WaterQualityBookPage({ type }: WaterQualityBookPageProps
           </aside>
         </div>
 
+        <div className='pointer-events-none fixed bottom-3 right-4 z-10 hidden sm:block'>
+          <div className='rounded-full border border-slate-200/80 bg-white/80 px-3 py-1 text-[9px] font-medium text-slate-400 shadow-sm backdrop-blur'>
+            Ref. normativa · RD 742/2013
+          </div>
+        </div>
+
         <div className='fixed inset-x-3 bottom-3 z-20 sm:hidden'>
           <div className='grid grid-cols-[1fr_1.4fr] gap-2 rounded-2xl border border-slate-200 bg-white/95 p-2 shadow-2xl backdrop-blur'>
             <button type='button' onClick={handleNew} className='inline-flex items-center justify-center gap-2 rounded-xl border border-blue-100 bg-blue-50 px-3 py-3 text-sm font-bold text-blue-800'><Plus size={17} /> Nueva</button>

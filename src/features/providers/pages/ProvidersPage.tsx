@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { Globe, Mail, Pencil, Phone, Plus, RefreshCw, Search, UserRound, Wrench } from 'lucide-react'
+import { ChevronDown, ChevronUp, Globe, Mail, Pencil, Phone, Plus, RefreshCw, Search, UserRound, Wrench } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import BrandLogo from '../../../shared/components/branding/BrandLogo'
 import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
 import IconButton from '../../../shared/components/buttons/IconButton'
+import GridViewport from '../../../shared/components/grid/GridViewport'
+import { useGridKeyboardNavigation } from '../../../shared/components/grid/useGridKeyboardNavigation'
 import { supabase } from '../../../lib/supabase'
 
 type Provider = {
@@ -254,6 +256,18 @@ export default function ProvidersPage() {
   }, [records, search, activeFilter])
 
   const selected = records.find((item) => item.id === selectedId) ?? null
+
+  const gridIds = useMemo(() => filteredRecords.map((item) => item.id), [filteredRecords])
+  const { currentIndex, moveSelection, getGridProps, getRowProps } = useGridKeyboardNavigation({
+    ids: gridIds,
+    selectedId,
+    onSelectedIdChange: setSelectedId,
+    onOpen: (id) => {
+      const provider = records.find((item) => item.id === id)
+      if (provider) void openEdit(provider)
+    },
+    autoFocusFirst: true,
+  })
 
   function openNew() {
     setEditingId(null)
@@ -615,7 +629,9 @@ export default function ProvidersPage() {
               </div>
             </div>
 
-            <div className="hidden md:block max-h-[calc(100vh-360px)] min-h-[320px] overflow-auto">
+            <div className="hidden md:block">
+              <div {...getGridProps()} className="outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-200">
+                <GridViewport className="max-h-[calc(100vh-360px)] min-h-[320px]">
               <table className="w-full min-w-[760px] border-collapse text-sm">
                 <thead>
                   <tr className="sticky top-0 z-10 border-b bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
@@ -633,6 +649,7 @@ export default function ProvidersPage() {
                     return (
                       <tr
                         key={item.id}
+                        {...getRowProps(item.id)}
                         onClick={() => setSelectedId(item.id)}
                         className={`cursor-pointer border-b transition outline-none ${
                           isSelected ? 'bg-blue-50' : 'hover:bg-slate-50'
@@ -689,6 +706,17 @@ export default function ProvidersPage() {
                   )}
                 </tbody>
               </table>
+                </GridViewport>
+                <div className="flex items-center justify-between border-t border-slate-200 px-3 py-2">
+                  <span className="text-[11px] text-slate-500">
+                    {filteredRecords.length === 0 ? 'Sin proveedores' : `${currentIndex + 1} / ${filteredRecords.length}`}
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <IconButton icon={ChevronUp} label="Proveedor anterior" title="Anterior" onClick={() => moveSelection(currentIndex - 1)} disabled={filteredRecords.length === 0 || currentIndex === 0} className="h-9 w-9" />
+                    <IconButton icon={ChevronDown} label="Proveedor siguiente" title="Siguiente" onClick={() => moveSelection(currentIndex + 1)} disabled={filteredRecords.length === 0 || currentIndex === filteredRecords.length - 1} className="h-9 w-9" />
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 

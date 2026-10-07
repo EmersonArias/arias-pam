@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { AlertTriangle, Camera, CheckCircle2, Clock3, FileText, Image, RefreshCw, Trash2, Upload, UserRound, Wrench } from 'lucide-react'
+import { AlertTriangle, Archive, CheckCircle2, Clock3, FileText, Image, RefreshCw, UserRound, Wrench } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import BrandLogo from '../../../shared/components/branding/BrandLogo'
 import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
 import IconButton from '../../../shared/components/buttons/IconButton'
+import ActionButton from '../../../shared/components/buttons/ActionButton'
+import GridViewport from '../../../shared/components/grid/GridViewport'
+import { useGridKeyboardNavigation } from '../../../shared/components/grid/useGridKeyboardNavigation'
 import { useHotelScope } from '../../../shared/context/HotelScopeContext'
 import { supabase } from '../../../lib/supabase'
 
@@ -126,14 +129,12 @@ export default function MaintenanceWorkOrdersPage() {
   const { hotel } = useHotelScope()
   const [records, setRecords] = useState<WorkOrder[]>([])
   const [selectedId, setSelectedId] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'ALL' | WorkOrder['status']>('ALL')
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'IN_PROGRESS'>('ALL')
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [evidence, setEvidence] = useState<WorkOrderEvidence[]>([])
   const [evidenceLoading, setEvidenceLoading] = useState(false)
-  const [evidenceSaving, setEvidenceSaving] = useState(false)
-  const photoInputRef = useRef<HTMLInputElement | null>(null)
 
   async function loadData() {
     if (!hotel?.id) {
@@ -151,6 +152,7 @@ export default function MaintenanceWorkOrdersPage() {
       .from('maintenance_work_orders_resolved')
       .select('*')
       .eq('hotel_id', hotel.id)
+      .neq('status', 'COMPLETED')
       .order('scheduled_date', { ascending: true, nullsFirst: false })
       .order('created_at', { ascending: false })
 
@@ -216,89 +218,6 @@ export default function MaintenanceWorkOrdersPage() {
     void loadEvidence(selectedId)
   }, [selectedId])
 
-  async function uploadPhotos(files: File[]) {
-    if (!hotel?.id || !selected) return
-
-    const imageFiles = files.filter((file) => file.type.startsWith('image/'))
-    if (!imageFiles.length) {
-      setError('Selecciona al menos una fotografía.')
-      return
-    }
-
-    setEvidenceSaving(true)
-    setError('')
-
-    try {
-      for (const file of imageFiles) {
-        const safeName = file.name.replace(/[^a-zA-Z0-9._-]+/g, '_')
-        const storagePath = `${hotel.id}/${selected.id}/${crypto.randomUUID()}-${safeName}`
-
-        const upload = await supabase
-          .storage
-          .from('maintenance-evidence')
-          .upload(storagePath, file, {
-            contentType: file.type,
-            upsert: false,
-          })
-
-        if (upload.error) throw upload.error
-
-        const insert = await supabase
-          .from('maintenance_work_order_evidence')
-          .insert({
-            hotel_id: hotel.id,
-            work_order_id: selected.id,
-            storage_path: storagePath,
-            file_name: file.name,
-            mime_type: file.type,
-            file_size: file.size,
-            uploaded_by: (await supabase.auth.getUser()).data.user?.id ?? null,
-          })
-
-        if (insert.error) {
-          await supabase.storage.from('maintenance-evidence').remove([storagePath])
-          throw insert.error
-        }
-      }
-
-      await loadEvidence(selected.id)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se han podido guardar las fotografías.')
-    } finally {
-      setEvidenceSaving(false)
-      if (photoInputRef.current) photoInputRef.current.value = ''
-    }
-  }
-
-  async function removePhoto(item: WorkOrderEvidence) {
-    if (!selected) return
-
-    setEvidenceSaving(true)
-    setError('')
-
-    try {
-      const storageResult = await supabase
-        .storage
-        .from('maintenance-evidence')
-        .remove([item.storage_path])
-
-      if (storageResult.error) throw storageResult.error
-
-      const result = await supabase
-        .from('maintenance_work_order_evidence')
-        .delete()
-        .eq('id', item.id)
-
-      if (result.error) throw result.error
-
-      setEvidence((current) => current.filter((entry) => entry.id !== item.id))
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se ha podido eliminar la fotografía.')
-    } finally {
-      setEvidenceSaving(false)
-    }
-  }
-
   const filteredRecords = useMemo(() => {
     const query = search.trim().toLocaleLowerCase('es')
 
@@ -327,6 +246,24 @@ export default function MaintenanceWorkOrdersPage() {
 
   const selected = records.find((item) => item.id === selectedId) ?? null
 
+  const gridIds = useMemo(
+    () => filteredRecords.map((item) => item.id),
+    [filteredRecords],
+  )
+
+  const {
+    currentIndex,
+    moveSelection,
+    getGridProps,
+    getRowProps,
+  } = useGridKeyboardNavigation({
+    ids: gridIds,
+    selectedId,
+    onSelectedIdChange: setSelectedId,
+    onOpen: (id) => navigate('/maintenance/work-orders/' + id),
+    autoFocusFirst: true,
+  })
+
   return (
     <div className="min-h-screen bg-slate-100 px-3 py-3 text-slate-900 sm:px-5 sm:py-5">
       <div className="mx-auto max-w-[1500px]">
@@ -341,6 +278,7 @@ export default function MaintenanceWorkOrdersPage() {
             </div>
             <div className="flex items-center gap-2">
               <IconButton icon={RefreshCw} label="Actualizar" title="Actualizar" onClick={() => void loadData()} disabled={loading} />
+              <ActionButton icon={Archive} label="Histórico" onClick={() => navigate('/maintenance/history')} />
               <BackButton onBack={() => navigate('/maintenance/operation')} />
               <HomeButton onHome={() => navigate('/')} />
             </div>
@@ -371,10 +309,9 @@ export default function MaintenanceWorkOrdersPage() {
                 onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)}
                 className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2"
               >
-                <option value="ALL">Todos</option>
+                <option value="ALL">Pendientes y en curso</option>
                 <option value="PENDING">Pendiente</option>
                 <option value="IN_PROGRESS">En curso</option>
-                <option value="COMPLETED">Finalizada</option>
               </select>
             </label>
           </div>
@@ -417,7 +354,9 @@ export default function MaintenanceWorkOrdersPage() {
               </div>
             </div>
 
-            <div className="hidden max-h-[calc(100vh-300px)] overflow-auto md:block">
+            <div className="hidden md:block">
+              <div {...getGridProps()} className="outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-200">
+                <GridViewport className="max-h-[calc(100vh-300px)]">
               <table className="w-full min-w-[960px] border-collapse text-xs">
                 <thead>
                   <tr className="sticky top-0 z-10 border-b bg-slate-50 text-left text-[10px] uppercase tracking-wide text-slate-500">
@@ -459,6 +398,31 @@ export default function MaintenanceWorkOrdersPage() {
                   )}
                 </tbody>
               </table>
+                </GridViewport>
+                <div className="flex items-center justify-between border-t border-slate-200 px-3 py-2">
+                  <span className="text-[11px] text-slate-500">
+                    {filteredRecords.length === 0 ? 'Sin OTs' : `${currentIndex + 1} / ${filteredRecords.length}`}
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <IconButton
+                      icon={Wrench}
+                      label="OT anterior"
+                      title="OT anterior"
+                      onClick={() => moveSelection(currentIndex - 1)}
+                      disabled={filteredRecords.length === 0 || currentIndex === 0}
+                      className="h-9 w-9"
+                    />
+                    <IconButton
+                      icon={CheckCircle2}
+                      label="OT siguiente"
+                      title="OT siguiente"
+                      onClick={() => moveSelection(currentIndex + 1)}
+                      disabled={filteredRecords.length === 0 || currentIndex === filteredRecords.length - 1}
+                      className="h-9 w-9"
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
           </section>
 
@@ -502,52 +466,7 @@ export default function MaintenanceWorkOrdersPage() {
                       </div>
                       <div className="mt-0.5 text-xs text-slate-500">Evidencias de la ejecución de esta OT.</div>
                     </div>
-                    <div>
-                      <input
-                        ref={photoInputRef}
-                        type="file"
-                        accept="image/*"
-                        multiple
-                        className="hidden"
-                        onChange={(event) => {
-                          const files = Array.from(event.target.files ?? [])
-                          if (files.length) void uploadPhotos(files)
-                          event.target.value = ''
-                        }}
-                      />
-                      <input
-                        id="work-order-camera-input"
-                        type="file"
-                        accept="image/*"
-                        capture="environment"
-                        className="hidden"
-                        onChange={(event) => {
-                          const files = Array.from(event.target.files ?? [])
-                          if (files.length) void uploadPhotos(files)
-                          event.target.value = ''
-                        }}
-                      />
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          onClick={() => document.getElementById('work-order-camera-input')?.click()}
-                          disabled={evidenceSaving}
-                          className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          <Camera size={15} />
-                          Hacer foto
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => photoInputRef.current?.click()}
-                          disabled={evidenceSaving}
-                          className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          <Upload size={15} />
-                          {evidenceSaving ? 'Guardando…' : 'Galería'}
-                        </button>
-                      </div>
-                    </div>
+<div className="text-[11px] text-slate-400">Solo consulta en esta pantalla. Las evidencias se gestionan desde la ejecución de la OT.</div>
                   </div>
 
                   {evidenceLoading ? (
@@ -559,16 +478,6 @@ export default function MaintenanceWorkOrdersPage() {
                           <a href={item.url} target="_blank" rel="noreferrer" className="block aspect-square">
                             <img src={item.url} alt={item.file_name} className="h-full w-full object-cover" />
                           </a>
-                          <button
-                            type="button"
-                            onClick={() => void removePhoto(item)}
-                            disabled={evidenceSaving}
-                            aria-label={`Eliminar ${item.file_name}`}
-                            title="Eliminar fotografía"
-                            className="absolute right-1.5 top-1.5 inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-slate-600 shadow-sm hover:bg-white disabled:opacity-50"
-                          >
-                            <Trash2 size={14} />
-                          </button>
                           <div className="truncate border-t bg-white px-2 py-1.5 text-[10px] text-slate-500">{item.file_name}</div>
                         </div>
                       ))}

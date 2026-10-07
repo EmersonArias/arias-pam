@@ -605,7 +605,7 @@ export default function MaintenancePamDetailPage() {
         .maybeSingle()
 
       if (openWorkOrderQuery.error) {
-        setErrorMessage('No se ha podido localizar la OT pendiente: ' + openWorkOrderQuery.error.message)
+        setErrorMessage('No se ha podido localizar el ticket pendiente: ' + openWorkOrderQuery.error.message)
         return
       }
 
@@ -632,20 +632,20 @@ export default function MaintenancePamDetailPage() {
         })
 
       if (error) {
-        setErrorMessage('Error registrando la ejecución: ' + error.message)
+        setErrorMessage('Error registrando el resultado del ticket: ' + error.message)
         return
       }
 
       setMessage(
         reviewResult === 'CANCELLED'
           ? openWorkOrder
-            ? 'OT ' + openWorkOrder.otNumber + ' marcada como no realizada. Permanece pendiente.'
+            ? 'Ticket ' + openWorkOrder.otNumber + ' marcado como no realizado. Permanece pendiente.'
             : 'Ejecución cancelada y registrada.'
           : openWorkOrder?.scheduledDate && openWorkOrder.scheduledDate !== reviewDate
-            ? 'OT ' + openWorkOrder.otNumber + ' finalizada y guardada fuera de fecha.'
+            ? 'Ticket ' + openWorkOrder.otNumber + ' finalizado y guardado fuera de fecha.'
             : openWorkOrder
-              ? 'OT ' + openWorkOrder.otNumber + ' finalizada correctamente.'
-              : 'Ejecución registrada sin una OT abierta asociada.',
+              ? 'Ticket ' + openWorkOrder.otNumber + ' finalizado correctamente.'
+              : 'Resultado registrado sin un ticket abierto asociado.',
       )
       await load()
     } finally {
@@ -899,10 +899,10 @@ export default function MaintenancePamDetailPage() {
               <h2 className="text-lg font-bold text-slate-900">Histórico de revisiones</h2>
               <p className="text-xs text-slate-500">
                 {historyRows.length
-                  ? 'Las revisiones pendientes y realizadas se muestran vinculadas a sus OTs.'
+                  ? 'Las revisiones pendientes y realizadas se muestran vinculadas a sus tickets.'
                   : latestValidExecution
                     ? 'Última revisión válida: ' + formatDate(latestValidExecution.executed_at)
-                    : 'Todavía no hay revisiones ni OTs registradas.'}
+                    : 'Todavía no hay revisiones ni tickets registrados.'}
               </p>
             </div>
           </div>
@@ -913,7 +913,7 @@ export default function MaintenancePamDetailPage() {
                 <tr className="border-b bg-slate-50 text-left text-[10px] uppercase tracking-wide text-slate-500">
                   <th className="px-2 py-1.5 font-semibold">Fecha programada</th>
                   <th className="px-2 py-1.5 font-semibold">Estado</th>
-                  <th className="px-2 py-1.5 font-semibold">OT</th>
+                  <th className="px-2 py-1.5 font-semibold">Ticket</th>
                   <th className="px-2 py-1.5 font-semibold">Resultado</th>
                   <th className="px-2 py-1.5 font-semibold">Realizada por</th>
                   <th className="px-2 py-1.5 font-semibold">Empresa</th>
@@ -942,7 +942,7 @@ export default function MaintenancePamDetailPage() {
                     <td className="px-2 py-1.5">{row.execution?.observations || '—'}</td>
                   </tr>
                 ))}
-                {historyRows.length === 0 && <tr><td colSpan={7} className="px-4 py-8 text-center text-sm text-slate-500">Todavía no hay revisiones ni OTs registradas.</td></tr>}
+                {historyRows.length === 0 && <tr><td colSpan={7} className="px-4 py-8 text-center text-sm text-slate-500">Todavía no hay revisiones ni tickets registrados.</td></tr>}
               </tbody>
             </table>
           </div>

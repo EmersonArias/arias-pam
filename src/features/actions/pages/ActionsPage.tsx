@@ -61,9 +61,9 @@ const EMPTY_FORM: ActionForm = {
 const ACTION_LABELS: Record<ActionType, string> = {
   REPAIR: 'Reparación relevante',
   EXTERNAL_INTERVENTION: 'Intervención externa',
-  LEGIONELLA: 'Actuación Legionella',
+  LEGIONELLA: 'Intervención de Legionella',
   PROJECT: 'Obra / modificación',
-  OTHER: 'Otra actuación',
+  OTHER: 'Otra intervención',
 }
 
 export default function ActionsPage() {
@@ -163,7 +163,7 @@ export default function ActionsPage() {
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : 'No se han podido cargar las actuaciones.',
+          : 'No se han podido cargar las intervenciones.',
       )
     } finally {
       setLoading(false)
@@ -230,7 +230,7 @@ export default function ActionsPage() {
     if (saving) return
 
     if (!form.title.trim()) {
-      setErrorMessage('El título de la actuación es obligatorio.')
+      setErrorMessage('El título de la intervención es obligatorio.')
       return
     }
 
@@ -283,7 +283,7 @@ export default function ActionsPage() {
           .single()
 
         if (result.error || !result.data?.id) {
-          throw result.error ?? new Error('No se ha podido crear la actuación.')
+          throw result.error ?? new Error('No se ha podido crear la intervención.')
         }
 
         setSelectedId(result.data.id)
@@ -295,7 +295,7 @@ export default function ActionsPage() {
       await loadData(hotelId)
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : 'No se ha podido guardar la actuación.',
+        error instanceof Error ? error.message : 'No se ha podido guardar la intervención.',
       )
     } finally {
       setSaving(false)
@@ -310,7 +310,7 @@ export default function ActionsPage() {
             <div className="flex min-w-0 items-center gap-3">
               <BrandLogo onActivate={() => navigate('/')} className="h-9 w-auto shrink-0 object-contain sm:h-13" />
               <div className="min-w-0">
-                <h1 className="text-xl font-bold leading-tight text-slate-900 sm:text-3xl">Actuaciones</h1>
+                <h1 className="text-xl font-bold leading-tight text-slate-900 sm:text-3xl">Intervenciones</h1>
                 <p className="text-sm text-slate-500">
                   Intervenciones relevantes, reparaciones y trabajos especiales · {hotelName || 'Hotel activo'}
                 </p>
@@ -326,7 +326,7 @@ export default function ActionsPage() {
                 className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
               >
                 <Plus size={16} />
-                Nueva actuación
+                Nueva intervención
               </button>
               <IconButton
                 icon={RefreshCw}
@@ -342,9 +342,9 @@ export default function ActionsPage() {
         {(errorMessage || loading) && (
           <div className="mb-4 rounded-xl border bg-white p-3 text-sm shadow-sm">
             {loading
-              ? 'Cargando actuaciones…'
+              ? 'Cargando intervenciones…'
               : errorMessage.includes('relation') && errorMessage.includes('maintenance_actions')
-                ? 'El registro de actuaciones todavía no está habilitado en la base de datos. Ejecuta la migración 028_maintenance_actions.sql.'
+                ? 'El registro de intervenciones todavía no está habilitado en la base de datos. Ejecuta la migración 028_maintenance_actions.sql.'
                 : errorMessage}
           </div>
         )}
@@ -420,7 +420,7 @@ export default function ActionsPage() {
                 })}
                 {!loading && filteredRecords.length === 0 && (
                   <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500">
-                    No hay actuaciones registradas.
+                    No hay intervenciones registradas.
                   </div>
                 )}
               </div>
@@ -488,9 +488,9 @@ export default function ActionsPage() {
                   {!loading && filteredRecords.length === 0 && (
                     <tr>
                       <td colSpan={6} className="px-4 py-12 text-center">
-                        <div className="text-sm font-semibold text-slate-600">No hay actuaciones registradas.</div>
+                        <div className="text-sm font-semibold text-slate-600">No hay intervenciones registradas.</div>
                         <div className="mt-1 text-xs text-slate-400">
-                          Las actuaciones serán históricas y no sustituirán al PAM ni a las OT.
+                          Las intervenciones serán históricas y no sustituirán al PAM ni a las OT.
                         </div>
                       </td>
                     </tr>
@@ -501,7 +501,7 @@ export default function ActionsPage() {
           </div>
 
           <aside className="rounded-2xl bg-white shadow-lg">
-            <div className="border-b px-4 py-3 text-sm font-semibold text-slate-800">Ficha de actuación</div>
+            <div className="border-b px-4 py-3 text-sm font-semibold text-slate-800">Ficha de intervención</div>
             {selected ? (
               <div className="space-y-4 p-4">
                 <div>
@@ -539,11 +539,11 @@ export default function ActionsPage() {
                   className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
                 >
                   <Pencil size={14} />
-                  Modificar actuación
+                  Modificar intervención
                 </button>
               </div>
             ) : (
-              <div className="p-8 text-center text-sm text-slate-400">Selecciona una actuación.</div>
+              <div className="p-8 text-center text-sm text-slate-400">Selecciona una intervención.</div>
             )}
           </aside>
         </div>
@@ -555,7 +555,7 @@ export default function ActionsPage() {
             <div className="flex items-center justify-between border-b px-5 py-4">
               <div>
                 <div className="text-lg font-semibold text-slate-900">
-                  {editingId ? 'Modificar actuación' : 'Nueva actuación'}
+                  {editingId ? 'Modificar intervención' : 'Nueva intervención'}
                 </div>
                 <div className="text-xs text-slate-500">Registro histórico de intervenciones relevantes</div>
               </div>
@@ -636,7 +636,7 @@ export default function ActionsPage() {
                   Cancelar
                 </button>
                 <button type="submit" disabled={saving} className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">
-                  {saving ? 'Guardando…' : 'Guardar actuación'}
+                  {saving ? 'Guardando…' : 'Guardar intervención'}
                 </button>
               </div>
             </form>

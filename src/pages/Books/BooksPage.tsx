@@ -38,18 +38,6 @@ type MaintenanceAlert = {
 
 const registers: HomeRegister[] = [
   { icon: '🛠️', name: 'Mantenimiento', path: '/maintenance' },
-  { icon: '🏊', name: 'Piscinas', path: '/pools' },
-  { icon: '♨️', name: 'Spa', path: '/spa' },
-  { icon: '🦠', name: 'Legionella', path: '/legionella' },
-  { icon: '💧', name: 'Bombas', path: '/pumps' },
-  { icon: '🌬️', name: 'Climatizadores', path: '/climatizers' },
-  { icon: '❄️', name: 'Fancoils', path: '/fancoils' },
-  { icon: '⚡', name: 'Cuadros BT', path: '/electricalpanels' },
-  { icon: '💡', name: 'Fotoluminiscentes', path: '/photoluminescent' },
-  { icon: '🔦', name: 'Emergencia', path: '/emergencylights' },
-  { icon: '🚪', name: 'Cortafuegos', path: '/firedoors' },
-  { icon: '🧯', name: 'PCI', path: '/fireequipment' },
-  { icon: '📏', name: 'Calibraciones', path: '/calibrations' },
   { icon: '🛠️', name: 'Actuaciones', path: '/actions' },
   { icon: '📦', name: 'Stock', path: null, comingSoon: true },
   { icon: '🗓️', name: 'Planificador horario', path: null, comingSoon: true },
@@ -427,7 +415,7 @@ export default function BooksPage() {
         </div>
 
         <main>
-          <div className="mx-auto grid w-full grid-cols-2 justify-center gap-2 px-2 sm:grid-cols-4 sm:px-3 md:grid-cols-5 md:px-5 lg:grid-cols-7 lg:gap-2.5 lg:px-[clamp(48px,5.5vw,90px)]">
+          <div className="mx-auto grid w-full grid-cols-2 justify-center gap-2 px-2 sm:grid-cols-3 sm:px-3 md:grid-cols-4 md:px-5 lg:grid-cols-5 lg:gap-3 lg:px-[clamp(48px,5.5vw,90px)]">
             {filteredRegisters.map((register) => (
               <button
                 key={register.name}
@@ -437,13 +425,13 @@ export default function BooksPage() {
                 }}
                 disabled={register.comingSoon}
                 aria-label={register.comingSoon ? register.name + ' — en preparación' : 'Entrar en ' + register.name}
-                className="group flex min-h-[100px] flex-col items-stretch overflow-hidden rounded-2xl border border-slate-200 bg-white text-left shadow-[0_8px_18px_rgba(15,23,42,0.08)] transition-all duration-200 hover:-translate-y-2 hover:scale-[1.025] hover:border-slate-300 hover:shadow-[0_18px_32px_rgba(15,23,42,0.18)] active:translate-y-0 active:scale-[0.99]"
+                className="group flex min-h-[145px] flex-col items-stretch overflow-hidden rounded-2xl border border-slate-200 bg-white text-left shadow-[0_8px_18px_rgba(15,23,42,0.08)] transition-all duration-200 hover:-translate-y-2 hover:scale-[1.025] hover:border-slate-300 hover:shadow-[0_18px_32px_rgba(15,23,42,0.18)] active:translate-y-0 active:scale-[0.99]"
               >
-                <div className="flex min-h-[66px] flex-1 flex-col items-center justify-center px-2 py-1.5">
-                  <span className="text-[34px] leading-none transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:scale-110">
+                <div className="flex min-h-[112px] flex-1 flex-col items-center justify-center px-3 py-3">
+                  <span className="text-[42px] leading-none transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:scale-110">
                     {register.icon}
                   </span>
-                  <span className="mt-1.5 text-center text-[10px] font-normal leading-tight text-slate-700">
+                  <span className="mt-2 text-center text-xs font-medium leading-tight text-slate-700">
                     {register.name}
                   </span>
                 </div>

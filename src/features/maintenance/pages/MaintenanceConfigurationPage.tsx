@@ -67,14 +67,14 @@ const triggerLabels: Record<TriggerEvent, string> = {
 
 const templateRules = [
   {
-    name: 'OT por trabajo PAM vencido',
+    name: 'Ticket por trabajo PAM vencido',
     trigger_event: 'PAM_JOB_OVERDUE' as TriggerEvent,
-    description: 'Genera una OT y avisa al responsable cuando un trabajo preventivo supera su fecha.',
+    description: 'Genera un ticket y avisa al responsable cuando un trabajo preventivo supera su fecha.',
     conditions: { overdue: true },
     actions: { create_work_order: true, notify_maintenance_chief: true, priority: 'HIGH' },
   },
   {
-    name: 'OT por revisión no conforme',
+    name: 'Ticket por revisión no conforme',
     trigger_event: 'EXECUTION_NOT_CONFORM' as TriggerEvent,
     description: 'Convierte una revisión no conforme en una actuación pendiente de atender.',
     conditions: { result: 'NOT_CONFORM' },
@@ -182,10 +182,10 @@ function describeRule(rule: Rule) {
   const actions: string[] = []
   if (rule.actions.create_work_order) {
     const workType = rule.actions.work_type === 'CORRECTIVE'
-      ? 'OT correctiva'
+      ? 'Ticket correctivo'
       : rule.actions.work_type === 'ACTUATION'
         ? 'Actuación'
-        : 'OT preventiva'
+        : 'Ticket preventivo'
     actions.push(workType)
   }
   if (rule.actions.notify_maintenance_chief) actions.push('aviso al Jefe de Mantenimiento')
@@ -380,7 +380,7 @@ export default function MaintenanceConfigurationPage() {
 
     await showAlert({
       title: 'Simulación de generación',
-      message: `${overdue} mantenimiento(s) vencido(s) y ${dueToday} para hoy. La simulación no crea OTs.`,
+      message: `${overdue} mantenimiento(s) vencido(s) y ${dueToday} para hoy. La simulación no crea tickets.`,
       variant: 'info',
     })
   }
@@ -394,7 +394,7 @@ export default function MaintenanceConfigurationPage() {
               <BrandLogo onActivate={() => navigate('/')} className="h-9 w-auto shrink-0 object-contain sm:h-11" />
               <div className="min-w-0">
                 <h1 className="text-xl font-bold leading-tight sm:text-2xl">Configuración de mantenimiento</h1>
-                <p className="text-xs text-slate-500 sm:text-sm">Automatización, OTs, asignación, avisos y reglas por hotel.</p>
+                <p className="text-xs text-slate-500 sm:text-sm">Automatización, tickets, asignación, avisos y reglas por hotel.</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -426,17 +426,17 @@ export default function MaintenanceConfigurationPage() {
                 <div className="flex items-start gap-3">
                   <Settings2 className="mt-0.5 text-slate-500" size={22} />
                   <div className="w-full">
-                    <h2 className="font-bold">Generación de OT</h2>
-                    <p className="mt-1 text-xs text-slate-500">Define cómo deben materializarse las OT preventivas derivadas del PAM.</p>
+                    <h2 className="font-bold">Generación de tickets</h2>
+                    <p className="mt-1 text-xs text-slate-500">Define cómo deben materializarse los tickets preventivos derivadas del PAM.</p>
                     <div className="mt-4 grid gap-3 sm:grid-cols-2">
                       <label><span className="mb-1 block text-sm font-medium">Modo</span><select value={config.ot_generation_mode} onChange={(e) => setConfigField('ot_generation_mode', e.target.value as HotelConfig['ot_generation_mode'])} className="w-full rounded-xl border px-3 py-2"><option value="AUTO">Automática</option><option value="MANUAL">Manual</option></select></label>
                       <label><span className="mb-1 block text-sm font-medium">Antelación (días)</span><input type="number" min={0} max={365} value={config.ot_generation_lead_days} onChange={(e) => setConfigField('ot_generation_lead_days', Number(e.target.value))} className="w-full rounded-xl border px-3 py-2" /></label>
                       <label><span className="mb-1 block text-sm font-medium">Asignación</span><select value={config.ot_assignment_mode} onChange={(e) => setConfigField('ot_assignment_mode', e.target.value as HotelConfig['ot_assignment_mode'])} className="w-full rounded-xl border px-3 py-2"><option value="NONE">Sin asignar</option><option value="MANUAL">Manual</option><option value="RULES">Según reglas</option></select></label>
-                      <label><span className="mb-1 block text-sm font-medium">OT vencida</span><select value={config.ot_overdue_action} onChange={(e) => setConfigField('ot_overdue_action', e.target.value as HotelConfig['ot_overdue_action'])} className="w-full rounded-xl border px-3 py-2"><option value="KEEP_PENDING">Mantener pendiente</option><option value="ESCALATE">Escalar automáticamente</option></select></label>
+                      <label><span className="mb-1 block text-sm font-medium">Ticket vencido</span><select value={config.ot_overdue_action} onChange={(e) => setConfigField('ot_overdue_action', e.target.value as HotelConfig['ot_overdue_action'])} className="w-full rounded-xl border px-3 py-2"><option value="KEEP_PENDING">Mantener pendiente</option><option value="ESCALATE">Escalar automáticamente</option></select></label>
                     </div>
                     <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                      <label className="flex items-center gap-2 rounded-xl border bg-slate-50 px-3 py-2 text-sm"><input type="checkbox" checked={config.allow_manual_ot_creation} onChange={(e) => setConfigField('allow_manual_ot_creation', e.target.checked)} />Permitir crear OT manualmente</label>
-                      <label className="flex items-center gap-2 rounded-xl border bg-slate-50 px-3 py-2 text-sm"><input type="checkbox" checked={config.duplicate_protection} onChange={(e) => setConfigField('duplicate_protection', e.target.checked)} />Protección contra OT duplicadas</label>
+                      <label className="flex items-center gap-2 rounded-xl border bg-slate-50 px-3 py-2 text-sm"><input type="checkbox" checked={config.allow_manual_ot_creation} onChange={(e) => setConfigField('allow_manual_ot_creation', e.target.checked)} />Permitir crear tickets manualmente</label>
+                      <label className="flex items-center gap-2 rounded-xl border bg-slate-50 px-3 py-2 text-sm"><input type="checkbox" checked={config.duplicate_protection} onChange={(e) => setConfigField('duplicate_protection', e.target.checked)} />Protección contra tickets duplicados</label>
                     </div>
                   </div>
                 </div>
@@ -449,11 +449,11 @@ export default function MaintenanceConfigurationPage() {
                     <h2 className="font-bold">Avisos y cierre</h2>
                     <p className="mt-1 text-xs text-slate-500">Controla qué eventos requieren comunicación o evidencia.</p>
                     <div className="mt-4 space-y-2">
-                      <label className="flex items-center gap-2 rounded-xl border px-3 py-2 text-sm"><input type="checkbox" checked={config.notify_on_ot_created} onChange={(e) => setConfigField('notify_on_ot_created', e.target.checked)} />Avisar al crear una OT</label>
+                      <label className="flex items-center gap-2 rounded-xl border px-3 py-2 text-sm"><input type="checkbox" checked={config.notify_on_ot_created} onChange={(e) => setConfigField('notify_on_ot_created', e.target.checked)} />Avisar al crear un ticket</label>
                       <label className="flex items-center gap-2 rounded-xl border px-3 py-2 text-sm"><input type="checkbox" checked={config.notify_unassigned} onChange={(e) => setConfigField('notify_unassigned', e.target.checked)} />Avisar si queda sin asignar</label>
                       <label className="flex items-center gap-2 rounded-xl border px-3 py-2 text-sm"><input type="checkbox" checked={config.notify_overdue} onChange={(e) => setConfigField('notify_overdue', e.target.checked)} />Avisar al vencer</label>
-                      <label className="flex items-center gap-2 rounded-xl border px-3 py-2 text-sm"><input type="checkbox" checked={config.require_evidence_on_close} onChange={(e) => setConfigField('require_evidence_on_close', e.target.checked)} />Exigir evidencia para cerrar OT</label>
-                      <label className="flex items-center gap-2 rounded-xl border px-3 py-2 text-sm"><input type="checkbox" checked={config.require_observations_on_close} onChange={(e) => setConfigField('require_observations_on_close', e.target.checked)} />Exigir observaciones para cerrar OT</label>
+                      <label className="flex items-center gap-2 rounded-xl border px-3 py-2 text-sm"><input type="checkbox" checked={config.require_evidence_on_close} onChange={(e) => setConfigField('require_evidence_on_close', e.target.checked)} />Exigir evidencia para cerrar ticket</label>
+                      <label className="flex items-center gap-2 rounded-xl border px-3 py-2 text-sm"><input type="checkbox" checked={config.require_observations_on_close} onChange={(e) => setConfigField('require_observations_on_close', e.target.checked)} />Exigir observaciones para cerrar ticket</label>
                     </div>
                   </div>
                 </div>
@@ -492,7 +492,7 @@ export default function MaintenanceConfigurationPage() {
                   <div className="grid gap-3 md:grid-cols-2">
                     <label>
                       <span className="mb-1 block text-sm font-medium">Nombre de la regla</span>
-                      <input value={ruleForm.name} onChange={(e) => setRuleForm((current) => ({ ...current, name: e.target.value }))} className="w-full rounded-xl border bg-white px-3 py-2" placeholder="Ej.: OT por mantenimiento vencido" />
+                      <input value={ruleForm.name} onChange={(e) => setRuleForm((current) => ({ ...current, name: e.target.value }))} className="w-full rounded-xl border bg-white px-3 py-2" placeholder="Ej.: ticket por mantenimiento vencido" />
                     </label>
                     <label>
                       <span className="mb-1 block text-sm font-medium">Cuándo ocurre</span>
@@ -525,7 +525,7 @@ export default function MaintenanceConfigurationPage() {
                     <div className="mt-3 grid gap-3 md:grid-cols-2">
                       <label className="flex items-center gap-2 rounded-xl border bg-slate-50 px-3 py-2 text-sm">
                         <input type="checkbox" checked={ruleForm.createWorkOrder} onChange={(e) => setRuleForm((current) => ({ ...current, createWorkOrder: e.target.checked }))} />
-                        Crear OT automáticamente
+                        Crear tickets automáticamente
                       </label>
                       <label className="flex items-center gap-2 rounded-xl border bg-slate-50 px-3 py-2 text-sm">
                         <input type="checkbox" checked={ruleForm.notifyMaintenanceChief} onChange={(e) => setRuleForm((current) => ({ ...current, notifyMaintenanceChief: e.target.checked }))} />
@@ -536,7 +536,7 @@ export default function MaintenanceConfigurationPage() {
                         Avisar al responsable asignado
                       </label>
                       <label>
-                        <span className="mb-1 block text-sm font-medium">Tipo de OT</span>
+                        <span className="mb-1 block text-sm font-medium">Tipo de ticket</span>
                         <select value={ruleForm.workType} disabled={!ruleForm.createWorkOrder} onChange={(e) => setRuleForm((current) => ({ ...current, workType: e.target.value as typeof current.workType }))} className="w-full rounded-xl border bg-white px-3 py-2 disabled:bg-slate-100">
                           <option value="PREVENTIVE">Preventiva</option>
                           <option value="CORRECTIVE">Correctiva</option>

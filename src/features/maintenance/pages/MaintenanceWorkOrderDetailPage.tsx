@@ -66,6 +66,7 @@ export default function MaintenanceWorkOrderDetailPage(){
   const [correctiveDescription,setCorrectiveDescription]=useState('')
   const [correctivePriority,setCorrectivePriority]=useState<WorkOrder['priority']>('HIGH')
   const galleryRef=useRef<HTMLInputElement|null>(null)
+  const canEdit = order?.status === 'IN_PROGRESS'
 
   async function load(){
     if(!workOrderId) return
@@ -91,7 +92,7 @@ export default function MaintenanceWorkOrderDetailPage(){
   const dirty=!!order&&!!baseline&&(order.title!==baseline.title||order.description!==baseline.description||order.scheduled_date!==baseline.scheduled_date||order.priority!==baseline.priority||order.observations!==baseline.observations)
 
   async function saveChanges(){
-    if(!order)return
+    if(!order || !canEdit)return
     setSaving(true);setError('');setMessage('')
     const q=await supabase.from('maintenance_work_orders').update({
       title:order.title.trim(),description:order.description?.trim()||null,scheduled_date:order.scheduled_date||null,
@@ -124,7 +125,7 @@ export default function MaintenanceWorkOrderDetailPage(){
     await load()
   }
   async function uploadPhotos(files:File[]){
-    if(!hotel?.id||!order)return
+    if(!hotel?.id||!order||!canEdit)return
     const images=files.filter(f=>f.type.startsWith('image/'))
     if(!images.length){setError('Selecciona al menos una fotografía.');return}
     setEvidenceSaving(true);setError('')
@@ -145,6 +146,7 @@ export default function MaintenanceWorkOrderDetailPage(){
     finally{setEvidenceSaving(false);if(galleryRef.current)galleryRef.current.value=''}
   }
   async function removePhoto(item:Evidence){
+    if (!canEdit) return
     setEvidenceSaving(true);setError('')
     try{
       const r=await supabase.storage.from('maintenance-evidence').remove([item.storage_path]);if(r.error)throw r.error
@@ -181,7 +183,7 @@ export default function MaintenanceWorkOrderDetailPage(){
             <BrandLogo onActivate={()=>navigate('/')} className="h-9 w-auto shrink-0 object-contain sm:h-11"/>
             <div><div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Orden de trabajo</div><h1 className="text-xl font-bold sm:text-2xl">{order.ot_number}</h1><p className="text-xs text-slate-500 sm:text-sm">{hotel?.name??'Hotel'} · {typeLabels[order.work_type]}</p></div>
           </div>
-          <div className="flex items-center gap-2"><button type="button" onClick={()=>navigate('/maintenance/work-orders')} className="inline-flex h-10 items-center gap-2 rounded-full border border-slate-200 bg-white px-3 text-sm text-slate-700 shadow-sm hover:bg-slate-50"><ArrowLeft size={17}/>Volver</button><HomeButton onHome={()=>navigate('/')}/></div>
+          <div className="arias-mobile-header-actions flex items-center gap-2"><button type="button" onClick={()=>navigate('/maintenance/work-orders')} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50"><ArrowLeft size={17}/>Volver</button><HomeButton onHome={()=>navigate('/')}/></div>
         </div>
       </header>
 
@@ -205,13 +207,13 @@ export default function MaintenanceWorkOrderDetailPage(){
         <section className="grid gap-4 lg:grid-cols-2">
           <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <div className="mb-3 text-sm font-semibold">Datos de la OT</div>
-            <label className="block"><span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Título</span><input value={order.title} onChange={e=>setOrder({...order,title:e.target.value})} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"/></label>
-            <label className="mt-3 block"><span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Descripción / trabajo a realizar</span><textarea value={order.description??''} onChange={e=>setOrder({...order,description:e.target.value})} rows={5} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"/></label>
+            <label className="block"><span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Título</span><input value={order.title} onChange={e=>setOrder({...order,title:e.target.value})} disabled={!canEdit} disabled={!canEdit} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"/></label>
+            <label className="mt-3 block"><span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Descripción / trabajo a realizar</span><textarea value={order.description??''} onChange={e=>setOrder({...order,description:e.target.value})} rows={5} disabled={!canEdit} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"/></label>
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              <label><span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Fecha prevista</span><input type="date" value={order.scheduled_date??''} onChange={e=>setOrder({...order,scheduled_date:e.target.value||null})} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"/></label>
-              <label><span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Prioridad</span><select value={order.priority} onChange={e=>setOrder({...order,priority:e.target.value as WorkOrder['priority']})} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm">{Object.entries(priorityLabels).map(([k,v])=><option key={k} value={k}>{v}</option>)}</select></label>
+              <label><span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Fecha prevista</span><input type="date" value={order.scheduled_date??''} onChange={e=>setOrder({...order,scheduled_date:e.target.value||null})} disabled={!canEdit} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"/></label>
+              <label><span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Prioridad</span><select value={order.priority} onChange={e=>setOrder({...order,priority:e.target.value as WorkOrder['priority']})} disabled={!canEdit} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm">{Object.entries(priorityLabels).map(([k,v])=><option key={k} value={k}>{v}</option>)}</select></label>
             </div>
-            <div className="mt-4 flex justify-end"><button type="button" onClick={()=>void saveChanges()} disabled={saving||!dirty} className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"><Save size={15}/>{saving?'Guardando…':'Guardar cambios'}</button></div>
+            <div className="mt-4 flex justify-end"><button type="button" onClick={()=>void saveChanges()} disabled={saving||!dirty||!canEdit} className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"><Save size={15}/>{saving?'Guardando…':'Guardar cambios'}</button></div>
           </section>
 
           <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -228,24 +230,28 @@ export default function MaintenanceWorkOrderDetailPage(){
 
         <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
           <div className="mb-2 flex items-center gap-2"><FileText size={18} className="text-slate-500"/><h2 className="text-sm font-semibold">Observaciones</h2></div>
-          <textarea value={order.observations??''} onChange={e=>setOrder({...order,observations:e.target.value})} rows={6} placeholder="Describe lo realizado, anomalías, comprobaciones y medidas tomadas…" className="w-full rounded-xl border border-slate-300 px-3 py-3 text-sm focus:border-blue-500 focus:outline-none"/>
+          <textarea value={order.observations??''} onChange={e=>setOrder({...order,observations:e.target.value})} disabled={!canEdit} rows={6} placeholder="Describe lo realizado, anomalías, comprobaciones y medidas tomadas…" className="w-full rounded-xl border border-slate-300 px-3 py-3 text-sm focus:border-blue-500 focus:outline-none"/>
           <div className="mt-2 flex justify-end"><button type="button" onClick={()=>void saveChanges()} disabled={saving||!dirty} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"><Save size={15}/>Guardar observaciones</button></div>
         </section>
 
         <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div><div className="flex items-center gap-2 text-sm font-semibold"><Image size={17}/>Fotografías</div><div className="mt-0.5 text-xs text-slate-500">Evidencias de esta OT.</div></div>
-            <div className="flex gap-2">
-              <input ref={galleryRef} type="file" accept="image/*" multiple className="hidden" onChange={e=>{const f=Array.from(e.target.files??[]);if(f.length)void uploadPhotos(f);e.target.value=''}}/>
-              <input id="ot-camera-input" type="file" accept="image/*" capture="environment" className="hidden" onChange={e=>{const f=Array.from(e.target.files??[]);if(f.length)void uploadPhotos(f);e.target.value=''}}/>
-              <button type="button" onClick={()=>document.getElementById('ot-camera-input')?.click()} disabled={evidenceSaving} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold hover:bg-slate-50 disabled:opacity-50"><Camera size={15}/>Hacer foto</button>
-              <button type="button" onClick={()=>galleryRef.current?.click()} disabled={evidenceSaving} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold hover:bg-slate-50 disabled:opacity-50"><Upload size={15}/>Galería</button>
-            </div>
+            {canEdit ? (
+              <div className="flex flex-wrap gap-2">
+                <input ref={galleryRef} type="file" accept="image/*" multiple className="hidden" onChange={e=>{const f=Array.from(e.target.files??[]);if(f.length)void uploadPhotos(f);e.target.value=''}}/>
+                <input id="ot-camera-input" type="file" accept="image/*" capture="environment" className="hidden" onChange={e=>{const f=Array.from(e.target.files??[]);if(f.length)void uploadPhotos(f);e.target.value=''}}/>
+                <button type="button" onClick={()=>document.getElementById('ot-camera-input')?.click()} disabled={evidenceSaving} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold hover:bg-slate-50 disabled:opacity-50"><Camera size={15}/>Hacer foto</button>
+                <button type="button" onClick={()=>galleryRef.current?.click()} disabled={evidenceSaving} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold hover:bg-slate-50 disabled:opacity-50"><Upload size={15}/>{evidenceSaving?'Guardando…':'Galería'}</button>
+              </div>
+            ) : (
+              <span className="text-[11px] text-slate-400">Solo consulta</span>
+            )}
           </div>
-          {evidenceLoading?<div className="mt-3 text-xs text-slate-400">Cargando fotografías…</div>:evidence.length?<div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">{evidence.map(x=><div key={x.id} className="group relative overflow-hidden rounded-xl border"><a href={x.url} target="_blank" rel="noreferrer" className="block aspect-square"><img src={x.url} alt={x.file_name} className="h-full w-full object-cover"/></a><button type="button" onClick={()=>void removePhoto(x)} className="absolute right-1.5 top-1.5 inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/90 shadow-sm"><X size={14}/></button><div className="truncate border-t bg-white px-2 py-1.5 text-[10px] text-slate-500">{x.file_name}</div></div>)}</div>:<div className="mt-3 rounded-xl border border-dashed border-slate-300 px-3 py-5 text-center text-xs text-slate-400">Todavía no hay fotografías registradas.</div>}
+          {evidenceLoading?<div className="mt-3 text-xs text-slate-400">Cargando fotografías…</div>:evidence.length?<div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">{evidence.map(x=><div key={x.id} className="group relative overflow-hidden rounded-xl border"><a href={x.url} target="_blank" rel="noreferrer" className="block aspect-square"><img src={x.url} alt={x.file_name} className="h-full w-full object-cover"/></a>{canEdit && <button type="button" onClick={()=>void removePhoto(x)} disabled={evidenceSaving} className="absolute right-1.5 top-1.5 inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/90 shadow-sm disabled:opacity-50"><X size={14}/></button>}<div className="truncate border-t bg-white px-2 py-1.5 text-[10px] text-slate-500">{x.file_name}</div></div>)}</div>:<div className="mt-3 rounded-xl border border-dashed border-slate-300 px-3 py-5 text-center text-xs text-slate-400">Todavía no hay fotografías registradas.</div>}
         </section>
 
-        <section className="rounded-2xl border border-rose-200 bg-rose-50 p-4 shadow-sm">
+        {canEdit && <section className="rounded-2xl border border-rose-200 bg-rose-50 p-4 shadow-sm">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div><div className="flex items-center gap-2 text-sm font-semibold text-rose-900"><AlertTriangle size={18}/>Avería detectada</div><p className="mt-1 text-xs leading-5 text-rose-800">Crea una OT correctiva vinculada a esta OT con el equipo y la trazabilidad de origen.</p></div>
             <button type="button" onClick={()=>setCorrectiveOpen(true)} disabled={working} className="inline-flex items-center justify-center rounded-xl bg-rose-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-rose-800 disabled:opacity-50">+ Crear OT correctiva</button>

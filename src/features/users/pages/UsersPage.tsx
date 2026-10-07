@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { Search, UserPlus, UsersRound, Plus, Trash2, Pencil, Power, Send } from 'lucide-react'
+import { ChevronDown, ChevronUp, Search, UserPlus, UsersRound, Plus, Trash2, Pencil, Power, Send } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../../lib/supabase'
 import { useAuth } from '../../auth/context/AuthProvider'
 import BrandLogo from '../../../shared/components/branding/BrandLogo'
 import ActionButton from '../../../shared/components/buttons/ActionButton'
+import IconButton from '../../../shared/components/buttons/IconButton'
+import GridViewport from '../../../shared/components/grid/GridViewport'
+import { useGridKeyboardNavigation } from '../../../shared/components/grid/useGridKeyboardNavigation'
 import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
 
 type Profile = {
@@ -226,6 +229,14 @@ export default function UsersPage() {
   }, [rows, search])
 
   const selectedUser = rows.find((row) => row.id === selectedUserId) ?? null
+
+  const gridIds = useMemo(() => filteredRows.map((row) => row.id), [filteredRows])
+  const { currentIndex, moveSelection, getGridProps, getRowProps } = useGridKeyboardNavigation({
+    ids: gridIds,
+    selectedId: selectedUserId,
+    onSelectedIdChange: setSelectedUserId,
+    autoFocusFirst: true,
+  })
   const isOwnAccount = selectedUser?.id === session?.user.id
 
   function openCreate() {
@@ -566,7 +577,9 @@ export default function UsersPage() {
                 No se encontraron usuarios.
               </div>
             ) : (
-              <div className="overflow-auto">
+              <div>
+                <div {...getGridProps()} className="outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-200">
+                  <GridViewport className="max-h-[calc(100vh-360px)] min-h-[320px]">
                 <table className="min-w-full text-left text-sm">
                   <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                     <tr>
@@ -585,6 +598,7 @@ export default function UsersPage() {
                       return (
                         <tr
                           key={row.id}
+                          {...getRowProps(row.id)}
                           onClick={() => setSelectedUserId(row.id)}
                           className={[
                             'cursor-pointer transition hover:bg-slate-50',
@@ -620,6 +634,12 @@ export default function UsersPage() {
                     })}
                   </tbody>
                 </table>
+                  </GridViewport>
+                  <div className="flex items-center justify-end gap-1 border-t border-slate-200 px-3 py-2">
+                    <IconButton icon={ChevronUp} label="Usuario anterior" title="Anterior" onClick={() => moveSelection(currentIndex - 1)} disabled={filteredRows.length === 0 || currentIndex === 0} className="h-9 w-9" />
+                    <IconButton icon={ChevronDown} label="Usuario siguiente" title="Siguiente" onClick={() => moveSelection(currentIndex + 1)} disabled={filteredRows.length === 0 || currentIndex === filteredRows.length - 1} className="h-9 w-9" />
+                  </div>
+                </div>
               </div>
             )}
           </section>

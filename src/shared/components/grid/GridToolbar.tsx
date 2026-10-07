@@ -14,11 +14,12 @@ export interface GridToolbarAction {
 
 interface GridToolbarProps {
   actions: GridToolbarAction[]
+  className?: string
 }
 
-export default function GridToolbar({ actions }: GridToolbarProps) {
+export default function GridToolbar({ actions, className = '' }: GridToolbarProps) {
   return (
-    <div className="flex flex-wrap items-center justify-end gap-2">
+    <div className={['flex flex-wrap items-center justify-end gap-2', className].filter(Boolean).join(' ')}>
       {actions.map((action) =>
         action.compact ? (
           <IconButton

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ChevronDown,
@@ -15,6 +15,8 @@ import IconButton from '../../../shared/components/buttons/IconButton'
 import BrandLogo from '../../../shared/components/branding/BrandLogo'
 import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
 import GridToolbar from '../../../shared/components/grid/GridToolbar'
+import GridViewport from '../../../shared/components/grid/GridViewport'
+import { useGridKeyboardNavigation } from '../../../shared/components/grid/useGridKeyboardNavigation'
 import { supabase } from '../../../lib/supabase'
 import {
   fromDatabase,
@@ -33,7 +35,6 @@ export default function ApparatusRegistryPage() {
   const [reportScope, setReportScope] = useState<'SELECTED' | 'FILTERED' | 'ALL'>('FILTERED')
   const [loading, setLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
-  const rowRefs = useRef<Record<string, HTMLTableRowElement | null>>({})
 
   async function loadRecords(selectId?: string) {
     setLoading(true)
@@ -106,33 +107,22 @@ export default function ApparatusRegistryPage() {
 
   const selected = records.find((item) => item.id === selectedId) ?? null
 
-  useEffect(() => {
-    if (filteredRecords.length === 0) return
+  const gridIds = useMemo(
+    () => filteredRecords.map((item) => item.id),
+    [filteredRecords],
+  )
 
-    const selectedStillVisible = filteredRecords.some((item) => item.id === selectedId)
-    if (!selectedStillVisible) {
-      setSelectedId(filteredRecords[0].id)
-      return
-    }
-
-    const row = rowRefs.current[selectedId]
-    if (!row) return
-
-    row.scrollIntoView({
-      block: 'start',
-      inline: 'nearest',
-    })
-  }, [filteredRecords, selectedId])
-
-  function moveSelection(nextIndex: number) {
-    if (filteredRecords.length === 0) return
-
-    const boundedIndex = Math.max(
-      0,
-      Math.min(nextIndex, filteredRecords.length - 1),
-    )
-    setSelectedId(filteredRecords[boundedIndex].id)
-  }
+  const {
+    currentIndex,
+    moveSelection,
+    getRowProps,
+  } = useGridKeyboardNavigation({
+    ids: gridIds,
+    selectedId,
+    onSelectedIdChange: setSelectedId,
+    onOpen: (id) => navigate(`/apparatusregistry/${id}`),
+    autoFocusFirst: true,
+  })
 
   function openNew() {
     navigate('/apparatusregistry/new')
@@ -359,8 +349,9 @@ export default function ApparatusRegistryPage() {
             </div>
           </div>
 
-          <div className="hidden md:block max-h-[calc(100vh-360px)] min-h-[300px] overflow-auto">
-            <table className="w-full min-w-[900px] border-collapse text-sm">
+          <div className="hidden md:block">
+            <GridViewport>
+              <table className="w-full min-w-[900px] border-collapse text-sm">
 
               <thead>
                 <tr className="sticky top-0 z-10 border-b bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500 shadow-[0_1px_0_rgba(148,163,184,0.4)]">
@@ -378,43 +369,10 @@ export default function ApparatusRegistryPage() {
                   return (
                     <tr
                       key={item.id}
-                      ref={(row) => {
-                        rowRefs.current[item.id] = row
-                      }}
-                      tabIndex={0}
+                      {...getRowProps(item.id)}
                       onClick={() => {
                         setSelectedId(item.id)
                         navigate(`/apparatusregistry/${item.id}`)
-                      }}
-                      onKeyDown={(event) => {
-                        if (event.key === 'ArrowDown') {
-                          event.preventDefault()
-                          moveSelection(currentIndex + 1)
-                          return
-                        }
-
-                        if (event.key === 'ArrowUp') {
-                          event.preventDefault()
-                          moveSelection(currentIndex - 1)
-                          return
-                        }
-
-                        if (event.key === 'Home') {
-                          event.preventDefault()
-                          moveSelection(0)
-                          return
-                        }
-
-                        if (event.key === 'End') {
-                          event.preventDefault()
-                          moveSelection(filteredRecords.length - 1)
-                          return
-                        }
-
-                        if (event.key === 'Enter') {
-                          event.preventDefault()
-                          navigate(`/apparatusregistry/${item.id}`)
-                        }
                       }}
                       className={`scroll-mt-12 cursor-pointer border-b transition outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-200 ${
                         isSelected
@@ -470,7 +428,8 @@ export default function ApparatusRegistryPage() {
                   </tr>
                 )}
               </tbody>
-            </table>
+              </table>
+            </GridViewport>
           </div>
 
           <div className="hidden md:flex items-center justify-between gap-3 border-t border-slate-200 px-4 py-3">

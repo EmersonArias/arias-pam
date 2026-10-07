@@ -531,21 +531,7 @@ export default function BooksPage() {
             <div className="min-h-0 flex-1 overflow-y-auto p-2 md:hidden">
               <div className="space-y-2">
                 {maintenanceAlerts.map((alert) => {
-                  const statusClass =
-                    alert.severity === 'CRITICAL'
-                      ? 'bg-rose-100 text-rose-700'
-                      : alert.severity === 'WARNING'
-                        ? 'bg-amber-100 text-amber-700'
-                        : 'bg-slate-100 text-slate-600'
-
-                  const statusLabel =
-                    alert.alert_type === 'OUT_OF_RANGE'
-                      ? 'Fuera de rango'
-                      : alert.alert_type === 'OVERDUE_REVIEW'
-                        ? 'Vencido'
-                        : alert.alert_type === 'DUE_TODAY'
-                          ? 'Vence hoy'
-                          : 'Próximo'
+                  const statusView = alertStatusView(alert)
 
                   return (
                     <button

@@ -5,19 +5,19 @@ import BrandLogo from '../../../shared/components/branding/BrandLogo'
 import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
 
 const records = [
-  ['Preventivo diario', 'Registro preventivo de frecuencia corta.', FileText],
-  ['Piscina exterior', 'Registro de medidas y controles diarios.', Waves],
-  ['Piscina SPA', 'Registro de medidas y controles del SPA.', Waves],
-  ['Autocontrol Legionella', 'Registro de controles y seguimiento.', FileText],
-  ['Bombas', 'Registro de revisiones y actuaciones.', FileText],
-  ['Climatizadores / Extractores', 'Registro de revisiones de climatización y extracción.', FileText],
-  ['Fancoils', 'Registro de revisiones de fancoils.', FileText],
-  ['Cuadros eléctricos BT', 'Registro de revisiones y mediciones eléctricas.', Ruler],
-  ['Elementos fotoluminiscentes', 'Registro de comprobaciones.', FileText],
-  ['Luces de emergencia', 'Registro de comprobaciones y revisiones.', FileText],
-  ['Puertas cortafuegos', 'Registro de inspecciones.', FileText],
-  ['PCI', 'Registro de inspecciones de protección contra incendios.', FileText],
-  ['Calibraciones', 'Registro de calibraciones realizadas.', Ruler],
+  ['Preventivo diario', 'Registro preventivo de frecuencia corta.', FileText, '/maintenance/record'],
+  ['Piscina exterior', 'Registro de medidas y controles diarios.', Waves, '/pools'],
+  ['Piscina SPA', 'Registro de medidas y controles del SPA.', Waves, '/spa'],
+  ['Autocontrol Legionella', 'Registro de controles y seguimiento.', FileText, '/legionella'],
+  ['Bombas', 'Registro de revisiones y actuaciones.', FileText, '/pumps'],
+  ['Climatizadores / Extractores', 'Registro de revisiones de climatización y extracción.', FileText, '/climatizers'],
+  ['Fancoils', 'Registro de revisiones de fancoils.', FileText, '/fancoils'],
+  ['Cuadros eléctricos BT', 'Registro de revisiones y mediciones eléctricas.', Ruler, '/electricalpanels'],
+  ['Elementos fotoluminiscentes', 'Registro de comprobaciones.', FileText, '/photoluminescent'],
+  ['Luces de emergencia', 'Registro de comprobaciones y revisiones.', FileText, '/emergencylights'],
+  ['Puertas cortafuegos', 'Registro de inspecciones.', FileText, '/firedoors'],
+  ['PCI', 'Registro de inspecciones de protección contra incendios.', FileText, '/fireequipment'],
+  ['Calibraciones', 'Registro de calibraciones realizadas.', Ruler, '/calibrations'],
 ] as const
 
 export default function MaintenanceRecordsPage() {
@@ -32,7 +32,7 @@ export default function MaintenanceRecordsPage() {
               <BrandLogo onActivate={() => navigate('/')} className="h-9 w-auto shrink-0 object-contain sm:h-11" />
               <div><h1 className="text-xl font-bold sm:text-2xl">Registros</h1><p className="text-xs text-slate-500 sm:text-sm">Libros y registros oficiales</p></div>
             </div>
-            <div className="flex gap-2"><BackButton onBack={() => navigate('/maintenance')} /><HomeButton onHome={() => navigate('/')} /></div>
+            <div className="flex gap-2"><BackButton onBack={() => navigate('/maintenance/audit')} /><HomeButton onHome={() => navigate('/')} /></div>
           </div>
         </header>
 
@@ -49,11 +49,11 @@ export default function MaintenanceRecordsPage() {
         </section>
 
         <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {records.map(([title, description, Icon]) => (
+          {records.map(([title, description, Icon, href]) => (
             <button
               key={title}
               type="button"
-              onClick={() => navigate('/maintenance/record')}
+              onClick={() => navigate(href)}
               className="group rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-lg sm:p-5"
             >
               <div className="flex items-start justify-between gap-3">

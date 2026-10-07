@@ -1,51 +1,140 @@
-
-import { Building2, FileCheck2, ListChecks, Settings2, Wrench } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { ClipboardList, FileCheck2, ListChecks, Settings2, Wrench, Building2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import BrandLogo from '../../../shared/components/branding/BrandLogo'
 import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
+import { supabase } from '../../../lib/supabase'
+import { useHotelScope } from '../../../shared/context/HotelScopeContext'
 
 type Card = {
   title: string
   description: string
   icon: typeof Building2
   href: string
+  metric?: string
 }
 
-const cards: Card[] = [
-  {
-    title: 'Equipos e instalaciones',
-    description: 'Catálogo maestro de equipos, instalaciones, familias y subfamilias.',
-    icon: Building2,
-    href: '/apparatusregistry',
-  },
-  {
-    title: 'PAM',
-    description: 'Plan Anual de Mantenimiento preventivo del hotel.',
-    icon: ListChecks,
-    href: '/maintenance/pam',
-  },
-  {
-    title: 'Operación',
-    description: 'Trabajo diario, tareas, OT y ejecución de mantenimientos.',
-    icon: Wrench,
-    href: '/maintenance/operation',
-  },
-  {
-    title: 'Auditoría',
-    description: 'Evidencias, certificados, históricos y documentos para auditorías.',
-    icon: FileCheck2,
-    href: '/maintenance/audit',
-  },
-  {
-    title: 'Configuración',
-    description: 'Automatización de OT, asignación, avisos y reglas por hotel.',
-    icon: Settings2,
-    href: '/maintenance/configuration',
-  },
-]
+type Counts = {
+  assets: number | null
+  pendingTickets: number | null
+  inProgressTickets: number | null
+  interventions: number | null
+  pam: number | null
+}
+
+const EMPTY_COUNTS: Counts = {
+  assets: null,
+  pendingTickets: null,
+  inProgressTickets: null,
+  interventions: null,
+  pam: null,
+}
 
 export default function MaintenanceLandingPage() {
   const navigate = useNavigate()
+  const { hotel } = useHotelScope()
+  const [counts, setCounts] = useState<Counts>(EMPTY_COUNTS)
+
+  useEffect(() => {
+    let mounted = true
+
+    async function loadCounts() {
+      if (!hotel?.id) {
+        setCounts(EMPTY_COUNTS)
+        return
+      }
+
+      const [assets, pending, inProgress, interventions, pam] = await Promise.all([
+        supabase
+          .from('apparatus_registry')
+          .select('id', { count: 'exact', head: true })
+          .eq('hotel_id', hotel.id)
+          .eq('active', true),
+        supabase
+          .from('maintenance_work_orders')
+          .select('id', { count: 'exact', head: true })
+          .eq('hotel_id', hotel.id)
+          .eq('status', 'PENDING'),
+        supabase
+          .from('maintenance_work_orders')
+          .select('id', { count: 'exact', head: true })
+          .eq('hotel_id', hotel.id)
+          .eq('status', 'IN_PROGRESS'),
+        supabase
+          .from('maintenance_actions')
+          .select('id', { count: 'exact', head: true })
+          .eq('hotel_id', hotel.id)
+          .eq('active', true),
+        supabase
+          .from('maintenance_plans')
+          .select('id', { count: 'exact', head: true })
+          .eq('hotel_id', hotel.id)
+          .eq('active', true),
+      ])
+
+      if (!mounted) return
+
+      setCounts({
+        assets: assets.error ? null : assets.count ?? 0,
+        pendingTickets: pending.error ? null : pending.count ?? 0,
+        inProgressTickets: inProgress.error ? null : inProgress.count ?? 0,
+        interventions: interventions.error ? null : interventions.count ?? 0,
+        pam: pam.error ? null : pam.count ?? 0,
+      })
+    }
+
+    void loadCounts()
+
+    return () => {
+      mounted = false
+    }
+  }, [hotel?.id])
+
+  const cards: Card[] = [
+    {
+      title: 'Equipos e instalaciones',
+      description: 'Catálogo maestro de equipos e instalaciones.',
+      icon: Building2,
+      href: '/apparatusregistry',
+      metric: counts.assets == null ? undefined : `${counts.assets} activos`,
+    },
+    {
+      title: 'Tickets',
+      description: 'Trabajos pendientes, en curso y correctivos del hotel.',
+      icon: ClipboardList,
+      href: '/maintenance/tickets',
+      metric:
+        counts.pendingTickets == null || counts.inProgressTickets == null
+          ? undefined
+          : `${counts.pendingTickets} pendientes · ${counts.inProgressTickets} en curso`,
+    },
+    {
+      title: 'Intervenciones',
+      description: 'Registro de trabajos relevantes realizados en el hotel.',
+      icon: Wrench,
+      href: '/maintenance/interventions',
+      metric: counts.interventions == null ? undefined : `${counts.interventions} registradas`,
+    },
+    {
+      title: 'PAM',
+      description: 'Plan Anual de Mantenimiento preventivo del hotel.',
+      icon: ListChecks,
+      href: '/maintenance/pam',
+      metric: counts.pam == null ? undefined : `${counts.pam} planes activos`,
+    },
+    {
+      title: 'Auditoría',
+      description: 'Evidencias, certificados, históricos y documentos.',
+      icon: FileCheck2,
+      href: '/maintenance/audit',
+    },
+    {
+      title: 'Configuración',
+      description: 'Automatización, asignación, avisos y reglas por hotel.',
+      icon: Settings2,
+      href: '/maintenance/configuration',
+    },
+  ]
 
   return (
     <div className="min-h-screen bg-slate-100 px-3 py-3 text-slate-900 sm:px-5 sm:py-5">
@@ -56,7 +145,7 @@ export default function MaintenanceLandingPage() {
               <BrandLogo onActivate={() => navigate('/')} className="h-9 w-auto shrink-0 object-contain sm:h-11" />
               <div className="min-w-0">
                 <h1 className="text-xl font-bold leading-tight text-slate-900 sm:text-2xl">Mantenimiento</h1>
-                <p className="mt-0.5 text-xs text-slate-500 sm:text-sm">Gestión integral del mantenimiento del hotel</p>
+                <p className="mt-0.5 text-xs text-slate-500 sm:text-sm">Centro operativo de mantenimiento del hotel</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -70,7 +159,7 @@ export default function MaintenanceLandingPage() {
           <section className="mb-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
             <h2 className="text-sm font-semibold text-slate-800 sm:text-base">Centro de mantenimiento</h2>
             <p className="mt-1 text-xs text-slate-500 sm:text-sm">
-              Equipos, planificación preventiva, registros oficiales, operación y auditoría.
+              Equipos, tickets, intervenciones, planificación preventiva y auditoría.
             </p>
           </section>
 
@@ -82,7 +171,7 @@ export default function MaintenanceLandingPage() {
                   key={card.title}
                   type="button"
                   onClick={() => navigate(card.href)}
-                  className="group min-h-[170px] rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-lg active:translate-y-0 sm:p-5"
+                  className="group min-h-[175px] rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-lg active:translate-y-0 sm:p-5"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-600">
@@ -92,7 +181,10 @@ export default function MaintenanceLandingPage() {
                   </div>
                   <div className="mt-4 text-base font-bold text-slate-900">{card.title}</div>
                   <p className="mt-1.5 text-xs leading-5 text-slate-500 sm:text-sm">{card.description}</p>
-                  <div className="mt-4 text-[10px] font-semibold uppercase tracking-wide text-slate-400">Entrar</div>
+                  {card.metric && (
+                    <div className="mt-4 text-xs font-semibold text-slate-600">{card.metric}</div>
+                  )}
+                  <div className="mt-2 text-[10px] font-semibold uppercase tracking-wide text-slate-400">Entrar</div>
                 </button>
               )
             })}

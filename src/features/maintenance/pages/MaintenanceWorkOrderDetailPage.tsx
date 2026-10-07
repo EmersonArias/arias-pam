@@ -5,6 +5,7 @@ import BrandLogo from '../../../shared/components/branding/BrandLogo'
 import { HomeButton } from '../../../shared/components/navigation/NavigationButtons'
 import { useHotelScope } from '../../../shared/context/HotelScopeContext'
 import { supabase } from '../../../lib/supabase'
+import { useAuth } from '../../auth/context/AuthProvider'
 
 type WorkOrder = {
   id: string; hotel_id: string; scheduled_job_id: string | null; maintenance_plan_id: string | null
@@ -50,6 +51,7 @@ export default function MaintenanceWorkOrderDetailPage(){
   const navigate=useNavigate()
   const { workOrderId }=useParams<{workOrderId:string}>()
   const { hotel }=useHotelScope()
+  const { session } = useAuth()
   const [order,setOrder]=useState<WorkOrder|null>(null)
   const [baseline,setBaseline]=useState<WorkOrder|null>(null)
   const [loading,setLoading]=useState(true)
@@ -65,6 +67,9 @@ export default function MaintenanceWorkOrderDetailPage(){
   const [correctiveTitle,setCorrectiveTitle]=useState('')
   const [correctiveDescription,setCorrectiveDescription]=useState('')
   const [correctivePriority,setCorrectivePriority]=useState<WorkOrder['priority']>('HIGH')
+  const [assignees,setAssignees]=useState<Array<{id:string;name:string}>>([])
+  const [canAssign,setCanAssign]=useState(false)
+  const [assignmentSaving,setAssignmentSaving]=useState(false)
   const galleryRef=useRef<HTMLInputElement|null>(null)
   const canEdit = order?.status === 'IN_PROGRESS'
 
@@ -74,7 +79,74 @@ export default function MaintenanceWorkOrderDetailPage(){
     const q=await supabase.from('maintenance_work_orders_resolved').select('*').eq('id',workOrderId).single()
     if(q.error||!q.data){setError(q.error?.message??'No se ha encontrado el ticket.');setLoading(false);return}
     const item=q.data as WorkOrder
-    setOrder(item); setBaseline(item); setLoading(false)
+    setOrder(item); setBaseline(item)
+
+    const assignmentsResult = session?.user.id && hotel?.id
+      ? await supabase
+          .from('user_hotel_roles')
+          .select('user_id, role_id')
+          .eq('hotel_id', hotel.id)
+          .eq('active', true)
+      : { data: [], error: null }
+
+    const roleIds = Array.from(new Set((assignmentsResult.data ?? []).map((row) => row.role_id)))
+    const rolesResult = roleIds.length
+      ? await supabase.from('roles').select('id, code').in('id', roleIds).eq('active', true)
+      : { data: [], error: null }
+
+    const roleCodeById = new Map(
+      (rolesResult.data ?? []).map((row) => [row.id, row.code]),
+    )
+
+    const currentRoleCodes = (assignmentsResult.data ?? [])
+      .filter((row) => row.user_id === session?.user.id)
+      .map((row) => roleCodeById.get(row.role_id))
+      .filter((code): code is string => Boolean(code))
+
+    const platformAdminResult = session?.user.id
+      ? await supabase
+          .from('platform_admins')
+          .select('active')
+          .eq('user_id', session.user.id)
+          .maybeSingle()
+      : { data: null, error: null }
+
+    const assignmentAllowed =
+      platformAdminResult.data?.active === true
+      || currentRoleCodes.some((code) => code === 'CLIENT_ADMIN' || code === 'MAINTENANCE_CHIEF')
+
+    setCanAssign(assignmentAllowed)
+    setAssignees([])
+
+    const assigneeIds = Array.from(
+      new Set(
+        (assignmentsResult.data ?? [])
+          .filter((row) => {
+            const code = roleCodeById.get(row.role_id)
+            return code === 'TECHNICIAN' || code === 'MAINTENANCE_CHIEF'
+          })
+          .map((row) => row.user_id),
+      ),
+    )
+
+    if (assigneeIds.length) {
+      const profilesResult = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', assigneeIds)
+        .eq('active', true)
+        .eq('account_status', 'ACTIVE')
+        .order('full_name', { ascending: true })
+
+      setAssignees(
+        (profilesResult.data ?? []).map((profile) => ({
+          id: profile.id,
+          name: profile.full_name || 'Usuario',
+        })),
+      )
+    }
+
+    setLoading(false)
   }
   async function loadEvidence(){
     if(!workOrderId)return
@@ -101,6 +173,29 @@ export default function MaintenanceWorkOrderDetailPage(){
     setSaving(false)
     if(q.error){setError(q.error.message);return}
     setMessage('Ticket actualizado correctamente.');await load()
+  }
+
+  async function assignTicket(targetUserId: string) {
+    if (!order || !canAssign || assignmentSaving) return
+
+    setAssignmentSaving(true)
+    setError('')
+    setMessage('')
+
+    const q = await supabase.rpc('assign_maintenance_work_order', {
+      target_work_order_id: order.id,
+      target_user_id: targetUserId || null,
+    })
+
+    setAssignmentSaving(false)
+
+    if (q.error) {
+      setError(q.error.message)
+      return
+    }
+
+    setMessage(targetUserId ? 'Ticket asignado correctamente.' : 'Ticket dejado sin asignar.')
+    await load()
   }
 
   async function startOrder(){
@@ -224,6 +319,27 @@ export default function MaintenanceWorkOrderDetailPage(){
               <div className="flex items-center gap-2"><UserRound size={16}/><span><strong>Asignado:</strong> {order.assigned_user_name??'Sin asignar'}</span></div>
               <div><strong>Origen:</strong> {order.maintenance_plan_name??'Ticket operativo'}</div>
             </div>
+            {canAssign && order.status !== 'COMPLETED' && (
+              <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
+                <label className="block">
+                  <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Asignar ticket</span>
+                  <select
+                    value={order.assigned_user_id ?? ''}
+                    onChange={(event) => void assignTicket(event.target.value)}
+                    disabled={assignmentSaving}
+                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm disabled:opacity-60"
+                  >
+                    <option value="">Sin asignar</option>
+                    {assignees.map((assignee) => (
+                      <option key={assignee.id} value={assignee.id}>{assignee.name}</option>
+                    ))}
+                  </select>
+                </label>
+                <p className="mt-1.5 text-[11px] text-slate-400">
+                  Solo usuarios con permiso de asignación pueden modificar este campo.
+                </p>
+              </div>
+            )}
             <div className="mt-4 grid gap-2 text-sm text-slate-600"><div><strong>Creada:</strong> {fmtDateTime(order.created_at)}</div><div><strong>Inicio:</strong> {fmtDateTime(order.started_at)}</div><div><strong>Finalización:</strong> {fmtDateTime(order.completed_at)}</div></div>
           </section>
         </section>

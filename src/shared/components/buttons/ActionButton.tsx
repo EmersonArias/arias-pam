@@ -35,7 +35,7 @@ export default function ActionButton({
       onClick={onClick}
       disabled={disabled}
       className={[
-        'inline-flex min-h-10 items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold',
+        'arias-action-button inline-flex min-h-10 min-w-0 items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold',
         'transition-all duration-150',
         'hover:-translate-y-1 hover:border-blue-200 hover:from-blue-50 hover:via-blue-100 hover:to-blue-200/80 hover:shadow-[0_8px_16px_rgba(37,99,235,0.18)]',
         'active:translate-y-0 active:shadow-[inset_0_2px_4px_rgba(37,99,235,0.14)]',
@@ -45,7 +45,7 @@ export default function ActionButton({
       ].join(' ')}
     >
       {Icon && <Icon size={17} strokeWidth={2} />}
-      <span>{label}</span>
+      <span className="truncate">{label}</span>
     </button>
   )
 }

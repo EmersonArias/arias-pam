@@ -38,7 +38,6 @@ type MaintenanceAlert = {
 
 const registers: HomeRegister[] = [
   { icon: '🛠️', name: 'Mantenimiento', path: '/maintenance' },
-  { icon: '🛠️', name: 'Actuaciones', path: '/actions' },
   { icon: '📦', name: 'Stock', path: null, comingSoon: true },
   { icon: '🗓️', name: 'Planificador horario', path: null, comingSoon: true },
   { icon: '🏢', name: 'Proveedores', path: '/providers' },

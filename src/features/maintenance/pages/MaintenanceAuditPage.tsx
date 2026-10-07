@@ -8,7 +8,7 @@ const items = [
   ['Registros', 'Consulta de registros oficiales y sus historiales.', ClipboardList, '/maintenance/audit/records'],
   ['Certificados e informes', 'Documentación emitida por empresas y mantenedores.', FileCheck2, '/reports'],
   ['Evidencias', 'Fotografías y documentos asociados a ejecuciones.', ImageIcon, '/maintenance/records'],
-  ['Histórico', 'Consulta de OTs y ejecuciones ya finalizadas.', Archive, '/maintenance/history'],
+  ['Histórico', 'Consulta de tickets y trabajos ya finalizados.', Archive, '/maintenance/tickets/history'],
   ['Exportar', 'Preparar documentación para presentar en auditoría.', FileText, '/reports'],
 ] as const
 

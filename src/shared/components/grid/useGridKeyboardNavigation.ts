@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef } from 'react'
 
 interface UseGridKeyboardNavigationOptions {
   ids: string[]
-  selectedId: string
+  selectedId: string | null
   onSelectedIdChange: (id: string) => void
   onOpen?: (id: string) => void
   autoFocusFirst?: boolean

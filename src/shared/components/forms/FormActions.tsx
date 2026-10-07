@@ -30,7 +30,7 @@ export default function FormActions({
 }: FormActionsProps) {
   if (mode === 'view') {
     return (
-      <div className={['grid w-full grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end', className].filter(Boolean).join(' ')}>
+      <div className={['arias-form-actions grid w-full grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end', className].filter(Boolean).join(' ')}>
         {onEdit && <ActionButton icon={Pencil} label="Modificar" tone="warning" onClick={onEdit} />}
         {onReport && <ActionButton icon={FileText} label={reportLabel} tone="dark" onClick={onReport} />}
         {onDelete && (

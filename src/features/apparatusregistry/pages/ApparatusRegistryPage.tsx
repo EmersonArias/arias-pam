@@ -153,33 +153,36 @@ export default function ApparatusRegistryPage() {
     <div className="min-h-screen bg-slate-100 p-3 sm:p-5">
       <div className="mx-auto max-w-7xl">
         <div className="mb-4 rounded-2xl bg-white p-3 shadow-lg sm:p-4">
-          <div className="flex flex-col gap-3 sm:gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="grid gap-3 sm:gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
             <div className="flex min-w-0 items-center gap-3">
               <BrandLogo
                 onActivate={() => navigate('/')}
-                className="h-9 w-auto shrink-0 object-contain sm:h-13"
+                className="h-9 w-[104px] shrink-0 object-contain sm:h-13 sm:w-auto"
               />
               <div className="min-w-0">
                 <h1 className="text-xl font-bold leading-tight text-slate-900 sm:text-3xl">
                   Equipos e instalaciones
                 </h1>
-                <p className="text-sm text-slate-500">
+                <p className="hidden text-sm text-slate-500 sm:block">
                   Mantenimientos, controles y estado de equipos
                 </p>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
+            <div className="grid w-full grid-cols-2 gap-2 lg:flex lg:w-auto lg:flex-wrap lg:items-center lg:justify-end">
               <BackButton onBack={() => navigate(-1)} />
               <HomeButton onHome={() => navigate('/')} />
-              <GridToolbar
-                actions={[
-                  { key: 'new', label: 'Nuevo', icon: Plus, tone: 'primary', onClick: openNew },
-                  { key: 'modify', label: 'Modificar', icon: Pencil, tone: 'warning', onClick: openModify, disabled: !selected },
-                  { key: 'maintenance', label: 'Mantenimientos', icon: Wrench, onClick: () => navigate('/maintenance') },
-                  { key: 'report', label: 'PDF', icon: FileText, tone: 'dark', onClick: openReport },
-                ]}
-              />
+              <div className="col-span-2 lg:col-auto">
+                <GridToolbar
+                  className="grid grid-cols-2 gap-2 lg:flex lg:flex-wrap lg:gap-2"
+                  actions={[
+                    { key: 'new', label: 'Nuevo', icon: Plus, tone: 'primary', onClick: openNew },
+                    { key: 'modify', label: 'Modificar', icon: Pencil, tone: 'warning', onClick: openModify, disabled: !selected },
+                    { key: 'maintenance', label: 'Mantenimientos', icon: Wrench, onClick: () => navigate('/maintenance') },
+                    { key: 'report', label: 'PDF', icon: FileText, tone: 'dark', onClick: openReport },
+                  ]}
+                />
+              </div>
             </div>
           </div>
         </div>

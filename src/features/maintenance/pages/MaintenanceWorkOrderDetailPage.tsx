@@ -207,7 +207,7 @@ export default function MaintenanceWorkOrderDetailPage(){
         <section className="grid gap-4 lg:grid-cols-2">
           <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <div className="mb-3 text-sm font-semibold">Datos de la OT</div>
-            <label className="block"><span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Título</span><input value={order.title} onChange={e=>setOrder({...order,title:e.target.value})} disabled={!canEdit} disabled={!canEdit} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"/></label>
+            <label className="block"><span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Título</span><input value={order.title} onChange={e=>setOrder({...order,title:e.target.value})} disabled={!canEdit} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"/></label>
             <label className="mt-3 block"><span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Descripción / trabajo a realizar</span><textarea value={order.description??''} onChange={e=>setOrder({...order,description:e.target.value})} rows={5} disabled={!canEdit} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"/></label>
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
               <label><span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Fecha prevista</span><input type="date" value={order.scheduled_date??''} onChange={e=>setOrder({...order,scheduled_date:e.target.value||null})} disabled={!canEdit} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"/></label>
@@ -231,7 +231,7 @@ export default function MaintenanceWorkOrderDetailPage(){
         <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
           <div className="mb-2 flex items-center gap-2"><FileText size={18} className="text-slate-500"/><h2 className="text-sm font-semibold">Observaciones</h2></div>
           <textarea value={order.observations??''} onChange={e=>setOrder({...order,observations:e.target.value})} disabled={!canEdit} rows={6} placeholder="Describe lo realizado, anomalías, comprobaciones y medidas tomadas…" className="w-full rounded-xl border border-slate-300 px-3 py-3 text-sm focus:border-blue-500 focus:outline-none"/>
-          <div className="mt-2 flex justify-end"><button type="button" onClick={()=>void saveChanges()} disabled={saving||!dirty} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"><Save size={15}/>Guardar observaciones</button></div>
+          <div className="mt-2 flex justify-end"><button type="button" onClick={()=>void saveChanges()} disabled={saving||!dirty||!canEdit} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"><Save size={15}/>Guardar observaciones</button></div>
         </section>
 
         <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">

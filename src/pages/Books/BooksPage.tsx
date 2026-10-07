@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   Bell,
   CircleHelp,
+  ClipboardList,
   Maximize2,
   Minimize2,
   Search,
@@ -34,6 +35,47 @@ type MaintenanceAlert = {
   apparatus_registry_id: string | null
   apparatus_code: string | null
   apparatus_name: string | null
+}
+
+function alertStatusView(alert: MaintenanceAlert) {
+  if (!alert.due_date) {
+    return { label: 'Sin fecha', className: 'bg-slate-100 text-slate-600' }
+  }
+
+  const today = new Date()
+  const localToday = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+  const due = new Date(alert.due_date + 'T12:00:00')
+  const diffDays = Math.round((due.getTime() - localToday.getTime()) / 86400000)
+
+  if (diffDays < 0) {
+    return {
+      label: `Vencido · ${Math.abs(diffDays)} d`,
+      className: 'bg-rose-100 text-rose-700',
+    }
+  }
+
+  if (diffDays === 0) {
+    return { label: 'Vence hoy', className: 'bg-amber-100 text-amber-700' }
+  }
+
+  if (diffDays <= 3) {
+    return {
+      label: `Vence en ${diffDays} d`,
+      className: 'bg-orange-100 text-orange-700',
+    }
+  }
+
+  if (diffDays <= 7) {
+    return {
+      label: `Próximo · ${diffDays} d`,
+      className: 'bg-sky-100 text-sky-700',
+    }
+  }
+
+  return {
+    label: `Programado · ${diffDays} d`,
+    className: 'bg-emerald-100 text-emerald-700',
+  }
 }
 
 const registers: HomeRegister[] = [
@@ -210,8 +252,8 @@ export default function BooksPage() {
   }, [search])
 
   return (
-    <div className="min-h-screen bg-slate-100 px-2 py-2 text-slate-900 sm:px-4 sm:py-3">
-      <div className="mx-auto w-full">
+    <div className="h-[100dvh] overflow-hidden bg-slate-100 px-2 py-2 text-slate-900 sm:px-4 sm:py-3">
+      <div className="mx-auto flex h-full min-h-0 w-full flex-col">
         <div className="mb-2 flex justify-center px-1 sm:mb-2">
           <BrandLogo
             onActivate={() => window.location.reload()}
@@ -417,7 +459,7 @@ export default function BooksPage() {
           </header>
         </div>
 
-        <main>
+        <main className="flex min-h-0 flex-1 flex-col">
           <div className="mx-auto grid w-full grid-cols-2 justify-center gap-2 px-2 sm:grid-cols-3 sm:px-3 md:grid-cols-4 md:px-5 lg:grid-cols-5 lg:gap-3 lg:px-[clamp(48px,5.5vw,90px)]">
             {filteredRegisters.map((register) => (
               <button
@@ -456,27 +498,37 @@ export default function BooksPage() {
           <div className="mx-auto mt-2 w-full px-2 sm:mt-3 sm:px-3 md:px-5 lg:px-[clamp(48px,5.5vw,90px)]">
             <section
               ref={alertsGridRef}
-              className="w-full scroll-mt-4 rounded-2xl border border-slate-200 bg-white shadow-lg"
+              className="flex min-h-0 flex-1 flex-col scroll-mt-4 rounded-2xl border border-slate-200 bg-white shadow-lg"
               aria-label="Avisos"
             >
-            <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-2.5">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-4 py-2.5">
               <div>
                 <h2 className="text-sm font-semibold text-slate-800">Avisos</h2>
                 <p className="text-[11px] text-slate-500">
                   Alertas activas de mantenimiento
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => void refreshNotifications()}
-                disabled={notificationsLoading}
-                className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-[11px] text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {notificationsLoading ? 'Actualizando…' : 'Actualizar'}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => navigate('/maintenance/tickets?new=1')}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-slate-700 transition hover:bg-slate-50"
+                >
+                  <ClipboardList size={14} />
+                  Nuevo ticket
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void refreshNotifications()}
+                  disabled={notificationsLoading}
+                  className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-[11px] text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {notificationsLoading ? 'Actualizando…' : 'Actualizar'}
+                </button>
+              </div>
             </div>
 
-            <div className="h-[220px] overflow-y-auto p-2 md:hidden">
+            <div className="min-h-0 flex-1 overflow-y-auto p-2 md:hidden">
               <div className="space-y-2">
                 {maintenanceAlerts.map((alert) => {
                   const statusClass =
@@ -510,7 +562,7 @@ export default function BooksPage() {
                           </div>
                           <div className="mt-1 line-clamp-2 text-[10px] text-slate-500">{alert.message}</div>
                         </div>
-                        <span className={`shrink-0 rounded-full px-2 py-1 text-[9px] font-semibold ${statusClass}`}>{statusLabel}</span>
+                        <span className={`shrink-0 rounded-full px-2 py-1 text-[9px] font-semibold ${statusView.className}`}>{statusView.label}</span>
                       </div>
                       <div className="mt-2 flex gap-3 text-[9px] text-slate-400">
                         <span>Prevista: {alert.due_date ? new Date(alert.due_date + 'T12:00:00').toLocaleDateString('es-ES') : '—'}</span>
@@ -532,7 +584,7 @@ export default function BooksPage() {
               </div>
             </div>
 
-            <div className="hidden md:block h-[220px] overflow-y-auto">
+            <div className="hidden min-h-0 flex-1 overflow-y-auto md:block">
               <table className="w-full min-w-[720px] border-collapse text-xs">
                 <thead>
                   <tr className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50 text-left text-[10px] uppercase tracking-wide text-slate-500">
@@ -544,21 +596,7 @@ export default function BooksPage() {
                 </thead>
                 <tbody>
                   {maintenanceAlerts.map((alert) => {
-                    const statusClass =
-                      alert.severity === 'CRITICAL'
-                        ? 'bg-rose-100 text-rose-700'
-                        : alert.severity === 'WARNING'
-                          ? 'bg-amber-100 text-amber-700'
-                          : 'bg-slate-100 text-slate-600'
-
-                    const statusLabel =
-                      alert.alert_type === 'OUT_OF_RANGE'
-                        ? 'Fuera de rango'
-                        : alert.alert_type === 'OVERDUE_REVIEW'
-                          ? 'Vencido'
-                          : alert.alert_type === 'DUE_TODAY'
-                            ? 'Vence hoy'
-                            : 'Próximo'
+                    const statusView = alertStatusView(alert)
 
                     return (
                       <tr
@@ -567,8 +605,8 @@ export default function BooksPage() {
                         className="cursor-pointer border-b border-slate-100 transition hover:bg-slate-50"
                       >
                         <td className="whitespace-nowrap px-3 py-2">
-                          <span className={`inline-flex rounded-full px-2 py-1 text-[10px] font-semibold ${statusClass}`}>
-                            {statusLabel}
+                          <span className={`inline-flex rounded-full px-2 py-1 text-[10px] font-semibold ${statusView.className}`}>
+                            {statusView.label}
                           </span>
                         </td>
                         <td className="max-w-[520px] px-3 py-2">

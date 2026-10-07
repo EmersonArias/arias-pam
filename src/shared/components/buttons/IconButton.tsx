@@ -35,7 +35,7 @@ export default function IconButton({
       aria-label={label}
       title={title ?? label}
       className={[
-        'inline-flex h-10 w-10 items-center justify-center rounded-full border border-blue-100',
+        'arias-icon-button inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-blue-100',
         'bg-gradient-to-b from-blue-50 via-blue-50 to-blue-100/80 text-slate-700',
         'shadow-[0_2px_5px_rgba(37,99,235,0.12)] transition-all duration-150',
         'hover:-translate-y-1 hover:border-blue-200 hover:from-blue-50 hover:via-blue-100 hover:to-blue-200/80',

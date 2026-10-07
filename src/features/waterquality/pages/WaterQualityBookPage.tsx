@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Camera,
-  Check,
   ClipboardPlus,
   Droplets,
   FileText,
@@ -10,7 +9,6 @@ import {
   Save,
   Trash2,
   Waves,
-  X,
 } from 'lucide-react'
 import { useSystemDialog } from '../../../shared/components/dialogs/SystemDialogProvider'
 import BrandLogo from '../../../shared/components/branding/BrandLogo'

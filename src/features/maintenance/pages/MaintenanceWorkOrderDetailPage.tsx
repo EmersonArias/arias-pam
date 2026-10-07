@@ -263,7 +263,7 @@ export default function MaintenanceWorkOrderDetailPage(){
             <label className="mt-3 block max-w-xs"><span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Prioridad</span><select value={correctivePriority} onChange={e=>setCorrectivePriority(e.target.value as WorkOrder['priority'])} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm">{Object.entries(priorityLabels).map(([k,v])=><option key={k} value={k}>{v}</option>)}</select></label>
             <div className="mt-4 flex justify-end gap-2"><button type="button" onClick={()=>setCorrectiveOpen(false)} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold">Cancelar</button><button type="button" onClick={()=>void createCorrective()} disabled={working||!correctiveTitle.trim()} className="rounded-xl bg-rose-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Crear OT correctiva</button></div>
           </div>}
-        </section>
+        </section>}
       </main>
     </div>
   </div>

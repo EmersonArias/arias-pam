@@ -33,6 +33,7 @@ import {
 } from '../lib/apparatusRegistry'
 
 const PHOTO_BUCKET = 'apparatus-registry'
+const DOCUMENT_BUCKET = 'apparatus-registry-documents'
 function generateId(): string {
   return (
     Date.now().toString(36) +
@@ -332,7 +333,7 @@ export default function ApparatusRegistryDetailPage() {
     setErrorMessage('')
 
     try {
-      const uploadedPhotos = []
+      const uploadedPhotos: ApparatusRegistry['photos'] = []
 
       for (const file of files) {
         if (!file.type.startsWith('image/')) continue
@@ -469,7 +470,7 @@ export default function ApparatusRegistryDetailPage() {
     setErrorMessage('')
 
     try {
-      const uploadedDocuments = []
+      const uploadedDocuments: ApparatusRegistry['documents'] = []
 
       for (const file of files) {
         const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')

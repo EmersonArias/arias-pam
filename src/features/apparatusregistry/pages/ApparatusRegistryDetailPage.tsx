@@ -1116,8 +1116,6 @@ export default function ApparatusRegistryDetailPage() {
                 </div>
               ))}
             </div>
-              ))}
-            </div>
           )}
 
           <hr className="my-6" />

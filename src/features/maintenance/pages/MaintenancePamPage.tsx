@@ -60,6 +60,7 @@ type Execution = {
 type MaintenancePlan = {
   id: string
   apparatus_registry_id: string | null
+  start_date: string | null
   next_due_date: string | null
   periodicity_value: number | null
   periodicity_unit: 'DAY' | 'WEEK' | 'MONTH' | 'YEAR' | 'VARIABLE' | null
@@ -236,7 +237,7 @@ function uniqueWorks(
       sourceId: row.source_apparatus_id,
       apparatusId: apparatus?.id ?? null,
       planId: planIdByKey.get(planKey) ?? null,
-      hotelCode: dailyHotelAssetCodes[row.source_apparatus_id] ?? '—',
+      hotelCode: apparatus?.code ?? dailyHotelAssetCodes[row.source_apparatus_id] ?? '—',
       name: apparatus?.name ?? 'Activo PAM sin equipo resuelto',
       work,
       periodicity,
@@ -312,7 +313,7 @@ export default function MaintenancePamPage() {
         .order('executed_at', { ascending: false }),
       supabase
         .from('maintenance_plans')
-        .select('id, apparatus_registry_id, next_due_date, periodicity_value, periodicity_unit')
+        .select('id, apparatus_registry_id, start_date, next_due_date, periodicity_value, periodicity_unit')
         .eq('active', true),
     ])
 
@@ -367,7 +368,7 @@ export default function MaintenancePamPage() {
 
     const nextRevisionByKey = new Map<string, string | null>()
     planIdByKey.forEach((planId, key) => {
-      nextRevisionByKey.set(key, planById.get(planId)?.next_due_date ?? null)
+      nextRevisionByKey.set(key, planById.get(planId)?.next_due_date ?? planById.get(planId)?.start_date ?? null)
     })
 
     const stateByKey = new Map<string, PamWork['state']>()
@@ -390,12 +391,12 @@ export default function MaintenancePamPage() {
         (execution) => execution.executed_at && execution.result !== 'CANCELLED',
       )
 
-      if (!hasValidExecution) {
+      const nextRevision = plan?.next_due_date ?? plan?.start_date
+
+      if (!hasValidExecution && !nextRevision) {
         stateByKey.set(key, 'Pendiente')
         return
       }
-
-      const nextRevision = plan?.next_due_date
       if (!nextRevision) {
         stateByKey.set(key, 'Pendiente')
       } else if (nextRevision < localToday) {

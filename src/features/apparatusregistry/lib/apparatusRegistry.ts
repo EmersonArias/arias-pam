@@ -1,5 +1,11 @@
 export type ApparatusCriticality = 'LOW' | 'NORMAL' | 'HIGH' | 'CRITICAL'
 
+export type ApparatusDocument = {
+  id: string
+  name: string
+  url: string
+}
+
 export type ApparatusRegistry = {
   id: string
   code: string
@@ -18,6 +24,7 @@ export type ApparatusRegistry = {
   installationDate: string
   criticality: ApparatusCriticality
   observations: string
+  documents: ApparatusDocument[]
   active: boolean
   sourceId: number | null
   photos: string[]
@@ -42,6 +49,7 @@ export type DatabaseApparatusRegistry = {
   installation_date: string | null
   criticality: ApparatusCriticality | null
   observations: string | null
+  documents?: unknown
   active: boolean
   photos?: unknown
   created_at: string
@@ -51,6 +59,15 @@ export type DatabaseApparatusRegistry = {
 export function fromDatabase(
   row: DatabaseApparatusRegistry,
 ): ApparatusRegistry {
+  const documents = Array.isArray(row.documents)
+    ? row.documents.filter((document): document is ApparatusDocument => (
+        typeof document === 'object' && document !== null &&
+        typeof (document as { id?: unknown }).id === 'string' &&
+        typeof (document as { name?: unknown }).name === 'string' &&
+        typeof (document as { url?: unknown }).url === 'string'
+      ))
+    : []
+
   const photos = Array.isArray(row.photos)
     ? row.photos.filter(
         (photo): photo is string => typeof photo === 'string',
@@ -75,6 +92,7 @@ export function fromDatabase(
     installationDate: row.installation_date ?? '',
     criticality: row.criticality ?? 'NORMAL',
     observations: row.observations ?? '',
+    documents,
     active: row.active,
     sourceId: row.source_id,
     photos,
@@ -101,6 +119,7 @@ export function toDatabase(
     installation_date: item.installationDate || null,
     criticality: item.criticality,
     observations: item.observations.trim() || null,
+    documents: item.documents,
     active: item.active,
     photos: item.photos,
   }
@@ -125,6 +144,7 @@ export function createEmptyApparatus(): ApparatusRegistry {
     installationDate: '',
     criticality: 'NORMAL',
     observations: '',
+    documents: [],
     active: true,
     sourceId: null,
     photos: [],

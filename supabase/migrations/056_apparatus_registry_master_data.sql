@@ -13,7 +13,8 @@ ALTER TABLE public.apparatus_registry
   ADD COLUMN IF NOT EXISTS inventory_number text,
   ADD COLUMN IF NOT EXISTS installation_date date,
   ADD COLUMN IF NOT EXISTS criticality text NOT NULL DEFAULT 'NORMAL',
-  ADD COLUMN IF NOT EXISTS observations text;
+  ADD COLUMN IF NOT EXISTS observations text,
+  ADD COLUMN IF NOT EXISTS documents jsonb NOT NULL DEFAULT '[]'::jsonb;
 
 ALTER TABLE public.apparatus_registry
   DROP CONSTRAINT IF EXISTS apparatus_registry_criticality_check;

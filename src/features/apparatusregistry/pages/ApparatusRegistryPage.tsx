@@ -171,7 +171,7 @@ export default function ApparatusRegistryPage() {
 
             <div className="grid w-full grid-cols-2 gap-2 lg:flex lg:w-auto lg:flex-wrap lg:items-center lg:justify-end">
               <BackButton onBack={() => navigate(-1)} />
-              <HomeButton onHome={() => navigate('/')} />
+              <HomeButton onHome={() => navigate('/')} className="justify-self-center" />
               <div className="col-span-2 lg:col-auto">
                 <GridToolbar
                   className="grid grid-cols-2 gap-2 lg:flex lg:flex-wrap lg:gap-2"

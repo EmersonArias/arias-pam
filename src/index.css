@@ -140,3 +140,43 @@ svg {
     padding: 0.875rem !important;
   }
 }
+
+@media (max-width: 640px) {
+  .min-h-screen.bg-slate-100 {
+    padding: 0.5rem !important;
+  }
+
+  .flex.flex-wrap.items-center.justify-end.gap-2 {
+    width: 100%;
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  .flex.flex-wrap.items-center.justify-end.gap-2 > .arias-grid-toolbar,
+  .flex.flex-wrap.items-center.justify-end.gap-2 > .arias-form-actions {
+    grid-column: 1 / -1;
+  }
+
+  .flex.flex-wrap.items-center.justify-end.gap-2 > .arias-action-button {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .flex.flex-wrap.items-center.justify-end.gap-2 > .arias-icon-button {
+    justify-self: center;
+  }
+
+  /* Evita que textos largos rompan las tarjetas en pantallas estrechas. */
+  [class*="max-w-7xl"],
+  [class*="max-w-6xl"],
+  [class*="max-w-5xl"],
+  [class*="max-w-4xl"] {
+    min-width: 0;
+  }
+
+  /* Áreas con tablas conservan desplazamiento horizontal en lugar de deformar la pantalla. */
+  table {
+    max-width: none;
+  }
+}

@@ -44,33 +44,66 @@ export const supabaseAuthProvider: AriasAuthService = {
   },
 
   async signIn(identifier: string, password: string): Promise<AuthResult<AriasSession>> {
-    const { data: result, error } = await supabase.functions.invoke('auth-login', {
-      body: {
-        identifier: identifier.trim(),
-        password,
-      },
-    })
+    const body = {
+      identifier: identifier.trim(),
+      password,
+    }
 
-    if (error || !result?.access_token || !result?.refresh_token) {
+    // The custom auth function may be cold-starting or briefly unavailable on
+    // the first request. Retry once so a valid login is never rejected just
+    // because the first network invocation was transiently unsuccessful.
+    let result: { access_token?: string; refresh_token?: string } | null = null
+    let invokeError: Error | null = null
+
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const response = await supabase.functions.invoke('auth-login', { body })
+
+      if (!response.error && response.data?.access_token && response.data?.refresh_token) {
+        result = response.data
+        invokeError = null
+        break
+      }
+
+      invokeError = response.error
+        ? new Error(response.error.message)
+        : new Error('No se ha podido iniciar sesión.')
+    }
+
+    if (invokeError || !result?.access_token || !result?.refresh_token) {
       return {
         data: null,
         error: new Error('No se ha podido iniciar sesión. Comprueba el identificador y la contraseña.'),
       }
     }
 
-    const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
-      access_token: result.access_token,
-      refresh_token: result.refresh_token,
-    })
+    let sessionData: SupabaseSession | null = null
+    let sessionError: Error | null = null
 
-    if (sessionError || !sessionData.session) {
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const response = await supabase.auth.setSession({
+        access_token: result.access_token,
+        refresh_token: result.refresh_token,
+      })
+
+      if (!response.error && response.data.session) {
+        sessionData = response.data.session
+        sessionError = null
+        break
+      }
+
+      sessionError = response.error
+        ? new Error(response.error.message)
+        : new Error('No se ha podido establecer la sesión.')
+    }
+
+    if (sessionError || !sessionData) {
       return {
         data: null,
         error: new Error('No se ha podido establecer la sesión.'),
       }
     }
 
-    if (!sessionData.session.user.email_confirmed_at) {
+    if (!sessionData.user.email_confirmed_at) {
       await supabase.auth.signOut()
       return {
         data: null,
@@ -79,7 +112,7 @@ export const supabaseAuthProvider: AriasAuthService = {
     }
 
     return {
-      data: mapSession(sessionData.session),
+      data: mapSession(sessionData),
       error: null,
     }
   },

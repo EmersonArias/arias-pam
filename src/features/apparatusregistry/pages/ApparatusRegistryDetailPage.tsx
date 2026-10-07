@@ -6,7 +6,6 @@ import {
   Copy,
   FileText,
   ImagePlus,
-  Link2,
   Maximize2,
   Minimize2,
   Plus,

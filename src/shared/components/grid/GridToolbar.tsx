@@ -19,7 +19,7 @@ interface GridToolbarProps {
 
 export default function GridToolbar({ actions, className = '' }: GridToolbarProps) {
   return (
-    <div className={['flex flex-wrap items-center justify-end gap-2', className].filter(Boolean).join(' ')}>
+    <div className={['arias-grid-toolbar flex flex-wrap items-center justify-end gap-2', className].filter(Boolean).join(' ')}>
       {actions.map((action) =>
         action.compact ? (
           <IconButton

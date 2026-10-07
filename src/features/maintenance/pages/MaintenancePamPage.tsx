@@ -7,6 +7,7 @@ import IconButton from '../../../shared/components/buttons/IconButton'
 import GridViewport from '../../../shared/components/grid/GridViewport'
 import { useGridKeyboardNavigation } from '../../../shared/components/grid/useGridKeyboardNavigation'
 import { supabase } from '../../../lib/supabase'
+import { ariasAuth } from '../../../core/auth/authService'
 import { useHotelScope } from '../../../shared/context/HotelScopeContext'
 
 type FrequencyKey =
@@ -261,6 +262,7 @@ export default function MaintenancePamPage() {
   const [maintenancePlans, setMaintenancePlans] = useState<MaintenancePlan[]>([])
   const [selectedFrequency, setSelectedFrequency] = useState<FrequencyKey | null>(null)
   const [selectedWorkKey, setSelectedWorkKey] = useState('')
+  const [checkingWorkKey, setCheckingWorkKey] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -519,6 +521,73 @@ export default function MaintenancePamPage() {
   const selectedLabel =
     frequencyCards.find((card) => card.key === selectedFrequency)?.label ?? ''
 
+  async function markWorkCompleted(work: PamWork) {
+    const key = `${work.sourceId}-${work.work}`
+    if (!work.planId || checkingWorkKey === key) return
+
+    setCheckingWorkKey(key)
+    setError('')
+
+    try {
+      const { data: sessionData } = await ariasAuth.getSession()
+      const sessionUser = sessionData?.user ?? null
+      const userId = sessionUser?.id ?? null
+      const performerName =
+        sessionUser?.fullName?.trim() ||
+        sessionUser?.loginIdentifier?.trim() ||
+        sessionUser?.email?.trim() ||
+        null
+
+      if (!userId) {
+        setError('No se ha podido identificar al usuario de la sesión.')
+        return
+      }
+
+      const openWorkOrderQuery = await supabase
+        .from('maintenance_work_orders')
+        .select('id, scheduled_date')
+        .eq('maintenance_plan_id', work.planId)
+        .in('status', ['PENDING', 'IN_PROGRESS'])
+        .order('scheduled_date', { ascending: true, nullsFirst: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (openWorkOrderQuery.error) {
+        setError(openWorkOrderQuery.error.message)
+        return
+      }
+
+      const scheduledDate =
+        (openWorkOrderQuery.data?.scheduled_date as string | null | undefined) ??
+        new Date().toISOString().slice(0, 10)
+
+      const insertResult = await supabase
+        .from('maintenance_executions')
+        .insert({
+          maintenance_plan_id: work.planId,
+          work_order_id: openWorkOrderQuery.data?.id ?? null,
+          scheduled_date: scheduledDate,
+          executed_at: new Date().toISOString(),
+          executed_by: userId,
+          performer_name: performerName,
+          performer_company: work.executor || null,
+          result: 'COMPLETED',
+          observations: null,
+        })
+
+      if (insertResult.error) {
+        setError(insertResult.error.message)
+        return
+      }
+
+      await loadPAM()
+    } finally {
+      setCheckingWorkKey(null)
+    }
+  }
+
+
+
   const gridIds = useMemo(
     () => selectedWorks.map((work) => `${work.sourceId}-${work.work}`),
     [selectedWorks],
@@ -660,6 +729,7 @@ export default function MaintenancePamPage() {
                   <col className="w-[14%]" />
                   <col className="w-[9%]" />
                   <col className="w-[6%]" />
+                  <col className="w-[5%]" />
                 </colgroup>
                 <thead className="sticky top-0 z-10">
                   <tr className="border-b bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
@@ -669,12 +739,13 @@ export default function MaintenancePamPage() {
                     <th className="px-2 py-1.5 font-semibold">Próxima revisión</th>
                     <th className="px-3 py-2 font-semibold">Ejecutor</th>
                     <th className="px-3 py-2 font-semibold">Estado</th>
+                    <th className="px-2 py-2 text-center font-semibold">✓</th>
                   </tr>
                 </thead>
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={7} className="px-4 py-10 text-center text-sm text-slate-500">
+                      <td colSpan={8} className="px-4 py-10 text-center text-sm text-slate-500">
                         Cargando trabajos preventivos…
                       </td>
                     </tr>
@@ -720,12 +791,22 @@ export default function MaintenancePamPage() {
                           {work.state}
                         </span>
                       </td>
+                      <td className="px-2 py-1.5 text-center" onClick={(event) => event.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={work.state === 'Revisada'}
+                          disabled={!work.planId || work.state === 'Revisada' || checkingWorkKey === `${work.sourceId}-${work.work}`}
+                          onChange={() => void markWorkCompleted(work)}
+                          aria-label={work.state === 'Revisada' ? 'Revisada' : 'Marcar como revisada'}
+                          className="h-5 w-5 cursor-pointer rounded border-slate-300 accent-emerald-600 disabled:cursor-not-allowed disabled:opacity-50"
+                        />
+                      </td>
                     </tr>
                   ))}
 
                   {!loading && selectedWorks.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="border-dashed px-4 py-10 text-center text-sm text-slate-500">
+                      <td colSpan={8} className="border-dashed px-4 py-10 text-center text-sm text-slate-500">
                         No hay trabajos definidos para esta frecuencia.
                       </td>
                     </tr>

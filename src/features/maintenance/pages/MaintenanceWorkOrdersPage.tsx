@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { AlertTriangle, Archive, CheckCircle2, ChevronDown, ChevronUp, Clock3, FileText, Image, Plus, RefreshCw, UserRound, Wrench, X } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import BrandLogo from '../../../shared/components/branding/BrandLogo'
 import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
 import IconButton from '../../../shared/components/buttons/IconButton'
@@ -139,6 +139,7 @@ function getWorkDescription(item: WorkOrder) {
 
 export default function MaintenanceWorkOrdersPage() {
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { hotel } = useHotelScope()
   const { session } = useAuth()
   const [records, setRecords] = useState<WorkOrder[]>([])
@@ -291,6 +292,21 @@ export default function MaintenanceWorkOrdersPage() {
   useEffect(() => {
     void loadData()
   }, [hotel?.id])
+
+  useEffect(() => {
+    if (searchParams.get('new') !== '1' || loading) return
+
+    setTicketTitle('')
+    setTicketDescription('')
+    setTicketType('CORRECTIVE')
+    setTicketAssetId('')
+    setTicketScheduledDate(new Date().toISOString().slice(0, 10))
+    setTicketPriority('NORMAL')
+    setTicketAssigneeId('')
+    setError('')
+    setTicketOpen(true)
+    setSearchParams({}, { replace: true })
+  }, [loading, searchParams, setSearchParams])
 
   async function loadEvidence(workOrderId: string) {
     setEvidenceLoading(true)

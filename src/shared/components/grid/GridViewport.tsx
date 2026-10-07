@@ -11,8 +11,12 @@ export default function GridViewport({
 }: GridViewportProps) {
   return (
     <div
-      className={'min-h-[300px] max-h-[calc(100vh-360px)] overflow-x-auto overflow-y-scroll ' + className}
-      style={{ scrollbarGutter: 'stable' }}
+      className={'arias-grid-viewport min-h-[300px] max-h-[calc(100vh-360px)] overflow-x-auto overflow-y-scroll ' + className}
+      style={{
+        scrollbarGutter: 'stable',
+        scrollbarWidth: 'auto',
+        scrollbarColor: '#94a3b8 #f1f5f9',
+      }}
     >
       {children}
     </div>

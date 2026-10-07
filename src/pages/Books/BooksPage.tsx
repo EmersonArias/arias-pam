@@ -38,6 +38,10 @@ type MaintenanceAlert = {
 }
 
 function alertStatusView(alert: MaintenanceAlert) {
+  if (alert.alert_type === 'OUT_OF_RANGE') {
+    return { label: 'Fuera de rango', className: 'bg-rose-100 text-rose-700' }
+  }
+
   if (!alert.due_date) {
     return { label: 'Sin fecha', className: 'bg-slate-100 text-slate-600' }
   }

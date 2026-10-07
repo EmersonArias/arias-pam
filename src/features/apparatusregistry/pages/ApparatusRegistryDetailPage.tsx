@@ -686,7 +686,7 @@ export default function ApparatusRegistryDetailPage() {
                 }}
                 disabled={saving || uploadingPhotos}
               />
-              <HomeButton onHome={() => requestNavigation('/')} disabled={saving || uploadingPhotos} />
+              <HomeButton onHome={() => requestNavigation('/')} disabled={saving || uploadingPhotos} className="justify-self-center" />
               <FormActions
                 mode={mode}
                 onSave={() => void saveRecord()}

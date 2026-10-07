@@ -25,8 +25,9 @@ export function BackButton({
 export function HomeButton({
   onHome,
   disabled = false,
-}: Pick<NavigationButtonsProps, 'onHome' | 'disabled'>) {
-  return <IconButton icon={House} label="Inicio" title="Inicio" onClick={onHome} disabled={disabled} />
+  className,
+}: Pick<NavigationButtonsProps, 'onHome' | 'disabled'> & { className?: string }) {
+  return <IconButton icon={House} label="Inicio" title="Inicio" onClick={onHome} disabled={disabled} className={className} />
 }
 
 export default function NavigationButtons({

@@ -3,6 +3,7 @@ import type { ChangeEvent, FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   Camera,
+  Copy,
   ImagePlus,
   Maximize2,
   Minimize2,
@@ -502,10 +503,9 @@ const path = `${item.id}/${generateId()}.${extension}`
               <input
                 value={item.code}
                 readOnly
-                className="w-full rounded-lg border border-slate-300 bg-slate-100 px-3 py-2 font-semibold uppercase text-slate-700 outline-none disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
+                className="w-full rounded-lg border border-slate-300 bg-slate-100 px-3 py-2 font-semibold uppercase text-slate-700 outline-none"
                 placeholder={isNew ? 'Se asignará al guardar' : undefined}
                 disabled
-                required
               />
             </label>
 
@@ -518,7 +518,7 @@ const path = `${item.id}/${generateId()}.${extension}`
                 placeholder="Descripción del equipo o instalación"
                 onChange={(event) => updateField('name', event.target.value)}
                 disabled={mode === 'view'}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 outline-none transition placeholder:text-slate-400 placeholder:italic focus:border-blue-500 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 outline-none transition placeholder:text-slate-400 placeholder:italic focus:border-blue-500 disabled:cursor-not-allowed disabled:bg-slate-100"
                 required
               />
             </label>
@@ -532,7 +532,7 @@ const path = `${item.id}/${generateId()}.${extension}`
                 placeholder="Ej. P00"
                 onChange={(event) => updateField('plant', event.target.value)}
                 disabled={mode === 'view'}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 outline-none transition placeholder:text-slate-400 placeholder:italic focus:border-slate-500 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 outline-none transition placeholder:text-slate-400 placeholder:italic focus:border-blue-500 disabled:bg-slate-100"
               />
             </label>
 
@@ -545,31 +545,202 @@ const path = `${item.id}/${generateId()}.${extension}`
                 placeholder="Ej. Planta -1, cuarto técnico"
                 onChange={(event) => updateField('location', event.target.value)}
                 disabled={mode === 'view'}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 outline-none transition placeholder:text-slate-400 placeholder:italic focus:border-blue-500 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 outline-none transition placeholder:text-slate-400 placeholder:italic focus:border-blue-500 disabled:bg-slate-100"
               />
             </label>
 
-            <label className="block sm:col-span-2">
+            <label className="block">
+              <span className="mb-1 block text-sm font-semibold text-slate-700">
+                Tipo de equipo
+              </span>
+              <input
+                value={item.equipmentType}
+                placeholder="Ej. Bomba, UTA, cuadro eléctrico…"
+                onChange={(event) => updateField('equipmentType', event.target.value)}
+                disabled={mode === 'view'}
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 outline-none focus:border-blue-500 disabled:bg-slate-100"
+              />
+            </label>
+
+            <label className="block">
+              <span className="mb-1 block text-sm font-semibold text-slate-700">
+                Sistema
+              </span>
+              <input
+                value={item.systemName}
+                placeholder="Sistema o instalación a la que pertenece"
+                onChange={(event) => updateField('systemName', event.target.value)}
+                disabled={mode === 'view'}
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 outline-none focus:border-blue-500 disabled:bg-slate-100"
+              />
+            </label>
+          </div>
+
+          <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-3 sm:p-4">
+            <div className="mb-3 text-sm font-bold text-slate-800">
+              Clasificación
+            </div>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Familia
+                </span>
+                <input
+                  value={item.familyCode}
+                  placeholder="Código de familia"
+                  onChange={(event) => updateField('familyCode', event.target.value)}
+                  disabled={mode === 'view'}
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 outline-none focus:border-blue-500 disabled:bg-slate-100"
+                />
+              </label>
+
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Subfamilia
+                </span>
+                <input
+                  value={item.subfamilyCode}
+                  placeholder="Código de subfamilia"
+                  onChange={(event) => updateField('subfamilyCode', event.target.value)}
+                  disabled={mode === 'view'}
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 outline-none focus:border-blue-500 disabled:bg-slate-100"
+                />
+              </label>
+
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Criticidad
+                </span>
+                <select
+                  value={item.criticality}
+                  onChange={(event) =>
+                    updateField(
+                      'criticality',
+                      event.target.value as ApparatusRegistry['criticality'],
+                    )
+                  }
+                  disabled={mode === 'view'}
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 outline-none focus:border-blue-500 disabled:bg-slate-100"
+                >
+                  <option value="LOW">Baja</option>
+                  <option value="NORMAL">Normal</option>
+                  <option value="HIGH">Alta</option>
+                  <option value="CRITICAL">Crítica</option>
+                </select>
+              </label>
+            </div>
+          </div>
+
+          <div className="mt-5">
+            <div className="mb-3 text-sm font-bold text-slate-800">
+              Datos técnicos
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <label className="block">
+                <span className="mb-1 block text-sm font-semibold text-slate-700">
+                  Fabricante
+                </span>
+                <input
+                  value={item.manufacturer}
+                  placeholder="Fabricante"
+                  onChange={(event) => updateField('manufacturer', event.target.value)}
+                  disabled={mode === 'view'}
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 outline-none focus:border-blue-500 disabled:bg-slate-100"
+                />
+              </label>
+
+              <label className="block">
+                <span className="mb-1 block text-sm font-semibold text-slate-700">
+                  Modelo
+                </span>
+                <input
+                  value={item.model}
+                  placeholder="Modelo"
+                  onChange={(event) => updateField('model', event.target.value)}
+                  disabled={mode === 'view'}
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 outline-none focus:border-blue-500 disabled:bg-slate-100"
+                />
+              </label>
+
+              <label className="block">
+                <span className="mb-1 block text-sm font-semibold text-slate-700">
+                  Nº de serie
+                </span>
+                <input
+                  value={item.serialNumber}
+                  placeholder="Número de serie"
+                  onChange={(event) => updateField('serialNumber', event.target.value)}
+                  disabled={mode === 'view'}
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 outline-none focus:border-blue-500 disabled:bg-slate-100"
+                />
+              </label>
+
+              <label className="block">
+                <span className="mb-1 block text-sm font-semibold text-slate-700">
+                  Nº de inventario
+                </span>
+                <input
+                  value={item.inventoryNumber}
+                  placeholder="Número de inventario"
+                  onChange={(event) => updateField('inventoryNumber', event.target.value)}
+                  disabled={mode === 'view'}
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 outline-none focus:border-blue-500 disabled:bg-slate-100"
+                />
+              </label>
+
+              <label className="block sm:col-span-2">
+                <span className="mb-1 block text-sm font-semibold text-slate-700">
+                  Fecha de instalación
+                </span>
+                <input
+                  type="date"
+                  value={item.installationDate}
+                  onChange={(event) => updateField('installationDate', event.target.value)}
+                  disabled={mode === 'view'}
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 outline-none focus:border-blue-500 disabled:bg-slate-100"
+                />
+              </label>
+            </div>
+          </div>
+
+          <div className="mt-5 rounded-xl border border-blue-100 bg-blue-50/50 p-3 sm:p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-sm font-bold text-slate-800">
+                  Mantenimiento
+                </div>
+                <p className="mt-1 text-[11px] leading-4 text-slate-500">
+                  Este dato queda en la ficha maestra; PAM, OT e histórico se enlazan al mismo activo.
+                </p>
+              </div>
+              <span className="rounded-full border border-slate-200 bg-white px-2 py-1 text-[10px] font-semibold text-slate-500">
+                Base Arias Suite
+              </span>
+            </div>
+
+            <label className="mt-3 block">
               <span className="mb-1 block text-sm font-semibold text-slate-700">
                 Empresa de mantenimiento
               </span>
               <input
                 value={item.maintenance}
                 placeholder="Empresa que lleva el mantenimiento de este equipo"
-                onChange={(event) =>
-                  updateField('maintenance', event.target.value)
-                }
+                onChange={(event) => updateField('maintenance', event.target.value)}
                 disabled={mode === 'view'}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 outline-none transition placeholder:text-slate-400 placeholder:italic focus:border-blue-500 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 outline-none focus:border-blue-500 disabled:bg-slate-100"
               />
             </label>
           </div>
 
           <hr className="my-6" />
 
-          <h2 className="mb-4 text-lg font-bold text-slate-900">
-            Fotografías
+          <h2 className="mb-1 text-lg font-bold text-slate-900">
+            Fotografías del activo
           </h2>
+          <p className="mb-4 text-xs text-slate-500">
+            Puedes guardar tantas fotografías como necesites: equipo, placa de características, instalación, cuadro de mando, etc.
+          </p>
 
           <div className="flex flex-wrap gap-2">
             <label
@@ -658,6 +829,23 @@ const path = `${item.id}/${generateId()}.${extension}`
 
           <hr className="my-6" />
 
+          <section>
+            <h2 className="mb-1 text-lg font-bold text-slate-900">
+              Observaciones
+            </h2>
+            <p className="mb-3 text-xs text-slate-500">
+              Información del equipo que no quede recogida en los campos estructurados.
+            </p>
+            <textarea
+              rows={5}
+              value={item.observations}
+              placeholder="Estado general, acceso, particularidades, incidencias conocidas, recomendaciones…"
+              onChange={(event) => updateField('observations', event.target.value)}
+              disabled={mode === 'view'}
+              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-sm outline-none transition placeholder:text-slate-400 placeholder:italic focus:border-blue-500 disabled:bg-slate-100"
+            />
+          </section>
+
           <label className="inline-flex items-center gap-3 text-sm font-semibold text-slate-700">
             <input
               type="checkbox"
@@ -668,6 +856,27 @@ const path = `${item.id}/${generateId()}.${extension}`
             />
             Registro activo
           </label>
+
+          {item.id && (
+            <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-3 sm:p-4">
+              <div className="text-sm font-bold text-slate-800">Identificación rápida</div>
+              <p className="mt-1 text-[11px] leading-4 text-slate-500">
+                Enlace directo a la ficha del activo para uso desde móvil o para asociarlo a un futuro QR.
+              </p>
+              <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                <input
+                  readOnly
+                  value={window.location.href}
+                  className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-600"
+                />
+                <ActionButton
+                  icon={Copy}
+                  label="Copiar enlace"
+                  onClick={() => void navigator.clipboard?.writeText(window.location.href)}
+                />
+              </div>
+            </div>
+          )}
         </form>
 
 

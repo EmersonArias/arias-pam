@@ -308,6 +308,12 @@ export default function ApparatusRegistryDetailPage() {
         return
       }
 
+      if (viewerPhoto) {
+        setViewerPhoto(null)
+        setViewerMaximized(false)
+        return
+      }
+
       if (mode === 'view') {
         navigate('/apparatusregistry')
         return
@@ -593,16 +599,29 @@ export default function ApparatusRegistryDetailPage() {
     )
   }
 
-  function addTechnicalDatum() {
+  function addTechnicalDatum(label = '') {
     updateField('technicalData', [
       ...item.technicalData,
       {
         id: generateId(),
-        label: '',
+        label,
         value: '',
       },
     ])
   }
+
+  const technicalPresets = [
+    'Potencia (kW)',
+    'Tensión (V)',
+    'Intensidad (A)',
+    'Caudal (m³/h)',
+    'Presión (bar)',
+    'Temperatura (°C)',
+    'Capacidad',
+    'Refrigerante',
+    'Dimensiones',
+  ]
+
 
   function removeTechnicalDatum(id: string) {
     updateField(
@@ -782,67 +801,44 @@ export default function ApparatusRegistryDetailPage() {
             </label>
           </div>
 
-          <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-3 sm:p-4">
-            <div className="mb-3 text-sm font-bold text-slate-800">
-              Clasificación
+          {item.id && (
+            <div className="mt-5 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)]">
+              <div className="rounded-xl border border-slate-200 bg-white p-3 sm:p-4">
+                <div className="text-sm font-bold text-slate-800">Identificación rápida</div>
+                <p className="mt-1 text-[11px] leading-4 text-slate-500">
+                  Enlace directo a la ficha del activo para uso desde móvil.
+                </p>
+                <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                  <input
+                    readOnly
+                    value={`${import.meta.env.VITE_PUBLIC_APP_URL || window.location.origin}/apparatusregistry/${item.id}`}
+                    className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-xs text-slate-600"
+                  />
+                  <ActionButton
+                    icon={Copy}
+                    label="Copiar enlace"
+                    onClick={() => void navigator.clipboard?.writeText(`${import.meta.env.VITE_PUBLIC_APP_URL || window.location.origin}/apparatusregistry/${item.id}`)}
+                  />
+                </div>
+              </div>
+              <AssetQrCode
+                value={`${import.meta.env.VITE_PUBLIC_APP_URL || window.location.origin}/apparatusregistry/${item.id}`}
+                label={item.code}
+              />
             </div>
-            <div className="grid gap-4 sm:grid-cols-3">
-              <label className="block">
-                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Familia
-                </span>
-                <input
-                  value={item.familyCode}
-                  placeholder="Código de familia"
-                  onChange={(event) => updateField('familyCode', event.target.value)}
-                  disabled={mode === 'view'}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 outline-none focus:border-blue-500 disabled:bg-slate-100"
-                />
-              </label>
+          )}
 
-              <label className="block">
-                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Subfamilia
-                </span>
-                <input
-                  value={item.subfamilyCode}
-                  placeholder="Código de subfamilia"
-                  onChange={(event) => updateField('subfamilyCode', event.target.value)}
-                  disabled={mode === 'view'}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 outline-none focus:border-blue-500 disabled:bg-slate-100"
-                />
-              </label>
-
-              <label className="block">
-                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Criticidad
-                </span>
-                <select
-                  value={item.criticality}
-                  onChange={(event) =>
-                    updateField(
-                      'criticality',
-                      event.target.value as ApparatusRegistry['criticality'],
-                    )
-                  }
-                  disabled={mode === 'view'}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 outline-none focus:border-blue-500 disabled:bg-slate-100"
-                >
-                  <option value="LOW">Baja</option>
-                  <option value="NORMAL">Normal</option>
-                  <option value="HIGH">Alta</option>
-                  <option value="CRITICAL">Crítica</option>
-                </select>
-              </label>
-            </div>
-          </div>
-
-          <div className="mt-5">
-            <div className="mb-3 text-sm font-bold text-slate-800">
-              Datos técnicos
+          <section className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-3 sm:p-4">
+            <div className="mb-3">
+              <div className="text-sm font-bold text-slate-800">
+                Datos técnicos del aparato
+              </div>
+              <p className="mt-1 text-[11px] leading-4 text-slate-500">
+                Marca, modelo y número de serie del fabricante. Los parámetros propios del aparato son opcionales.
+              </p>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <label className="block">
                 <span className="mb-1 block text-sm font-semibold text-slate-700">
                   Fabricante
@@ -884,19 +880,6 @@ export default function ApparatusRegistryDetailPage() {
 
               <label className="block">
                 <span className="mb-1 block text-sm font-semibold text-slate-700">
-                  Nº de inventario
-                </span>
-                <input
-                  value={item.inventoryNumber}
-                  placeholder="Número de inventario"
-                  onChange={(event) => updateField('inventoryNumber', event.target.value)}
-                  disabled={mode === 'view'}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 outline-none focus:border-blue-500 disabled:bg-slate-100"
-                />
-              </label>
-
-              <label className="block sm:col-span-2">
-                <span className="mb-1 block text-sm font-semibold text-slate-700">
                   Fecha de instalación
                 </span>
                 <input
@@ -908,60 +891,74 @@ export default function ApparatusRegistryDetailPage() {
                 />
               </label>
             </div>
-          </div>
 
-          <section className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-3 sm:p-4">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <div className="text-sm font-bold text-slate-800">
-                  Datos técnicos específicos
-                </div>
-                <p className="mt-1 text-[11px] leading-4 text-slate-500">
-                  Parámetros adaptables a cada tipo de equipo. No obliga a añadir campos innecesarios a toda la ficha.
-                </p>
-              </div>
-              <ActionButton
-                icon={Plus}
-                label="Añadir dato"
-                onClick={addTechnicalDatum}
-                disabled={mode === 'view'}
-              />
-            </div>
-
-            {item.technicalData.length === 0 ? (
-              <div className="mt-3 rounded-xl border border-dashed border-slate-300 bg-white p-5 text-center text-xs text-slate-500">
-                Sin datos técnicos específicos
-              </div>
-            ) : (
-              <div className="mt-3 space-y-2">
-                {item.technicalData.map((datum) => (
-                  <div key={datum.id} className="grid gap-2 sm:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)_auto]">
-                    <input
-                      value={datum.label}
-                      placeholder="Parámetro"
-                      disabled={mode === 'view'}
-                      onChange={(event) => updateTechnicalDatum(datum.id, 'label', event.target.value)}
-                      className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 disabled:bg-slate-100"
-                    />
-                    <input
-                      value={datum.value}
-                      placeholder="Valor"
-                      disabled={mode === 'view'}
-                      onChange={(event) => updateTechnicalDatum(datum.id, 'value', event.target.value)}
-                      className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 disabled:bg-slate-100"
-                    />
-                    <IconButton
-                      icon={Trash2}
-                      label="Eliminar dato técnico"
-                      title="Eliminar dato técnico"
-                      onClick={() => removeTechnicalDatum(datum.id)}
-                      disabled={mode === 'view'}
-                      className="h-9 w-9"
-                    />
+            <div className="mt-5 border-t border-slate-200 pt-4">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <div className="text-sm font-semibold text-slate-800">
+                    Parámetros técnicos
                   </div>
+                  <p className="mt-1 text-[11px] leading-4 text-slate-500">
+                    Añade solo los datos que correspondan a este aparato.
+                  </p>
+                </div>
+                <ActionButton
+                  icon={Plus}
+                  label="Añadir dato"
+                  onClick={() => addTechnicalDatum()}
+                  disabled={mode === 'view'}
+                />
+              </div>
+
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {technicalPresets.map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => addTechnicalDatum(preset)}
+                    disabled={mode === 'view'}
+                    className="rounded-full border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    + {preset}
+                  </button>
                 ))}
               </div>
-            )}
+
+              {item.technicalData.length === 0 ? (
+                <div className="mt-3 rounded-xl border border-dashed border-slate-300 bg-white p-4 text-center text-xs text-slate-500">
+                  Sin parámetros técnicos añadidos
+                </div>
+              ) : (
+                <div className="mt-3 space-y-2">
+                  {item.technicalData.map((datum) => (
+                    <div key={datum.id} className="grid gap-2 sm:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)_auto]">
+                      <input
+                        value={datum.label}
+                        placeholder="Parámetro"
+                        disabled={mode === 'view'}
+                        onChange={(event) => updateTechnicalDatum(datum.id, 'label', event.target.value)}
+                        className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 disabled:bg-slate-100"
+                      />
+                      <input
+                        value={datum.value}
+                        placeholder="Valor"
+                        disabled={mode === 'view'}
+                        onChange={(event) => updateTechnicalDatum(datum.id, 'value', event.target.value)}
+                        className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 disabled:bg-slate-100"
+                      />
+                      <IconButton
+                        icon={Trash2}
+                        label="Eliminar dato técnico"
+                        title="Eliminar dato técnico"
+                        onClick={() => removeTechnicalDatum(datum.id)}
+                        disabled={mode === 'view'}
+                        className="h-9 w-9"
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </section>
 
           <div className="mt-5 rounded-xl border border-blue-100 bg-blue-50/50 p-3 sm:p-4">
@@ -1219,32 +1216,7 @@ export default function ApparatusRegistryDetailPage() {
             Registro activo
           </label>
 
-          {item.id && (
-            <div className="mt-5 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)]">
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 sm:p-4">
-                <div className="text-sm font-bold text-slate-800">Identificación rápida</div>
-                <p className="mt-1 text-[11px] leading-4 text-slate-500">
-                  Enlace directo a la ficha del activo para uso desde móvil.
-                </p>
-                <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-                  <input
-                    readOnly
-                    value={`${import.meta.env.VITE_PUBLIC_APP_URL || window.location.origin}/apparatusregistry/${item.id}`}
-                    className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-600"
-                  />
-                  <ActionButton
-                    icon={Copy}
-                    label="Copiar enlace"
-                    onClick={() => void navigator.clipboard?.writeText(`${import.meta.env.VITE_PUBLIC_APP_URL || window.location.origin}/apparatusregistry/${item.id}`)}
-                  />
-                </div>
-              </div>
-              <AssetQrCode
-                value={`${import.meta.env.VITE_PUBLIC_APP_URL || window.location.origin}/apparatusregistry/${item.id}`}
-                label={item.code}
-              />
-            </div>
-          )}
+
         </form>
 
 

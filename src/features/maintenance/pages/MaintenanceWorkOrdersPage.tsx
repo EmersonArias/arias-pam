@@ -426,8 +426,8 @@ export default function MaintenanceWorkOrdersPage() {
             : 'mb-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-800'
         }>
           {generationMode === 'AUTO'
-            ? `Generación automática de OT: activa · anticipación ${generationLeadDays} día${generationLeadDays === 1 ? '' : 's'}.`
-            : 'Generación automática de OT: desactivada para este hotel. Las OT preventivas no se crearán automáticamente mientras esté en modo Manual.'}
+            ? `Generación automática de tickets preventivos: activa · anticipación ${generationLeadDays} día${generationLeadDays === 1 ? '' : 's'}.`
+            : 'Generación automática de OT: desactivada para este hotel. Los tickets preventivos no se crearán automáticamente mientras esté en modo Manual.'}
         </div>
 
         <section className="mb-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -609,7 +609,7 @@ export default function MaintenanceWorkOrdersPage() {
                       </div>
                       <div className="mt-0.5 text-xs text-slate-500">Evidencias de la ejecución de este ticket.</div>
                     </div>
-<div className="text-[11px] text-slate-400">Solo consulta en esta pantalla. Las evidencias se gestionan desde la ejecución de la OT.</div>
+<div className="text-[11px] text-slate-400">Solo consulta en esta pantalla. Las evidencias se gestionan desde la ejecución del ticket.</div>
                   </div>
 
                   {evidenceLoading ? (
@@ -669,7 +669,7 @@ export default function MaintenanceWorkOrdersPage() {
                 )}
               </div>
             ) : (
-              <div className="p-8 text-center text-sm text-slate-400">Selecciona una OT.</div>
+              <div className="p-8 text-center text-sm text-slate-400">Selecciona un ticket.</div>
             )}
           </aside>
         </main>

@@ -318,7 +318,7 @@ export default function ActionsPage() {
             </div>
 
             <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
-              <BackButton onBack={() => navigate('/')} />
+              <BackButton onBack={() => navigate('/maintenance')} />
               <HomeButton onHome={() => navigate('/')} />
               <button
                 type="button"

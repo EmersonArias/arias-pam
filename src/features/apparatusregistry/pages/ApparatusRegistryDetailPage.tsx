@@ -5,6 +5,7 @@ import {
   Camera,
   Copy,
   FileText,
+  FileUp,
   ImagePlus,
   Maximize2,
   Minimize2,
@@ -20,6 +21,7 @@ import { useGuardedNavigation } from '../../../shared/hooks/useGuardedNavigation
 import BrandLogo from '../../../shared/components/branding/BrandLogo'
 import IconButton from '../../../shared/components/buttons/IconButton'
 import ActionButton from '../../../shared/components/buttons/ActionButton'
+import AssetQrCode from '../../../shared/components/qr/AssetQrCode'
 import { useEscapeAsCancel } from '../../../shared/hooks/useEscapeAsCancel'
 import { useSystemDialog } from '../../../shared/components/dialogs/SystemDialogProvider'
 import {
@@ -69,6 +71,9 @@ export default function ApparatusRegistryDetailPage() {
 
   const cameraInputRef = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const documentInputRef = useRef<HTMLInputElement>(null)
+  const [photoCategory, setPhotoCategory] = useState<ApparatusRegistry['photos'][number]['category']>('GENERAL')
+  const [documentUrls, setDocumentUrls] = useState<Record<string, string>>({})
 
   useEffect(() => {
     if (isNew) {
@@ -107,6 +112,40 @@ export default function ApparatusRegistryDetailPage() {
 
     void loadRecord()
   }, [id, isNew])
+
+  useEffect(() => {
+    let active = true
+
+    async function loadDocumentUrls() {
+      if (!item.documents.length) {
+        setDocumentUrls({})
+        return
+      }
+
+      const entries = await Promise.all(
+        item.documents.map(async (document) => {
+          if (document.storagePath.startsWith('http://') || document.storagePath.startsWith('https://')) {
+            return [document.id, document.storagePath] as const
+          }
+
+          const { data, error } = await supabase.storage
+            .from(DOCUMENT_BUCKET)
+            .createSignedUrl(document.storagePath, 60 * 60)
+
+          return [document.id, error ? '' : data.signedUrl] as const
+        }),
+      )
+
+      if (!active) return
+      setDocumentUrls(Object.fromEntries(entries))
+    }
+
+    void loadDocumentUrls()
+
+    return () => {
+      active = false
+    }
+  }, [item.documents])
 
   function updateField<K extends keyof ApparatusRegistry>(
     field: K,
@@ -293,15 +332,13 @@ export default function ApparatusRegistryDetailPage() {
     setErrorMessage('')
 
     try {
-      const uploadedUrls: string[] = []
+      const uploadedPhotos = []
 
       for (const file of files) {
         if (!file.type.startsWith('image/')) continue
 
-        const extension =
-  file.name.split('.').pop()?.toLowerCase() || 'jpg'
-
-const path = `${item.id}/${generateId()}.${extension}`
+        const extension = file.name.split('.').pop()?.toLowerCase() || 'jpg'
+        const path = `${item.id}/${generateId()}.${extension}`
 
         const { error: uploadError } = await supabase.storage
           .from(PHOTO_BUCKET)
@@ -319,15 +356,19 @@ const path = `${item.id}/${generateId()}.${extension}`
           .from(PHOTO_BUCKET)
           .getPublicUrl(path)
 
-        uploadedUrls.push(publicUrlData.publicUrl)
+        uploadedPhotos.push({
+          id: generateId(),
+          category: photoCategory,
+          url: publicUrlData.publicUrl,
+        })
       }
 
-      if (!uploadedUrls.length) {
+      if (!uploadedPhotos.length) {
         setErrorMessage('No se seleccionaron imágenes válidas.')
         return
       }
 
-      const newPhotos = [...item.photos, ...uploadedUrls]
+      const newPhotos = [...item.photos, ...uploadedPhotos]
 
       const { data, error } = await supabase
         .from('apparatus_registry')
@@ -342,7 +383,7 @@ const path = `${item.id}/${generateId()}.${extension}`
 
       setItem(fromDatabase(data as DatabaseApparatusRegistry))
       setMessage(
-        `${uploadedUrls.length === 1 ? 'Fotografía añadida.' : `${uploadedUrls.length} fotografías añadidas.`}`,
+        `${uploadedPhotos.length === 1 ? 'Fotografía añadida.' : `${uploadedPhotos.length} fotografías añadidas.`}`,
       )
     } catch (error) {
       setErrorMessage(
@@ -355,8 +396,11 @@ const path = `${item.id}/${generateId()}.${extension}`
     }
   }
 
-  async function handleDeletePhoto(url: string) {
+  async function handleDeletePhoto(photoId: string) {
     if (!item.id || mode === 'view') return
+
+    const photo = item.photos.find((candidate) => candidate.id === photoId)
+    if (!photo) return
 
     const confirmed = await confirm({
       title: 'Eliminar fotografía',
@@ -371,7 +415,7 @@ const path = `${item.id}/${generateId()}.${extension}`
     setErrorMessage('')
 
     try {
-      const path = getStoragePathFromPublicUrl(url)
+      const path = getStoragePathFromPublicUrl(photo.url)
 
       if (path) {
         const { error: storageError } = await supabase.storage
@@ -383,7 +427,7 @@ const path = `${item.id}/${generateId()}.${extension}`
         }
       }
 
-      const newPhotos = item.photos.filter((photo) => photo !== url)
+      const newPhotos = item.photos.filter((candidate) => candidate.id !== photoId)
 
       const { data, error } = await supabase
         .from('apparatus_registry')
@@ -409,27 +453,160 @@ const path = `${item.id}/${generateId()}.${extension}`
     }
   }
 
-  function addDocument() {
-    const name = window.prompt('Nombre del documento')
-    if (!name?.trim()) return
+  async function handleDocumentFiles(event: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.target.files ?? [])
+    event.target.value = ''
 
-    const url = window.prompt('Enlace del documento (URL)')
-    if (!url?.trim()) return
+    if (!files.length) return
 
-    updateField('documents', [
-      ...item.documents,
+    if (!item.id) {
+      setErrorMessage('Guarda el registro antes de añadir documentos.')
+      return
+    }
+
+    setUploadingPhotos(true)
+    setMessage('')
+    setErrorMessage('')
+
+    try {
+      const uploadedDocuments = []
+
+      for (const file of files) {
+        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+        const path = `${item.id}/${generateId()}-${safeName}`
+
+        const { error: uploadError } = await supabase.storage
+          .from(DOCUMENT_BUCKET)
+          .upload(path, file, {
+            cacheControl: '3600',
+            upsert: false,
+            contentType: file.type || 'application/octet-stream',
+          })
+
+        if (uploadError) {
+          throw new Error(uploadError.message)
+        }
+
+        uploadedDocuments.push({
+          id: generateId(),
+          name: file.name,
+          storagePath: path,
+        })
+      }
+
+      if (!uploadedDocuments.length) return
+
+      const documents = [...item.documents, ...uploadedDocuments]
+
+      const { data, error } = await supabase
+        .from('apparatus_registry')
+        .update({ documents })
+        .eq('id', item.id)
+        .select('*')
+        .single()
+
+      if (error) {
+        throw new Error(error.message)
+      }
+
+      setItem(fromDatabase(data as DatabaseApparatusRegistry))
+      setMessage(
+        `${uploadedDocuments.length === 1 ? 'Documento añadido.' : `${uploadedDocuments.length} documentos añadidos.`}`,
+      )
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? `Error subiendo documentos: ${error.message}`
+          : 'Error subiendo documentos.',
+      )
+    } finally {
+      setUploadingPhotos(false)
+    }
+  }
+
+  async function handleDeleteDocument(documentId: string) {
+    if (!item.id || mode === 'view') return
+
+    const document = item.documents.find((candidate) => candidate.id === documentId)
+    if (!document) return
+
+    const confirmed = await confirm({
+      title: 'Eliminar documento',
+      message: '¿Quieres eliminar este documento?',
+      variant: 'warning',
+      confirmLabel: 'Eliminar',
+    })
+    if (!confirmed) return
+
+    setUploadingPhotos(true)
+    setMessage('')
+    setErrorMessage('')
+
+    try {
+      if (
+        document.storagePath &&
+        !document.storagePath.startsWith('http://') &&
+        !document.storagePath.startsWith('https://')
+      ) {
+        const { error: storageError } = await supabase.storage
+          .from(DOCUMENT_BUCKET)
+          .remove([document.storagePath])
+
+        if (storageError) {
+          throw new Error(storageError.message)
+        }
+      }
+
+      const documents = item.documents.filter((candidate) => candidate.id !== documentId)
+
+      const { data, error } = await supabase
+        .from('apparatus_registry')
+        .update({ documents })
+        .eq('id', item.id)
+        .select('*')
+        .single()
+
+      if (error) {
+        throw new Error(error.message)
+      }
+
+      setItem(fromDatabase(data as DatabaseApparatusRegistry))
+      setMessage('Documento eliminado.')
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? `Error eliminando documento: ${error.message}`
+          : 'Error eliminando documento.',
+      )
+    } finally {
+      setUploadingPhotos(false)
+    }
+  }
+
+  function updateTechnicalDatum(id: string, field: 'label' | 'value', value: string) {
+    updateField(
+      'technicalData',
+      item.technicalData.map((datum) =>
+        datum.id === id ? { ...datum, [field]: value } : datum,
+      ),
+    )
+  }
+
+  function addTechnicalDatum() {
+    updateField('technicalData', [
+      ...item.technicalData,
       {
-        id: crypto.randomUUID(),
-        name: name.trim(),
-        url: url.trim(),
+        id: generateId(),
+        label: '',
+        value: '',
       },
     ])
   }
 
-  function removeDocument(documentId: string) {
+  function removeTechnicalDatum(id: string) {
     updateField(
-      'documents',
-      item.documents.filter((document) => document.id !== documentId),
+      'technicalData',
+      item.technicalData.filter((datum) => datum.id !== id),
     )
   }
 
@@ -732,6 +909,60 @@ const path = `${item.id}/${generateId()}.${extension}`
             </div>
           </div>
 
+          <section className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-3 sm:p-4">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <div className="text-sm font-bold text-slate-800">
+                  Datos técnicos específicos
+                </div>
+                <p className="mt-1 text-[11px] leading-4 text-slate-500">
+                  Parámetros adaptables a cada tipo de equipo. No obliga a añadir campos innecesarios a toda la ficha.
+                </p>
+              </div>
+              <ActionButton
+                icon={Plus}
+                label="Añadir dato"
+                onClick={addTechnicalDatum}
+                disabled={mode === 'view'}
+              />
+            </div>
+
+            {item.technicalData.length === 0 ? (
+              <div className="mt-3 rounded-xl border border-dashed border-slate-300 bg-white p-5 text-center text-xs text-slate-500">
+                Sin datos técnicos específicos
+              </div>
+            ) : (
+              <div className="mt-3 space-y-2">
+                {item.technicalData.map((datum) => (
+                  <div key={datum.id} className="grid gap-2 sm:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)_auto]">
+                    <input
+                      value={datum.label}
+                      placeholder="Parámetro"
+                      disabled={mode === 'view'}
+                      onChange={(event) => updateTechnicalDatum(datum.id, 'label', event.target.value)}
+                      className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 disabled:bg-slate-100"
+                    />
+                    <input
+                      value={datum.value}
+                      placeholder="Valor"
+                      disabled={mode === 'view'}
+                      onChange={(event) => updateTechnicalDatum(datum.id, 'value', event.target.value)}
+                      className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 disabled:bg-slate-100"
+                    />
+                    <IconButton
+                      icon={Trash2}
+                      label="Eliminar dato técnico"
+                      title="Eliminar dato técnico"
+                      onClick={() => removeTechnicalDatum(datum.id)}
+                      disabled={mode === 'view'}
+                      className="h-9 w-9"
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
           <div className="mt-5 rounded-xl border border-blue-100 bg-blue-50/50 p-3 sm:p-4">
             <div className="flex items-center justify-between gap-3">
               <div>
@@ -769,6 +1000,26 @@ const path = `${item.id}/${generateId()}.${extension}`
           <p className="mb-4 text-xs text-slate-500">
             Puedes guardar tantas fotografías como necesites: equipo, placa de características, instalación, cuadro de mando, etc.
           </p>
+
+          <div className="mb-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <label className="block">
+              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Tipo de fotografía
+              </span>
+              <select
+                value={photoCategory}
+                onChange={(event) => setPhotoCategory(event.target.value as ApparatusRegistry['photos'][number]['category'])}
+                disabled={mode === 'view' || uploadingPhotos}
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 sm:max-w-xs"
+              >
+                <option value="GENERAL">Foto general</option>
+                <option value="NAMEPLATE">Placa de características</option>
+                <option value="INSTALLATION">Instalación</option>
+                <option value="CONTROL">Cuadro / control</option>
+                <option value="OTHER">Otras</option>
+              </select>
+            </label>
+          </div>
 
           <div className="flex flex-wrap gap-2">
             <label
@@ -824,33 +1075,46 @@ const path = `${item.id}/${generateId()}.${extension}`
             <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
               {item.photos.map((photo) => (
                 <div
-                  key={photo}
+                  key={photo.id}
                   className="group relative overflow-hidden rounded-xl border border-slate-200 bg-slate-50 shadow-sm"
                 >
                   <button
                     type="button"
                     onClick={() => {
-                      setViewerPhoto(photo)
+                      setViewerPhoto(photo.url)
                       setViewerMaximized(false)
                     }}
                     className="block w-full cursor-zoom-in"
                     title="Ver fotografía en grande"
                   >
                     <img
-                      src={photo}
-                      alt={`Fotografía ${item.code}`}
+                      src={photo.url}
+                      alt={`Fotografía ${photo.category.toLowerCase()} ${item.code}`}
                       className="aspect-square w-full object-cover transition group-hover:scale-[1.02]"
                     />
                   </button>
+                  <div className="absolute bottom-0 left-0 right-0 bg-slate-900/70 px-2 py-1 text-[9px] font-semibold text-white">
+                    {photo.category === 'GENERAL'
+                      ? 'General'
+                      : photo.category === 'NAMEPLATE'
+                        ? 'Placa'
+                        : photo.category === 'INSTALLATION'
+                          ? 'Instalación'
+                          : photo.category === 'CONTROL'
+                            ? 'Control'
+                            : 'Otras'}
+                  </div>
                   <IconButton
                     icon={X}
                     label="Eliminar fotografía"
                     title="Eliminar fotografía"
-                    onClick={() => void handleDeletePhoto(photo)}
+                    onClick={() => void handleDeletePhoto(photo.id)}
                     disabled={mode === 'view' || uploadingPhotos}
                     className="absolute right-2 top-2 h-8 w-8"
                   />
                 </div>
+              ))}
+            </div>
               ))}
             </div>
           )}
@@ -884,12 +1148,18 @@ const path = `${item.id}/${generateId()}.${extension}`
                   Manuales, fichas técnicas, certificados, esquemas e informes asociados al activo.
                 </p>
               </div>
-              <ActionButton
-                icon={Plus}
-                label="Añadir documento"
-                onClick={addDocument}
-                disabled={mode === 'view'}
-              />
+              <label className={'relative inline-flex cursor-pointer items-center gap-2 overflow-hidden rounded-xl border border-blue-100 bg-gradient-to-b from-blue-50 via-blue-50 to-blue-100/80 px-3 py-2 text-sm font-semibold text-slate-700 shadow-[0_2px_5px_rgba(37,99,235,0.12)] transition-all duration-150 ' + (mode === 'view' || uploadingPhotos ? 'cursor-not-allowed opacity-45' : 'hover:-translate-y-1 hover:border-blue-200 hover:shadow-[0_8px_16px_rgba(37,99,235,0.18)]')}>
+                <FileUp size={17} />
+                Subir documento
+                <input
+                  ref={documentInputRef}
+                  type="file"
+                  multiple
+                  disabled={mode === 'view' || uploadingPhotos || !item.id}
+                  onChange={handleDocumentFiles}
+                  className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
+                />
+              </label>
             </div>
 
             {item.documents.length === 0 ? (
@@ -905,24 +1175,30 @@ const path = `${item.id}/${generateId()}.${extension}`
                   >
                     <FileText className="shrink-0 text-slate-500" size={18} />
                     <div className="min-w-0 flex-1">
-                      <a
-                        href={document.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="block truncate text-sm font-semibold text-blue-700 hover:underline"
-                      >
-                        {document.name}
-                      </a>
-                      <div className="mt-0.5 truncate text-[10px] text-slate-400">
-                        {document.url}
+                      {documentUrls[document.id] ? (
+                        <a
+                          href={documentUrls[document.id]}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="block truncate text-sm font-semibold text-blue-700 hover:underline"
+                        >
+                          {document.name}
+                        </a>
+                      ) : (
+                        <span className="block truncate text-sm font-semibold text-slate-500">
+                          {document.name}
+                        </span>
+                      )}
+                      <div className="mt-0.5 text-[10px] text-slate-400">
+                        Documento del activo
                       </div>
                     </div>
                     <IconButton
                       icon={Trash2}
                       label="Eliminar documento"
                       title="Eliminar documento"
-                      onClick={() => removeDocument(document.id)}
-                      disabled={mode === 'view'}
+                      onClick={() => void handleDeleteDocument(document.id)}
+                      disabled={mode === 'view' || uploadingPhotos}
                       className="h-8 w-8"
                     />
                   </div>
@@ -945,23 +1221,29 @@ const path = `${item.id}/${generateId()}.${extension}`
           </label>
 
           {item.id && (
-            <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-3 sm:p-4">
-              <div className="text-sm font-bold text-slate-800">Identificación rápida</div>
-              <p className="mt-1 text-[11px] leading-4 text-slate-500">
-                Enlace directo a la ficha del activo para uso desde móvil o para asociarlo a un futuro QR.
-              </p>
-              <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-                <input
-                  readOnly
-                  value={window.location.href}
-                  className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-600"
-                />
-                <ActionButton
-                  icon={Copy}
-                  label="Copiar enlace"
-                  onClick={() => void navigator.clipboard?.writeText(window.location.href)}
-                />
+            <div className="mt-5 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)]">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 sm:p-4">
+                <div className="text-sm font-bold text-slate-800">Identificación rápida</div>
+                <p className="mt-1 text-[11px] leading-4 text-slate-500">
+                  Enlace directo a la ficha del activo para uso desde móvil.
+                </p>
+                <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                  <input
+                    readOnly
+                    value={`${import.meta.env.VITE_PUBLIC_APP_URL || window.location.origin}/apparatusregistry/${item.id}`}
+                    className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-600"
+                  />
+                  <ActionButton
+                    icon={Copy}
+                    label="Copiar enlace"
+                    onClick={() => void navigator.clipboard?.writeText(`${import.meta.env.VITE_PUBLIC_APP_URL || window.location.origin}/apparatusregistry/${item.id}`)}
+                  />
+                </div>
               </div>
+              <AssetQrCode
+                value={`${import.meta.env.VITE_PUBLIC_APP_URL || window.location.origin}/apparatusregistry/${item.id}`}
+                label={item.code}
+              />
             </div>
           )}
         </form>

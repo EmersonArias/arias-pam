@@ -82,13 +82,17 @@ export default function BooksPage() {
 
 
   async function loadMaintenanceAlerts(hotelId: string) {
+    await supabase.rpc('refresh_maintenance_due_alerts', {
+      target_hotel_id: hotelId,
+    })
+
     const result = await supabase
       .from('maintenance_alerts')
       .select('id, maintenance_plan_id, alert_type, severity, title, message, due_date, triggered_at')
       .eq('hotel_id', hotelId)
       .is('resolved_at', null)
+      .order('due_date', { ascending: true, nullsFirst: false })
       .order('triggered_at', { ascending: false })
-      .limit(20)
 
     if (result.error) return []
 

@@ -387,16 +387,31 @@ export default function MaintenancePamPage() {
     planIdByKey.forEach((planId, key) => {
       const plan = planById.get(planId)
       const planExecutions = executionsByPlan.get(planId) ?? []
-      const hasValidExecution = planExecutions.some(
-        (execution) => execution.executed_at && execution.result !== 'CANCELLED',
-      )
+      const todayExecution = planExecutions.find((execution) => {
+        if (!execution.executed_at || execution.result === 'CANCELLED') return false
+        const executionDate = new Date(execution.executed_at)
+        const localExecutionDate = new Date(
+          executionDate.getTime() - executionDate.getTimezoneOffset() * 60000,
+        )
+          .toISOString()
+          .slice(0, 10)
+        return localExecutionDate === localToday
+      })
+
+      if (todayExecution) {
+        stateByKey.set(
+          key,
+          todayExecution.result === 'COMPLETED_WITH_ISSUES'
+            ? 'Revisada con incidencias'
+            : todayExecution.result === 'NOT_CONFORM'
+              ? 'No conforme'
+              : 'Revisada',
+        )
+        return
+      }
 
       const nextRevision = plan?.next_due_date ?? plan?.start_date
 
-      if (!hasValidExecution && !nextRevision) {
-        stateByKey.set(key, 'Pendiente')
-        return
-      }
       if (!nextRevision) {
         stateByKey.set(key, 'Pendiente')
       } else if (nextRevision < localToday) {

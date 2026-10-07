@@ -115,6 +115,7 @@ export default function ApparatusRegistryPage() {
   const {
     currentIndex,
     moveSelection,
+    getGridProps,
     getRowProps,
   } = useGridKeyboardNavigation({
     ids: gridIds,
@@ -350,7 +351,8 @@ export default function ApparatusRegistryPage() {
           </div>
 
           <div className="hidden md:block">
-            <GridViewport>
+            <div {...getGridProps()} className='outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-200'>
+              <GridViewport>
               <table className="w-full min-w-[900px] border-collapse text-sm">
 
               <thead>
@@ -429,7 +431,8 @@ export default function ApparatusRegistryPage() {
                 )}
               </tbody>
               </table>
-            </GridViewport>
+              </GridViewport>
+            </div>
           </div>
 
           <div className="hidden md:flex items-center justify-between gap-3 border-t border-slate-200 px-4 py-3">

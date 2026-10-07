@@ -431,7 +431,7 @@ export default function ActionsPage() {
                 <thead>
                   <tr className="sticky top-0 z-10 border-b bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
                     <th className="px-4 py-3 font-semibold">Fecha</th>
-                    <th className="px-4 py-3 font-semibold">Actuación</th>
+                    <th className="px-4 py-3 font-semibold">Intervención</th>
                     <th className="px-4 py-3 font-semibold">Tipo</th>
                     <th className="px-4 py-3 font-semibold">Empresa</th>
                     <th className="px-4 py-3 font-semibold">Coste</th>
@@ -490,7 +490,7 @@ export default function ActionsPage() {
                       <td colSpan={6} className="px-4 py-12 text-center">
                         <div className="text-sm font-semibold text-slate-600">No hay intervenciones registradas.</div>
                         <div className="mt-1 text-xs text-slate-400">
-                          Las intervenciones serán históricas y no sustituirán al PAM ni a las OT.
+                          Las intervenciones quedan como histórico técnico relevante y no sustituyen al PAM ni a los tickets.
                         </div>
                       </td>
                     </tr>
@@ -570,7 +570,7 @@ export default function ActionsPage() {
 
             <form onSubmit={saveAction} className="space-y-5 p-5">
               <section>
-                <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Actuación</div>
+                <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Intervención</div>
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   <label className="block lg:col-span-2">
                     <span className="mb-1 block text-xs text-slate-500">Título *</span>
@@ -628,7 +628,7 @@ export default function ActionsPage() {
 
               <label className="flex items-center gap-2 text-sm text-slate-700">
                 <input type="checkbox" checked={form.active} onChange={(e) => setForm((v) => ({ ...v, active: e.target.checked }))} />
-                Actuación activa en el registro
+                Intervención activa en el registro
               </label>
 
               <div className="flex justify-end gap-2 border-t pt-4">

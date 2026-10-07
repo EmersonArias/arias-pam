@@ -72,7 +72,7 @@ export default function MaintenanceWorkOrderDetailPage(){
     if(!workOrderId) return
     setLoading(true); setError('')
     const q=await supabase.from('maintenance_work_orders_resolved').select('*').eq('id',workOrderId).single()
-    if(q.error||!q.data){setError(q.error?.message??'No se ha encontrado la OT.');setLoading(false);return}
+    if(q.error||!q.data){setError(q.error?.message??'No se ha encontrado el ticket.');setLoading(false);return}
     const item=q.data as WorkOrder
     setOrder(item); setBaseline(item); setLoading(false)
   }
@@ -172,7 +172,7 @@ export default function MaintenanceWorkOrderDetailPage(){
     navigate('/maintenance/tickets/'+created.id)
   }
 
-  if(loading)return <div className="min-h-screen bg-slate-100 p-4"><div className="mx-auto max-w-5xl rounded-2xl bg-white p-6 shadow-lg text-sm">Cargando ficha de OT…</div></div>
+  if(loading)return <div className="min-h-screen bg-slate-100 p-4"><div className="mx-auto max-w-5xl rounded-2xl bg-white p-6 shadow-lg text-sm">Cargando ficha de ticket…</div></div>
   if(!order)return <div className="min-h-screen bg-slate-100 p-4"><div className="mx-auto max-w-5xl rounded-2xl bg-white p-6 shadow-lg"><p className="text-sm text-rose-700">{error||'Ticket no encontrado.'}</p><button type="button" onClick={()=>navigate('/maintenance/tickets')} className="mt-4 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white">Volver a tickets</button></div></div>
 
   return <div className="min-h-screen bg-slate-100 px-3 py-3 text-slate-900 sm:px-5 sm:py-5">
@@ -222,7 +222,7 @@ export default function MaintenanceWorkOrderDetailPage(){
               <div className="flex items-center gap-2"><Wrench size={16}/><span><strong>Equipo:</strong> {order.apparatus_code??'—'} · {order.apparatus_name??'—'}</span></div>
               <div><strong>Ubicación:</strong> {[order.plant,order.location].filter(Boolean).join(' · ')||'—'}</div>
               <div className="flex items-center gap-2"><UserRound size={16}/><span><strong>Asignado:</strong> {order.assigned_user_name??'Sin asignar'}</span></div>
-              <div><strong>Origen:</strong> {order.maintenance_plan_name??'OT operativa'}</div>
+              <div><strong>Origen:</strong> {order.maintenance_plan_name??'Ticket operativo'}</div>
             </div>
             <div className="mt-4 grid gap-2 text-sm text-slate-600"><div><strong>Creada:</strong> {fmtDateTime(order.created_at)}</div><div><strong>Inicio:</strong> {fmtDateTime(order.started_at)}</div><div><strong>Finalización:</strong> {fmtDateTime(order.completed_at)}</div></div>
           </section>
@@ -253,7 +253,7 @@ export default function MaintenanceWorkOrderDetailPage(){
 
         {canEdit && <section className="rounded-2xl border border-rose-200 bg-rose-50 p-4 shadow-sm">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div><div className="flex items-center gap-2 text-sm font-semibold text-rose-900"><AlertTriangle size={18}/>Avería detectada</div><p className="mt-1 text-xs leading-5 text-rose-800">Crea una OT correctiva vinculada a este ticket con el equipo y la trazabilidad de origen.</p></div>
+            <div><div className="flex items-center gap-2 text-sm font-semibold text-rose-900"><AlertTriangle size={18}/>Avería detectada</div><p className="mt-1 text-xs leading-5 text-rose-800">Crea un ticket correctivo vinculado a este ticket con el equipo y la trazabilidad de origen.</p></div>
             <button type="button" onClick={()=>setCorrectiveOpen(true)} disabled={working} className="inline-flex items-center justify-center rounded-xl bg-rose-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-rose-800 disabled:opacity-50">+ Crear ticket correctivo</button>
           </div>
           {correctiveOpen&&<div className="mt-4 rounded-xl border border-rose-200 bg-white p-4">

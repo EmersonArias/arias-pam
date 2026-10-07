@@ -36,7 +36,7 @@ export default function NavigationButtons({
   disabled = false,
 }: NavigationButtonsProps) {
   return (
-    <div className="flex items-center gap-2">
+    <div className="arias-mobile-header-actions flex items-center gap-2">
       <BackButton onBack={onBack} disabled={disabled} />
       <HomeButton onHome={onHome} disabled={disabled} />
     </div>

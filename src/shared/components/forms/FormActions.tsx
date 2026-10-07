@@ -13,6 +13,7 @@ interface FormActionsProps {
   saving?: boolean
   deleting?: boolean
   reportLabel?: string
+  className?: string
 }
 
 export default function FormActions({
@@ -25,10 +26,11 @@ export default function FormActions({
   saving = false,
   deleting = false,
   reportLabel = 'PDF',
+  className = '',
 }: FormActionsProps) {
   if (mode === 'view') {
     return (
-      <div className="flex flex-wrap justify-end gap-2">
+      <div className={['grid w-full grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end', className].filter(Boolean).join(' ')}>
         {onEdit && <ActionButton icon={Pencil} label="Modificar" tone="warning" onClick={onEdit} />}
         {onReport && <ActionButton icon={FileText} label={reportLabel} tone="dark" onClick={onReport} />}
         {onDelete && (
@@ -45,7 +47,7 @@ export default function FormActions({
   }
 
   return (
-    <div className="flex flex-wrap justify-end gap-2">
+    <div className={['grid w-full grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end', className].filter(Boolean).join(' ')}>
       {onCancel && <ActionButton icon={X} label="Cancelar" onClick={onCancel} disabled={saving} />}
       {onSave && (
         <ActionButton

@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom'
 import BrandLogo from '../../../shared/components/branding/BrandLogo'
 import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
 import IconButton from '../../../shared/components/buttons/IconButton'
+import GridViewport from '../../../shared/components/grid/GridViewport'
+import { useGridKeyboardNavigation } from '../../../shared/components/grid/useGridKeyboardNavigation'
 import { supabase } from '../../../lib/supabase'
 import { useHotelScope } from '../../../shared/context/HotelScopeContext'
 
@@ -258,6 +260,7 @@ export default function MaintenancePamPage() {
   const [apparatus, setApparatus] = useState<Apparatus[]>([])
   const [maintenancePlans, setMaintenancePlans] = useState<MaintenancePlan[]>([])
   const [selectedFrequency, setSelectedFrequency] = useState<FrequencyKey | null>(null)
+  const [selectedWorkKey, setSelectedWorkKey] = useState('')
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -516,6 +519,33 @@ export default function MaintenancePamPage() {
   const selectedLabel =
     frequencyCards.find((card) => card.key === selectedFrequency)?.label ?? ''
 
+  const gridIds = useMemo(
+    () => selectedWorks.map((work) => `${work.sourceId}-${work.work}`),
+    [selectedWorks],
+  )
+
+  const {
+    currentIndex,
+    moveSelection,
+    getGridProps,
+    getRowProps,
+  } = useGridKeyboardNavigation({
+    ids: gridIds,
+    selectedId: selectedWorkKey,
+    onSelectedIdChange: setSelectedWorkKey,
+    onOpen: (id) => {
+      const work = selectedWorks.find(
+        (candidate) => `${candidate.sourceId}-${candidate.work}` === id,
+      )
+      if (!work?.apparatusId) return
+      const query = work.planId
+        ? '?planId=' + encodeURIComponent(work.planId) + '&frequency=DAILY'
+        : '?frequency=DAILY'
+      navigate('/maintenance/pam/' + work.apparatusId + query)
+    },
+    autoFocusFirst: true,
+  })
+
   const frequencyCounts = useMemo(() => {
     const counts: Record<string, number> = {}
     frequencyCards.forEach((card) => {
@@ -619,7 +649,8 @@ export default function MaintenancePamPage() {
               <IconButton icon={RefreshCw} label="Actualizar" onClick={() => void loadPAM()} />
             </div>
 
-            <div className="max-h-[calc(100vh-460px)] min-h-[240px] overflow-auto">
+            <div {...getGridProps()} className="outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-200">
+              <GridViewport className="max-h-[calc(100vh-460px)] min-h-[240px]">
               <table className="w-full min-w-[860px] border-collapse text-[12px]">
                 <colgroup>
                   <col className="w-[12%]" />
@@ -650,6 +681,7 @@ export default function MaintenancePamPage() {
                   ) : selectedWorks.map((work) => (
                     <tr
                       key={`${work.sourceId}-${work.work}`}
+                      {...getRowProps(`${work.sourceId}-${work.work}`)}
                       onClick={() => {
                         if (work.apparatusId) {
                           const query = work.planId
@@ -658,7 +690,7 @@ export default function MaintenancePamPage() {
                           navigate('/maintenance/pam/' + work.apparatusId + query)
                         }
                       }}
-                      className="cursor-pointer border-b border-slate-100 hover:bg-blue-50/40"
+                      className={`cursor-pointer border-b border-slate-100 outline-none hover:bg-blue-50/40 ${selectedWorkKey === `${work.sourceId}-${work.work}` ? 'bg-blue-50' : ''}`}
                     >
                       <td className="px-2 py-1 font-semibold text-slate-900">{work.hotelCode}</td>
                       <td className="px-2 py-1 text-slate-700">{work.name}</td>
@@ -700,6 +732,16 @@ export default function MaintenancePamPage() {
                   )}
                 </tbody>
               </table>
+              </GridViewport>
+              <div className="flex items-center justify-between border-t border-slate-200 px-3 py-2">
+                <span className="text-[11px] text-slate-500">
+                  {selectedWorks.length === 0 ? 'Sin trabajos' : `${currentIndex + 1} / ${selectedWorks.length}`}
+                </span>
+                <div className="flex items-center gap-1">
+                  <IconButton icon={ChevronUp} label="Trabajo anterior" title="Anterior" onClick={() => moveSelection(currentIndex - 1)} disabled={selectedWorks.length === 0 || currentIndex === 0} className="h-9 w-9" />
+                  <IconButton icon={ChevronDown} label="Trabajo siguiente" title="Siguiente" onClick={() => moveSelection(currentIndex + 1)} disabled={selectedWorks.length === 0 || currentIndex === selectedWorks.length - 1} className="h-9 w-9" />
+                </div>
+              </div>
             </div>
           </section>
         )}

@@ -17,7 +17,7 @@ BEGIN;
 DO $$
 DECLARE
   v_hotel_id uuid;
-  v_source_group record;
+  v_source_group_id uuid;
   v_mark record;
   v_existing_link record;
   v_plan_id uuid;
@@ -180,7 +180,7 @@ BEGIN
         RETURNING id INTO v_plan_id;
 
         SELECT psg.id
-          INTO v_source_group.id
+          INTO v_source_group_id
         FROM public.pam_source_groups psg
         WHERE psg.hotel_id = v_hotel_id
           AND psg.plan_year = 2026
@@ -196,7 +196,7 @@ BEGIN
         )
         VALUES (
           v_plan_id,
-          v_source_group.id,
+          v_source_group_id,
           v_mark.source_apparatus_id,
           'F',
           2026

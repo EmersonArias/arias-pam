@@ -15,6 +15,7 @@ export function useGridKeyboardNavigation({
   onOpen,
   autoFocusFirst = true,
 }: UseGridKeyboardNavigationOptions) {
+  const gridRef = useRef<HTMLDivElement | null>(null)
   const rowRefs = useRef<Record<string, HTMLTableRowElement | null>>({})
 
   const selectedIndex = useMemo(() => {
@@ -29,11 +30,10 @@ export function useGridKeyboardNavigation({
     [],
   )
 
-  const focusRow = useCallback((id: string) => {
+  const scrollRowIntoView = useCallback((id: string) => {
     const row = rowRefs.current[id]
     if (!row) return
 
-    row.focus({ preventScroll: true })
     row.scrollIntoView({
       block: 'nearest',
       inline: 'nearest',
@@ -55,74 +55,93 @@ export function useGridKeyboardNavigation({
   )
 
   useEffect(() => {
-    if (!autoFocusFirst || ids.length === 0) return
+    if (ids.length === 0) return
 
     const targetId = ids.includes(selectedId) ? selectedId : ids[0]
-
     if (targetId !== selectedId) {
       onSelectedIdChange(targetId)
       return
     }
 
     const frame = window.requestAnimationFrame(() => {
-      focusRow(targetId)
+      scrollRowIntoView(targetId)
+      if (autoFocusFirst) {
+        gridRef.current?.focus({ preventScroll: true })
+      }
     })
 
     return () => window.cancelAnimationFrame(frame)
   }, [
     autoFocusFirst,
-    focusRow,
     ids,
     onSelectedIdChange,
+    scrollRowIntoView,
     selectedId,
   ])
+
+  const handleGridKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLDivElement>) => {
+      if (event.key === 'ArrowDown') {
+        event.preventDefault()
+        moveSelection(selectedIndex + 1)
+        return
+      }
+
+      if (event.key === 'ArrowUp') {
+        event.preventDefault()
+        moveSelection(selectedIndex - 1)
+        return
+      }
+
+      if (event.key === 'Home') {
+        event.preventDefault()
+        moveSelection(0)
+        return
+      }
+
+      if (event.key === 'End') {
+        event.preventDefault()
+        moveSelection(ids.length - 1)
+        return
+      }
+
+      if (event.key === 'Enter') {
+        event.preventDefault()
+        const id = ids[selectedIndex]
+        if (id) onOpen?.(id)
+      }
+    },
+    [ids, moveSelection, onOpen, selectedIndex],
+  )
+
+  function getGridProps() {
+    return {
+      ref: gridRef,
+      tabIndex: 0,
+      role: 'grid',
+      'aria-activedescendant': selectedId ? `grid-row-${selectedId}` : undefined,
+      onKeyDown: handleGridKeyDown,
+      onFocus: () => {
+        if (ids.length > 0 && !selectedId) {
+          onSelectedIdChange(ids[0])
+        }
+      },
+    }
+  }
 
   function getRowProps(id: string) {
     return {
       ref: (row: HTMLTableRowElement | null) => setRowRef(id, row),
-      tabIndex: id === selectedId ? 0 : -1,
+      id: `grid-row-${id}`,
+      role: 'row',
       'aria-selected': id === selectedId,
-      onFocus: () => {
-        if (id !== selectedId) {
-          onSelectedIdChange(id)
-        }
-      },
-      onKeyDown: (event: React.KeyboardEvent<HTMLTableRowElement>) => {
-        if (event.key === 'ArrowDown') {
-          event.preventDefault()
-          moveSelection(selectedIndex + 1)
-          return
-        }
-
-        if (event.key === 'ArrowUp') {
-          event.preventDefault()
-          moveSelection(selectedIndex - 1)
-          return
-        }
-
-        if (event.key === 'Home') {
-          event.preventDefault()
-          moveSelection(0)
-          return
-        }
-
-        if (event.key === 'End') {
-          event.preventDefault()
-          moveSelection(ids.length - 1)
-          return
-        }
-
-        if (event.key === 'Enter') {
-          event.preventDefault()
-          onOpen?.(id)
-        }
-      },
     }
   }
 
   return {
     currentIndex: selectedIndex,
     moveSelection,
+    getGridProps,
     getRowProps,
   }
 }

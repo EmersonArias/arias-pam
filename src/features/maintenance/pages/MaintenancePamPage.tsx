@@ -8,6 +8,7 @@ import GridViewport from '../../../shared/components/grid/GridViewport'
 import { useGridKeyboardNavigation } from '../../../shared/components/grid/useGridKeyboardNavigation'
 import { supabase } from '../../../lib/supabase'
 import { ariasAuth } from '../../../core/auth/authService'
+import { useSystemDialog } from '../../../shared/components/dialogs/SystemDialogProvider'
 import { useHotelScope } from '../../../shared/context/HotelScopeContext'
 
 type FrequencyKey =
@@ -254,6 +255,7 @@ function uniqueWorks(
 export default function MaintenancePamPage() {
   const navigate = useNavigate()
   const { hotel } = useHotelScope()
+  const { confirm: showConfirm } = useSystemDialog()
   const [sourceGroups, setSourceGroups] = useState<SourceGroup[]>([])
   const [sourceMarks, setSourceMarks] = useState<SourceMark[]>([])
   const [planLinks, setPlanLinks] = useState<PlanLink[]>([])
@@ -523,7 +525,17 @@ export default function MaintenancePamPage() {
 
   async function markWorkCompleted(work: PamWork) {
     const key = `${work.sourceId}-${work.work}`
-    if (!work.planId || checkingWorkKey === key) return
+    if (!work.planId || checkingWorkKey === key || work.state === 'Revisada') return
+
+    const confirmed = await showConfirm({
+      title: 'Marcar revisión como realizada',
+      message: `¿Quieres marcar como revisado el mantenimiento de ${work.name} (${work.hotelCode})?`,
+      variant: 'info',
+      confirmLabel: 'Sí, revisar',
+      cancelLabel: 'Cancelar',
+    })
+
+    if (!confirmed) return
 
     setCheckingWorkKey(key)
     setError('')

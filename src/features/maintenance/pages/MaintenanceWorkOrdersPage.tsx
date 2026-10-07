@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, Archive, CheckCircle2, ChevronDown, ChevronUp, Clock3, FileText, Image, RefreshCw, UserRound, Wrench } from 'lucide-react'
+import { AlertTriangle, Archive, CheckCircle2, ChevronDown, ChevronUp, Clock3, FileText, Image, Plus, RefreshCw, UserRound, Wrench, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import BrandLogo from '../../../shared/components/branding/BrandLogo'
 import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
@@ -9,6 +9,19 @@ import GridViewport from '../../../shared/components/grid/GridViewport'
 import { useGridKeyboardNavigation } from '../../../shared/components/grid/useGridKeyboardNavigation'
 import { useHotelScope } from '../../../shared/context/HotelScopeContext'
 import { supabase } from '../../../lib/supabase'
+import { useAuth } from '../../auth/context/AuthProvider'
+
+type TicketAsset = {
+  id: string
+  code: string | null
+  name: string | null
+}
+
+type TicketAssignee = {
+  id: string
+  name: string
+  email: string | null
+}
 
 type WorkOrderEvidence = {
   id: string
@@ -127,6 +140,7 @@ function getWorkDescription(item: WorkOrder) {
 export default function MaintenanceWorkOrdersPage() {
   const navigate = useNavigate()
   const { hotel } = useHotelScope()
+  const { session } = useAuth()
   const [records, setRecords] = useState<WorkOrder[]>([])
   const [selectedId, setSelectedId] = useState('')
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'IN_PROGRESS'>('ALL')
@@ -137,6 +151,18 @@ export default function MaintenanceWorkOrdersPage() {
   const [generationLeadDays, setGenerationLeadDays] = useState(0)
   const [evidence, setEvidence] = useState<WorkOrderEvidence[]>([])
   const [evidenceLoading, setEvidenceLoading] = useState(false)
+  const [assets, setAssets] = useState<TicketAsset[]>([])
+  const [assignees, setAssignees] = useState<TicketAssignee[]>([])
+  const [canAssign, setCanAssign] = useState(false)
+  const [ticketOpen, setTicketOpen] = useState(false)
+  const [ticketSaving, setTicketSaving] = useState(false)
+  const [ticketTitle, setTicketTitle] = useState('')
+  const [ticketDescription, setTicketDescription] = useState('')
+  const [ticketType, setTicketType] = useState<'CORRECTIVE' | 'ACTUATION'>('CORRECTIVE')
+  const [ticketAssetId, setTicketAssetId] = useState('')
+  const [ticketScheduledDate, setTicketScheduledDate] = useState(new Date().toISOString().slice(0, 10))
+  const [ticketPriority, setTicketPriority] = useState<'LOW' | 'NORMAL' | 'HIGH' | 'CRITICAL'>('NORMAL')
+  const [ticketAssigneeId, setTicketAssigneeId] = useState('')
 
   async function loadData() {
     if (!hotel?.id) {
@@ -164,6 +190,86 @@ export default function MaintenanceWorkOrdersPage() {
         .eq('hotel_id', hotel.id)
         .maybeSingle(),
     ])
+
+    const assetsResult = await supabase
+      .from('apparatus_registry')
+      .select('id, code, name')
+      .eq('hotel_id', hotel.id)
+      .eq('active', true)
+      .order('code', { ascending: true })
+
+    if (!assetsResult.error) {
+      setAssets((assetsResult.data ?? []) as TicketAsset[])
+    } else {
+      setAssets([])
+    }
+
+    const assignmentResult = session?.user.id
+      ? await supabase
+          .from('user_hotel_roles')
+          .select('user_id, role_id')
+          .eq('hotel_id', hotel.id)
+          .eq('active', true)
+      : { data: [], error: null }
+
+    const roleIds = Array.from(new Set((assignmentResult.data ?? []).map((row) => row.role_id)))
+    const rolesResult = roleIds.length
+      ? await supabase.from('roles').select('id, code').in('id', roleIds).eq('active', true)
+      : { data: [], error: null }
+
+    const roleCodeById = new Map(
+      (rolesResult.data ?? []).map((row) => [row.id, row.code]),
+    )
+
+    const currentRoleCodes = (assignmentResult.data ?? [])
+      .filter((row) => row.user_id === session?.user.id)
+      .map((row) => roleCodeById.get(row.role_id))
+      .filter((code): code is string => Boolean(code))
+
+    const platformAdminResult = session?.user.id
+      ? await supabase
+          .from('platform_admins')
+          .select('active')
+          .eq('user_id', session.user.id)
+          .maybeSingle()
+      : { data: null, error: null }
+
+    const assignmentAllowed =
+      platformAdminResult.data?.active === true
+      || currentRoleCodes.some((code) => code === 'CLIENT_ADMIN' || code === 'MAINTENANCE_CHIEF')
+
+    setCanAssign(assignmentAllowed)
+
+    const assigneeUserIds = Array.from(
+      new Set(
+        (assignmentResult.data ?? [])
+          .filter((row) => {
+            const code = roleCodeById.get(row.role_id)
+            return code === 'TECHNICIAN' || code === 'MAINTENANCE_CHIEF'
+          })
+          .map((row) => row.user_id),
+      ),
+    )
+
+    if (assigneeUserIds.length) {
+      const assigneesResult = await supabase
+        .from('profiles')
+        .select('id, full_name, email')
+        .in('id', assigneeUserIds)
+        .eq('active', true)
+        .eq('account_status', 'ACTIVE')
+        .order('full_name', { ascending: true })
+
+      setAssignees(
+        (assigneesResult.data ?? []).map((row) => ({
+          id: row.id,
+          name: row.full_name || row.email || 'Usuario',
+          email: row.email ?? null,
+        })),
+      )
+    } else {
+      setAssignees([])
+    }
 
     if (result.error) {
       setRecords([])
@@ -272,7 +378,7 @@ export default function MaintenanceWorkOrdersPage() {
     ids: gridIds,
     selectedId,
     onSelectedIdChange: setSelectedId,
-    onOpen: (id) => navigate('/maintenance/work-orders/' + id),
+    onOpen: (id) => navigate('/maintenance/tickets/' + id),
     autoFocusFirst: true,
   })
 
@@ -285,13 +391,24 @@ export default function MaintenanceWorkOrdersPage() {
               <BrandLogo onActivate={() => navigate('/')} className="h-9 w-auto shrink-0 object-contain sm:h-11" />
               <div className="min-w-0">
                 <h1 className="text-xl font-bold leading-tight sm:text-2xl">Órdenes de trabajo</h1>
-                <p className="text-xs text-slate-500 sm:text-sm">OT preventivas y operativas de {hotel?.name ?? 'hotel actual'}</p>
+                <p className="text-xs text-slate-500 sm:text-sm">Tickets preventivos y operativos de {hotel?.name ?? 'hotel actual'}</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <ActionButton icon={Plus} label="Nuevo ticket" onClick={() => {
+                setTicketTitle('')
+                setTicketDescription('')
+                setTicketType('CORRECTIVE')
+                setTicketAssetId('')
+                setTicketScheduledDate(new Date().toISOString().slice(0, 10))
+                setTicketPriority('NORMAL')
+                setTicketAssigneeId('')
+                setError('')
+                setTicketOpen(true)
+              }} />
               <IconButton icon={RefreshCw} label="Actualizar" title="Actualizar" onClick={() => void loadData()} disabled={loading} />
-              <ActionButton icon={Archive} label="Histórico" onClick={() => navigate('/maintenance/history')} />
-              <BackButton onBack={() => navigate('/maintenance/operation')} />
+              <ActionButton icon={Archive} label="Histórico" onClick={() => navigate('/maintenance/tickets/history')} />
+              <BackButton onBack={() => navigate('/maintenance')} />
               <HomeButton onHome={() => navigate('/')} />
             </div>
           </div>
@@ -320,7 +437,7 @@ export default function MaintenanceWorkOrdersPage() {
               <input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="Nº OT, equipo, mantenimiento, responsable…"
+                placeholder="Código de ticket, equipo, mantenimiento, responsable…"
                 className="w-full rounded-xl border border-slate-300 px-3 py-2 outline-none focus:border-blue-500"
               />
             </label>
@@ -342,7 +459,7 @@ export default function MaintenanceWorkOrdersPage() {
         <main className="grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(360px,0.55fr)]">
           <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
             <div className="flex items-center justify-between border-b px-4 py-3">
-              <div className="text-sm font-semibold">OT del hotel</div>
+              <div className="text-sm font-semibold">Tickets del hotel</div>
               <span className="text-xs text-slate-500">{filteredRecords.length} resultado{filteredRecords.length === 1 ? '' : 's'}</span>
             </div>
 
@@ -352,7 +469,7 @@ export default function MaintenanceWorkOrdersPage() {
                   <button
                     key={item.id}
                     type="button"
-                    onClick={() => navigate('/maintenance/work-orders/' + item.id)}
+                    onClick={() => navigate('/maintenance/tickets/' + item.id)}
                     className={'w-full rounded-xl border p-3 text-left ' + (item.id === selectedId ? 'border-blue-200 bg-blue-50' : 'border-slate-200 bg-white')}
                   >
                     <div className="flex items-start justify-between gap-2">
@@ -371,7 +488,7 @@ export default function MaintenanceWorkOrdersPage() {
                   </button>
                 ))}
                 {!loading && filteredRecords.length === 0 && (
-                  <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500">No hay OTs para mostrar.</div>
+                  <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500">No hay tickets para mostrar.</div>
                 )}
               </div>
             </div>
@@ -382,7 +499,7 @@ export default function MaintenanceWorkOrdersPage() {
               <table className="w-full min-w-[960px] border-collapse text-xs">
                 <thead>
                   <tr className="sticky top-0 z-10 border-b bg-slate-50 text-left text-[10px] uppercase tracking-wide text-slate-500">
-                    <th className="px-3 py-2.5 font-semibold">Nº OT</th>
+                    <th className="px-3 py-2.5 font-semibold">Ticket</th>
                     <th className="px-3 py-2.5 font-semibold">Mantenimiento</th>
                     <th className="px-3 py-2.5 font-semibold">Equipo</th>
                     <th className="px-3 py-2.5 font-semibold">Fecha prevista</th>
@@ -397,7 +514,7 @@ export default function MaintenanceWorkOrdersPage() {
                       {...getRowProps(item.id)}
                       onClick={() => {
                         setSelectedId(item.id)
-                        navigate('/maintenance/work-orders/' + item.id)
+                        navigate('/maintenance/tickets/' + item.id)
                       }}
                       className={'cursor-pointer border-b border-slate-100 transition ' + (item.id === selectedId ? 'bg-blue-50' : 'hover:bg-slate-50')}
                     >
@@ -420,28 +537,28 @@ export default function MaintenanceWorkOrdersPage() {
                     </tr>
                   ))}
                   {!loading && filteredRecords.length === 0 && (
-                    <tr><td colSpan={6} className="px-3 py-10 text-center text-sm text-slate-500">No hay OTs para mostrar.</td></tr>
+                    <tr><td colSpan={6} className="px-3 py-10 text-center text-sm text-slate-500">No hay tickets para mostrar.</td></tr>
                   )}
                 </tbody>
               </table>
                 </GridViewport>
                 <div className="flex items-center justify-between border-t border-slate-200 px-3 py-2">
                   <span className="text-[11px] text-slate-500">
-                    {filteredRecords.length === 0 ? 'Sin OTs' : `${currentIndex + 1} / ${filteredRecords.length}`}
+                    {filteredRecords.length === 0 ? 'Sin tickets' : `${currentIndex + 1} / ${filteredRecords.length}`}
                   </span>
                   <div className="flex items-center gap-1">
                     <IconButton
                       icon={ChevronUp}
-                      label="OT anterior"
-                      title="OT anterior"
+                      label="Ticket anterior"
+                      title="Ticket anterior"
                       onClick={() => moveSelection(currentIndex - 1)}
                       disabled={filteredRecords.length === 0 || currentIndex === 0}
                       className="h-9 w-9"
                     />
                     <IconButton
                       icon={ChevronDown}
-                      label="OT siguiente"
-                      title="OT siguiente"
+                      label="Ticket siguiente"
+                      title="Ticket siguiente"
                       onClick={() => moveSelection(currentIndex + 1)}
                       disabled={filteredRecords.length === 0 || currentIndex === filteredRecords.length - 1}
                       className="h-9 w-9"
@@ -453,7 +570,7 @@ export default function MaintenanceWorkOrdersPage() {
           </section>
 
           <aside className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div className="border-b px-4 py-3 text-sm font-semibold">Detalle de OT</div>
+            <div className="border-b px-4 py-3 text-sm font-semibold">Detalle del ticket</div>
             {selected ? (
               <div className="space-y-4 p-4">
                 <div>
@@ -490,7 +607,7 @@ export default function MaintenanceWorkOrdersPage() {
                         <Image size={17} />
                         Fotografías
                       </div>
-                      <div className="mt-0.5 text-xs text-slate-500">Evidencias de la ejecución de esta OT.</div>
+                      <div className="mt-0.5 text-xs text-slate-500">Evidencias de la ejecución de este ticket.</div>
                     </div>
 <div className="text-[11px] text-slate-400">Solo consulta en esta pantalla. Las evidencias se gestionan desde la ejecución de la OT.</div>
                   </div>
@@ -534,20 +651,20 @@ export default function MaintenanceWorkOrdersPage() {
                   }>
                     <AlertTriangle className="mb-1 inline-block" size={15} />
                     {isOverdue(selected)
-                      ? 'Esta OT está pendiente y ha superado su fecha prevista.'
-                      : 'Esta OT está pendiente de ejecución.'}
+                      ? 'Este ticket está pendiente y ha superado su fecha prevista.'
+                      : 'Este ticket está pendiente de ejecución.'}
                   </div>
                 )}
 
                 {selected.status === 'COMPLETED' && selected.completion_timing === 'OUT_OF_DATE' && (
                   <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-xs text-amber-800">
-                    <AlertTriangle className="mb-1 inline-block" size={15} /> Esta OT fue completada fuera de la fecha prevista y queda registrada como <strong>Fuera de fecha</strong>.
+                    <AlertTriangle className="mb-1 inline-block" size={15} /> Esta Ticket fue completado fuera de la fecha prevista y queda registrada como <strong>Fuera de fecha</strong>.
                   </div>
                 )}
 
                 {selected.status === 'COMPLETED' && selected.completion_timing !== 'OUT_OF_DATE' && (
                   <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-3 text-xs text-emerald-800">
-                    <CheckCircle2 className="mb-1 inline-block" size={15} /> Ejecución completada.
+                    <CheckCircle2 className="mb-1 inline-block" size={15} /> Ticket completado.
                   </div>
                 )}
               </div>
@@ -556,6 +673,198 @@ export default function MaintenanceWorkOrdersPage() {
             )}
           </aside>
         </main>
+
+      {ticketOpen && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/40 p-3 backdrop-blur-[2px]">
+          <div className="max-h-[calc(100vh-24px)] w-full max-w-3xl overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b px-5 py-4">
+              <div>
+                <div className="text-lg font-semibold text-slate-900">Nuevo ticket</div>
+                <div className="text-xs text-slate-500">Registra un trabajo que necesita atención.</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => !ticketSaving && setTicketOpen(false)}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-slate-500 hover:bg-slate-50"
+                aria-label="Cerrar"
+                title="Cerrar"
+              >
+                <X size={17} />
+              </button>
+            </div>
+
+            <div className="space-y-4 p-5">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="block sm:col-span-2">
+                  <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Título *</span>
+                  <input
+                    value={ticketTitle}
+                    onChange={(event) => setTicketTitle(event.target.value)}
+                    placeholder="Ej. Bomba de achique parada"
+                    className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-blue-500"
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Tipo</span>
+                  <select
+                    value={ticketType}
+                    onChange={(event) => setTicketType(event.target.value as typeof ticketType)}
+                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm"
+                  >
+                    <option value="CORRECTIVE">Correctivo</option>
+                    <option value="ACTUATION">Actuación</option>
+                  </select>
+                </label>
+
+                <label className="block">
+                  <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Prioridad</span>
+                  <select
+                    value={ticketPriority}
+                    onChange={(event) => setTicketPriority(event.target.value as typeof ticketPriority)}
+                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm"
+                  >
+                    <option value="LOW">Baja</option>
+                    <option value="NORMAL">Normal</option>
+                    <option value="HIGH">Alta</option>
+                    <option value="CRITICAL">Crítica</option>
+                  </select>
+                </label>
+
+                <label className="block sm:col-span-2">
+                  <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Equipo / activo</span>
+                  <select
+                    value={ticketAssetId}
+                    onChange={(event) => setTicketAssetId(event.target.value)}
+                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm"
+                  >
+                    <option value="">Sin equipo concreto</option>
+                    {assets.map((asset) => (
+                      <option key={asset.id} value={asset.id}>
+                        {asset.code ?? '—'} · {asset.name ?? 'Equipo'}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="block">
+                  <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Fecha prevista</span>
+                  <input
+                    type="date"
+                    value={ticketScheduledDate}
+                    onChange={(event) => setTicketScheduledDate(event.target.value)}
+                    className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"
+                  />
+                </label>
+
+                {canAssign ? (
+                  <label className="block">
+                    <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Asignar a</span>
+                    <select
+                      value={ticketAssigneeId}
+                      onChange={(event) => setTicketAssigneeId(event.target.value)}
+                      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm"
+                    >
+                      <option value="">Sin asignar</option>
+                      {assignees.map((assignee) => (
+                        <option key={assignee.id} value={assignee.id}>{assignee.name}</option>
+                      ))}
+                    </select>
+                  </label>
+                ) : (
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs text-slate-500">
+                    La asignación de tickets requiere el permiso correspondiente.
+                  </div>
+                )}
+
+                <label className="block sm:col-span-2">
+                  <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Descripción</span>
+                  <textarea
+                    value={ticketDescription}
+                    onChange={(event) => setTicketDescription(event.target.value)}
+                    rows={5}
+                    placeholder="Describe qué has visto, dónde está y qué se necesita hacer…"
+                    className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-blue-500"
+                  />
+                </label>
+              </div>
+
+              <div className="flex justify-end gap-2 border-t pt-4">
+                <button
+                  type="button"
+                  onClick={() => setTicketOpen(false)}
+                  disabled={ticketSaving}
+                  className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!hotel?.id || ticketSaving) return
+                    if (!ticketTitle.trim()) {
+                      setError('El título del ticket es obligatorio.')
+                      return
+                    }
+
+                    setTicketSaving(true)
+                    setError('')
+
+                    try {
+                      const createdResult = await supabase.rpc('create_operational_work_order', {
+                        target_hotel_id: hotel.id,
+                        target_work_type: ticketType,
+                        target_title: ticketTitle.trim(),
+                        target_description: ticketDescription.trim() || null,
+                        target_apparatus_registry_id: ticketAssetId || null,
+                        target_parent_work_order_id: null,
+                        target_priority: ticketPriority,
+                        target_scheduled_date: ticketScheduledDate || null,
+                        target_observations: null,
+                      })
+
+                      if (createdResult.error || !createdResult.data) {
+                        throw createdResult.error ?? new Error('No se ha podido crear el ticket.')
+                      }
+
+                      const created = (Array.isArray(createdResult.data) ? createdResult.data[0] : createdResult.data) as { id: string }
+
+                      if (ticketAssigneeId && canAssign) {
+                        const assignmentResult = await supabase.rpc('assign_maintenance_work_order', {
+                          target_work_order_id: created.id,
+                          target_user_id: ticketAssigneeId,
+                        })
+
+                        if (assignmentResult.error) {
+                          throw assignmentResult.error
+                        }
+                      }
+
+                      setTicketOpen(false)
+                      setTicketTitle('')
+                      setTicketDescription('')
+                      setTicketAssetId('')
+                      setTicketAssigneeId('')
+                      await loadData()
+                      setSelectedId(created.id)
+                      navigate('/maintenance/tickets/' + created.id)
+                    } catch (error) {
+                      setError(error instanceof Error ? error.message : 'No se ha podido crear el ticket.')
+                    } finally {
+                      setTicketSaving(false)
+                    }
+                  }}
+                  disabled={ticketSaving || !ticketTitle.trim()}
+                  className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Plus size={16} />
+                  {ticketSaving ? 'Creando…' : 'Crear ticket'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       </div>
     </div>
   )

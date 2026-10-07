@@ -4,9 +4,13 @@ import { useNavigate, useParams } from 'react-router-dom'
 import {
   Camera,
   Copy,
+  FileText,
   ImagePlus,
+  Link2,
   Maximize2,
   Minimize2,
+  Plus,
+  Trash2,
   X,
 } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
@@ -404,6 +408,30 @@ const path = `${item.id}/${generateId()}.${extension}`
     } finally {
       setUploadingPhotos(false)
     }
+  }
+
+  function addDocument() {
+    const name = window.prompt('Nombre del documento')
+    if (!name?.trim()) return
+
+    const url = window.prompt('Enlace del documento (URL)')
+    if (!url?.trim()) return
+
+    updateField('documents', [
+      ...item.documents,
+      {
+        id: crypto.randomUUID(),
+        name: name.trim(),
+        url: url.trim(),
+      },
+    ])
+  }
+
+  function removeDocument(documentId: string) {
+    updateField(
+      'documents',
+      item.documents.filter((document) => document.id !== documentId),
+    )
   }
 
   function openReport() {
@@ -846,6 +874,65 @@ const path = `${item.id}/${generateId()}.${extension}`
               className="w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-sm outline-none transition placeholder:text-slate-400 placeholder:italic focus:border-blue-500 disabled:bg-slate-100"
             />
           </section>
+
+          <section className="mt-6">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="mb-1 text-lg font-bold text-slate-900">
+                  Documentación
+                </h2>
+                <p className="text-xs text-slate-500">
+                  Manuales, fichas técnicas, certificados, esquemas e informes asociados al activo.
+                </p>
+              </div>
+              <ActionButton
+                icon={Plus}
+                label="Añadir documento"
+                onClick={addDocument}
+                disabled={mode === 'view'}
+              />
+            </div>
+
+            {item.documents.length === 0 ? (
+              <div className="mt-3 rounded-xl border-2 border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">
+                Sin documentos asociados
+              </div>
+            ) : (
+              <div className="mt-3 space-y-2">
+                {item.documents.map((document) => (
+                  <div
+                    key={document.id}
+                    className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3"
+                  >
+                    <FileText className="shrink-0 text-slate-500" size={18} />
+                    <div className="min-w-0 flex-1">
+                      <a
+                        href={document.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="block truncate text-sm font-semibold text-blue-700 hover:underline"
+                      >
+                        {document.name}
+                      </a>
+                      <div className="mt-0.5 truncate text-[10px] text-slate-400">
+                        {document.url}
+                      </div>
+                    </div>
+                    <IconButton
+                      icon={Trash2}
+                      label="Eliminar documento"
+                      title="Eliminar documento"
+                      onClick={() => removeDocument(document.id)}
+                      disabled={mode === 'view'}
+                      className="h-8 w-8"
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <hr className="my-6" />
 
           <label className="inline-flex items-center gap-3 text-sm font-semibold text-slate-700">
             <input

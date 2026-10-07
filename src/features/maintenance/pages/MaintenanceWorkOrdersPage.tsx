@@ -133,6 +133,8 @@ export default function MaintenanceWorkOrdersPage() {
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [generationMode, setGenerationMode] = useState<'AUTO' | 'MANUAL'>('MANUAL')
+  const [generationLeadDays, setGenerationLeadDays] = useState(0)
   const [evidence, setEvidence] = useState<WorkOrderEvidence[]>([])
   const [evidenceLoading, setEvidenceLoading] = useState(false)
 
@@ -148,13 +150,20 @@ export default function MaintenanceWorkOrdersPage() {
     setLoading(true)
     setError('')
 
-    const result = await supabase
-      .from('maintenance_work_orders_resolved')
-      .select('*')
-      .eq('hotel_id', hotel.id)
-      .neq('status', 'COMPLETED')
-      .order('scheduled_date', { ascending: true, nullsFirst: false })
-      .order('created_at', { ascending: false })
+    const [result, configResult] = await Promise.all([
+      supabase
+        .from('maintenance_work_orders_resolved')
+        .select('*')
+        .eq('hotel_id', hotel.id)
+        .neq('status', 'COMPLETED')
+        .order('scheduled_date', { ascending: true, nullsFirst: false })
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('maintenance_hotel_config')
+        .select('ot_generation_mode, ot_generation_lead_days')
+        .eq('hotel_id', hotel.id)
+        .maybeSingle(),
+    ])
 
     if (result.error) {
       setRecords([])
@@ -163,6 +172,9 @@ export default function MaintenanceWorkOrdersPage() {
       setLoading(false)
       return
     }
+
+    setGenerationMode(configResult.data?.ot_generation_mode === 'AUTO' ? 'AUTO' : 'MANUAL')
+    setGenerationLeadDays(Number(configResult.data?.ot_generation_lead_days ?? 0))
 
     const loaded = (result.data ?? []) as WorkOrder[]
     setRecords(loaded)
@@ -290,6 +302,16 @@ export default function MaintenanceWorkOrdersPage() {
             {error}
           </div>
         )}
+
+        <div className={
+          generationMode === 'AUTO'
+            ? 'mb-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-xs text-emerald-800'
+            : 'mb-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-800'
+        }>
+          {generationMode === 'AUTO'
+            ? `Generación automática de OT: activa · anticipación ${generationLeadDays} día${generationLeadDays === 1 ? '' : 's'}.`
+            : 'Generación automática de OT: desactivada para este hotel. Las OT preventivas no se crearán automáticamente mientras esté en modo Manual.'}
+        </div>
 
         <section className="mb-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_220px]">

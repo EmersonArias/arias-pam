@@ -4,6 +4,7 @@ interface UseGridKeyboardNavigationOptions {
   ids: string[]
   selectedId: string
   onSelectedIdChange: (id: string) => void
+  onOpen?: (id: string) => void
   autoFocusFirst?: boolean
 }
 
@@ -11,6 +12,7 @@ export function useGridKeyboardNavigation({
   ids,
   selectedId,
   onSelectedIdChange,
+  onOpen,
   autoFocusFirst = true,
 }: UseGridKeyboardNavigationOptions) {
   const rowRefs = useRef<Record<string, HTMLTableRowElement | null>>({})
@@ -107,6 +109,12 @@ export function useGridKeyboardNavigation({
         if (event.key === 'End') {
           event.preventDefault()
           moveSelection(ids.length - 1)
+          return
+        }
+
+        if (event.key === 'Enter') {
+          event.preventDefault()
+          onOpen?.(id)
         }
       },
     }

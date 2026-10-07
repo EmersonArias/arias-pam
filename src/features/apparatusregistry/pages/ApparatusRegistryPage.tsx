@@ -105,8 +105,6 @@ export default function ApparatusRegistryPage() {
   }, [records, search, plantFilter, activeFilter])
 
   const selected = records.find((item) => item.id === selectedId) ?? null
-  const selectedIndex = filteredRecords.findIndex((item) => item.id === selectedId)
-  const currentIndex = selectedIndex >= 0 ? selectedIndex : 0
 
   useEffect(() => {
     if (filteredRecords.length === 0) return

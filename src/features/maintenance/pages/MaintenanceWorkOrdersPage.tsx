@@ -394,7 +394,11 @@ export default function MaintenanceWorkOrdersPage() {
                   {filteredRecords.map((item) => (
                     <tr
                       key={item.id}
-                      onClick={() => navigate('/maintenance/work-orders/' + item.id)}
+                      {...getRowProps(item.id)}
+                      onClick={() => {
+                        setSelectedId(item.id)
+                        navigate('/maintenance/work-orders/' + item.id)
+                      }}
                       className={'cursor-pointer border-b border-slate-100 transition ' + (item.id === selectedId ? 'bg-blue-50' : 'hover:bg-slate-50')}
                     >
                       <td className="whitespace-nowrap px-3 py-3 font-bold text-slate-800">{item.ot_number}</td>

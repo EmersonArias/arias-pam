@@ -53,3 +53,90 @@ body {
     background: #cbd5e1;
   }
 }
+
+/* Arias Suite — capa global de optimización móvil */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  min-width: 320px;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button,
+a,
+select,
+input,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+img,
+svg {
+  max-width: 100%;
+}
+
+@media (max-width: 640px) {
+  button {
+    min-height: 44px;
+    touch-action: manipulation;
+  }
+
+  input,
+  select,
+  textarea {
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  textarea {
+    min-height: 96px;
+  }
+
+  .arias-page-card {
+    border-radius: 1rem !important;
+  }
+
+  .arias-grid-toolbar,
+  .arias-form-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  .arias-grid-toolbar > button:not(.arias-icon-button),
+  .arias-form-actions > button:not(.arias-icon-button) {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .arias-grid-toolbar > .arias-icon-button,
+  .arias-form-actions > .arias-icon-button {
+    justify-self: center;
+  }
+
+  .arias-mobile-header-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  .arias-mobile-header-actions > * {
+    min-width: 0;
+  }
+
+  .arias-mobile-header-actions .arias-grid-toolbar,
+  .arias-mobile-header-actions .arias-form-actions {
+    grid-column: 1 / -1;
+  }
+
+  .arias-mobile-section {
+    padding: 0.875rem !important;
+  }
+}

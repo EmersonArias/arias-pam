@@ -6,7 +6,7 @@
 BEGIN;
 
 ALTER TABLE public.apparatus_registry
-  ADD COLUMN IF NOT EXISTS technical_data jsonb NOT NULL DEFAULT '{}'::jsonb;
+  ADD COLUMN IF NOT EXISTS technical_data jsonb NOT NULL DEFAULT '[]'::jsonb;
 
 -- Las fotografías pasan de una lista simple de URLs a objetos estructurados:
 -- { id, category, url }.
@@ -94,6 +94,6 @@ CREATE POLICY apparatus_registry_documents_delete
 
 CREATE INDEX IF NOT EXISTS ix_apparatus_registry_technical_data
   ON public.apparatus_registry (hotel_id)
-  WHERE technical_data <> '{}'::jsonb;
+  WHERE technical_data <> '[]'::jsonb;
 
 COMMIT;

@@ -95,7 +95,7 @@ export default function AssetQrCode({ value, label }: AssetQrCodeProps) {
           new ClipboardItem({ 'image/png': blob }),
         ])
       } else {
-        downloadBlob(blob, \`QR-\${label || 'activo'}.png\`)
+        downloadBlob(blob, 'QR-' + (label || 'activo') + '.png')
       }
 
       setCopied(true)
@@ -103,7 +103,7 @@ export default function AssetQrCode({ value, label }: AssetQrCodeProps) {
     } catch {
       try {
         const blob = await svgToPngBlob(svg)
-        downloadBlob(blob, \`QR-\${label || 'activo'}.png\`)
+        downloadBlob(blob, 'QR-' + (label || 'activo') + '.png')
       } catch {
         setCopied(false)
       }
@@ -112,12 +112,12 @@ export default function AssetQrCode({ value, label }: AssetQrCodeProps) {
 
   async function downloadQr() {
     const blob = await svgToPngBlob(svg)
-    downloadBlob(blob, \`QR-\${label || 'activo'}.png\`)
+    downloadBlob(blob, 'QR-' + (label || 'activo') + '.png')
   }
 
   function downloadSvg() {
     const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' })
-    downloadBlob(blob, \`QR-\${label || 'activo'}.svg\`)
+    downloadBlob(blob, 'QR-' + (label || 'activo') + '.svg')
   }
 
   return (

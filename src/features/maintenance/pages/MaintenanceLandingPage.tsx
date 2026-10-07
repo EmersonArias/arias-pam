@@ -1,5 +1,5 @@
 
-import { Building2, ClipboardList, FileCheck2, ListChecks, Settings2, Wrench } from 'lucide-react'
+import { Building2, FileCheck2, ListChecks, Settings2, Wrench } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import BrandLogo from '../../../shared/components/branding/BrandLogo'
 import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
@@ -23,12 +23,6 @@ const cards: Card[] = [
     description: 'Plan Anual de Mantenimiento preventivo del hotel.',
     icon: ListChecks,
     href: '/maintenance/pam',
-  },
-  {
-    title: 'Registros',
-    description: 'Libros y registros oficiales para introducir y consultar datos.',
-    icon: ClipboardList,
-    href: '/maintenance/records',
   },
   {
     title: 'Operación',

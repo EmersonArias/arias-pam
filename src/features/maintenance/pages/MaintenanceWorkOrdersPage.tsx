@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { AlertTriangle, Archive, CheckCircle2, Clock3, FileText, Image, RefreshCw, UserRound, Wrench } from 'lucide-react'
+import { AlertTriangle, Archive, CheckCircle2, ChevronDown, ChevronUp, Clock3, FileText, Image, RefreshCw, UserRound, Wrench } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import BrandLogo from '../../../shared/components/branding/BrandLogo'
 import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
@@ -405,7 +405,7 @@ export default function MaintenanceWorkOrdersPage() {
                   </span>
                   <div className="flex items-center gap-1">
                     <IconButton
-                      icon={Wrench}
+                      icon={ChevronUp}
                       label="OT anterior"
                       title="OT anterior"
                       onClick={() => moveSelection(currentIndex - 1)}
@@ -413,7 +413,7 @@ export default function MaintenanceWorkOrdersPage() {
                       className="h-9 w-9"
                     />
                     <IconButton
-                      icon={CheckCircle2}
+                      icon={ChevronDown}
                       label="OT siguiente"
                       title="OT siguiente"
                       onClick={() => moveSelection(currentIndex + 1)}

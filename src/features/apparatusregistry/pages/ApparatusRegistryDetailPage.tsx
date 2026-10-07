@@ -687,7 +687,8 @@ export default function ApparatusRegistryDetailPage() {
                 disabled={saving || uploadingPhotos}
               />
               <HomeButton onHome={() => requestNavigation('/')} disabled={saving || uploadingPhotos} className="justify-self-center" />
-              <FormActions
+              <div className="col-span-2">
+                <FormActions
                 mode={mode}
                 onSave={() => void saveRecord()}
                 onCancel={handleFormCancel}
@@ -695,6 +696,7 @@ export default function ApparatusRegistryDetailPage() {
                 onReport={openReport}
                 saving={saving || uploadingPhotos}
               />
+              </div>
             </div>
           </div>
         </div>

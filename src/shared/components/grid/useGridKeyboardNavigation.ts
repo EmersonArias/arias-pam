@@ -19,6 +19,7 @@ export function useGridKeyboardNavigation({
   const rowRefs = useRef<Record<string, HTMLTableRowElement | null>>({})
 
   const selectedIndex = useMemo(() => {
+    if (!selectedId) return 0
     const index = ids.indexOf(selectedId)
     return index >= 0 ? index : 0
   }, [ids, selectedId])
@@ -57,7 +58,11 @@ export function useGridKeyboardNavigation({
   useEffect(() => {
     if (ids.length === 0) return
 
-    const targetId = ids.includes(selectedId) ? selectedId : ids[0]
+    const targetId =
+      selectedId && ids.includes(selectedId)
+        ? selectedId
+        : ids[0]
+
     if (targetId !== selectedId) {
       onSelectedIdChange(targetId)
       return

@@ -1,23 +1,23 @@
 
-import { BookOpen, Camera, ChevronRight, FileText, Ruler, Waves } from 'lucide-react'
+import { BookOpen, ChevronRight } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import BrandLogo from '../../../shared/components/branding/BrandLogo'
 import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
 
 const records = [
-  ['Preventivo diario', 'Registro preventivo de frecuencia corta.', FileText, '/maintenance/record'],
-  ['Piscina exterior', 'Registro de medidas y controles diarios.', Waves, '/pools'],
-  ['Piscina SPA', 'Registro de medidas y controles del SPA.', Waves, '/spa'],
-  ['Autocontrol Legionella', 'Registro de controles y seguimiento.', FileText, '/legionella'],
-  ['Bombas', 'Registro de revisiones y actuaciones.', FileText, '/pumps'],
-  ['Climatizadores / Extractores', 'Registro de revisiones de climatización y extracción.', FileText, '/climatizers'],
-  ['Fancoils', 'Registro de revisiones de fancoils.', FileText, '/fancoils'],
-  ['Cuadros eléctricos BT', 'Registro de revisiones y mediciones eléctricas.', Ruler, '/electricalpanels'],
-  ['Elementos fotoluminiscentes', 'Registro de comprobaciones.', FileText, '/photoluminescent'],
-  ['Luces de emergencia', 'Registro de comprobaciones y revisiones.', FileText, '/emergencylights'],
-  ['Puertas cortafuegos', 'Registro de inspecciones.', FileText, '/firedoors'],
-  ['PCI', 'Registro de inspecciones de protección contra incendios.', FileText, '/fireequipment'],
-  ['Calibraciones', 'Registro de calibraciones realizadas.', Ruler, '/calibrations'],
+  ['Preventivo diario', 'Registro preventivo de frecuencia corta.', '📝', '/maintenance/record'],
+  ['Piscinas', 'Libro de medidas y controles de piscina exterior.', '🏊', '/pools'],
+  ['Spa', 'Libro de medidas y controles del SPA.', '♨️', '/spa'],
+  ['Legionella', 'Libro de autocontrol y seguimiento.', '🦠', '/legionella'],
+  ['Bombas', 'Libro de revisiones y actuaciones de bombas.', '💧', '/pumps'],
+  ['Climatizadores', 'Libro de revisiones de climatización y extracción.', '🌬️', '/climatizers'],
+  ['Fancoils', 'Libro de revisiones de fancoils.', '❄️', '/fancoils'],
+  ['Cuadros BT', 'Libro de revisiones y mediciones eléctricas.', '⚡', '/electricalpanels'],
+  ['Fotoluminiscentes', 'Libro de comprobaciones de elementos fotoluminiscentes.', '💡', '/photoluminescent'],
+  ['Emergencia', 'Libro de comprobaciones y revisiones de luces de emergencia.', '🔦', '/emergencylights'],
+  ['Cortafuegos', 'Libro de inspecciones de puertas cortafuegos.', '🚪', '/firedoors'],
+  ['PCI', 'Libro de inspecciones de protección contra incendios.', '🧯', '/fireequipment'],
+  ['Calibraciones', 'Libro de calibraciones realizadas.', '📏', '/calibrations'],
 ] as const
 
 export default function MaintenanceRecordsPage() {
@@ -48,21 +48,22 @@ export default function MaintenanceRecordsPage() {
           </div>
         </section>
 
-        <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {records.map(([title, description, Icon, href]) => (
+        <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+          {records.map(([title, description, icon, href]) => (
             <button
               key={title}
               type="button"
               onClick={() => navigate(href)}
-              className="group rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-lg sm:p-5"
+              className="group flex min-h-[145px] flex-col items-stretch overflow-hidden rounded-2xl border border-slate-200 bg-white text-left shadow-[0_8px_18px_rgba(15,23,42,0.08)] transition-all duration-200 hover:-translate-y-2 hover:scale-[1.025] hover:border-slate-300 hover:shadow-[0_18px_32px_rgba(15,23,42,0.18)] active:translate-y-0 active:scale-[0.99]"
             >
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-500"><Icon size={20} /></div>
-                <ChevronRight size={18} className="text-slate-300 transition group-hover:translate-x-0.5" />
+              <div className="flex min-h-[112px] flex-1 flex-col items-center justify-center px-3 py-3">
+                <span className="text-[42px] leading-none transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:scale-110">
+                  {icon}
+                </span>
+                <span className="mt-2 text-center text-xs font-medium leading-tight text-slate-700">
+                  {title}
+                </span>
               </div>
-              <div className="mt-4 text-sm font-bold text-slate-800">{title}</div>
-              <p className="mt-1 text-xs leading-5 text-slate-500">{description}</p>
-              <div className="mt-4 inline-flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wide text-slate-400"><Camera size={13} /> Abrir registro</div>
             </button>
           ))}
         </section>

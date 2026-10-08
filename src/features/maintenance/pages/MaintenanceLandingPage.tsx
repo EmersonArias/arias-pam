@@ -46,7 +46,7 @@ export default function MaintenanceLandingPage() {
         return
       }
 
-      const [assets, pending, inProgress, interventions, pam] = await Promise.all([
+      const [assets, pending, inProgress, acknowledged, interventions, pam] = await Promise.all([
         supabase
           .from('apparatus_registry')
           .select('id', { count: 'exact', head: true })

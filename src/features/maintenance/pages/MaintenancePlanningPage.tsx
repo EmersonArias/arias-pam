@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import BrandLogo from '../../../shared/components/branding/BrandLogo'
 import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
 import IconButton from '../../../shared/components/buttons/IconButton'
+import ActionButton from '../../../shared/components/buttons/ActionButton'
 import GridViewport from '../../../shared/components/grid/GridViewport'
 import { useGridKeyboardNavigation } from '../../../shared/components/grid/useGridKeyboardNavigation'
 import { useHotelScope } from '../../../shared/context/HotelScopeContext'
@@ -420,13 +421,7 @@ export default function MaintenancePlanningPage() {
 
           {(month !== 'ALL' || frequency !== 'ALL' || state !== 'ALL' || search) && (
             <div className="mt-3 flex justify-end">
-              <button
-                type="button"
-                onClick={clearFilters}
-                className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
-              >
-                Limpiar filtros
-              </button>
+              <ActionButton label="Limpiar filtros" onClick={clearFilters} className="min-h-9 px-3 py-1.5 text-xs" />
             </div>
           )}
         </section>
@@ -582,13 +577,12 @@ export default function MaintenancePlanningPage() {
                     <div className="text-xs font-semibold uppercase tracking-wide text-blue-700">Ticket relacionado</div>
                     <div className="mt-1 text-sm font-bold text-slate-900">{selected.workOrder.ot_number}</div>
                     <div className="mt-1 text-xs text-slate-500">Asignado: {selected.workOrder.assigned_user_name ?? 'Sin asignar'}</div>
-                    <button
-                      type="button"
+                    <ActionButton
+                      icon={TicketCheck}
+                      label="Abrir ticket"
                       onClick={() => navigate('/maintenance/tickets/' + selected.workOrder!.id)}
-                      className="mt-3 inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-50"
-                    >
-                      Abrir ticket
-                    </button>
+                      className="mt-3 text-xs"
+                    />
                   </div>
                 ) : (
                   <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-xs text-slate-500">

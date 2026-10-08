@@ -577,7 +577,6 @@ export default function MaintenanceWorkOrdersPage() {
                 className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2"
               >
                 <option value="ALL">Todos</option>
-                <option value="PREVENTIVE">Preventiva</option>
                 <option value="CORRECTIVE">Correctiva</option>
                 <option value="ACTUATION">Actuación</option>
               </select>

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Archive, ChevronDown, ChevronUp, RefreshCw } from 'lucide-react'
+import { ChevronDown, ChevronUp, RefreshCw } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import BrandLogo from '../../../shared/components/branding/BrandLogo'
 import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
@@ -329,11 +329,9 @@ export default function MaintenancePendingPage() {
                 <div className="grid gap-2 rounded-xl border bg-slate-50 p-3 text-sm text-slate-700">
                   <div><strong>Asignado a:</strong> {selected.assigned_to ?? 'Sin asignar'}</div>
                   <div><strong>Fecha:</strong> {formatDate(selected.source_date)}</div>
-                  {selected.source_status && <div><strong>Estado original:</strong> {selected.source_status}</div>}
-                  {selected.source_priority && <div><strong>Prioridad original:</strong> {selected.source_priority}</div>}
                   {selected.observation && <div><strong>Observación:</strong> {selected.observation}</div>}
                 </div>
-                <div className="text-xs text-slate-400">Origen: {selected.source_file} · fila {selected.source_row}</div>
+
               </div>
             ) : (
               <div className="p-8 text-center text-sm text-slate-400">Selecciona un pendiente.</div>

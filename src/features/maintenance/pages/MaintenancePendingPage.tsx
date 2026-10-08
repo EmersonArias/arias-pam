@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ChevronDown, ChevronUp, FilterX, RefreshCw } from 'lucide-react'
+import { ChevronDown, ChevronUp, FilterX, Lock, RefreshCw, Unlock } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import BrandLogo from '../../../shared/components/branding/BrandLogo'
 import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
@@ -55,6 +55,10 @@ function formatDate(value: string | null) {
   return new Date(value + 'T12:00:00').toLocaleDateString('es-ES')
 }
 
+function isRoomLocation(value: string | null) {
+  return !!value && /^\\d{3,4}$/.test(value.trim())
+}
+
 export default function MaintenancePendingPage() {
   const navigate = useNavigate()
   const { hotel } = useHotelScope()
@@ -65,6 +69,9 @@ export default function MaintenancePendingPage() {
   const [priority, setPriority] = useState<'ALL' | PendingItem['priority']>('ALL')
   const [assigned, setAssigned] = useState('ALL')
   const [status, setStatus] = useState<'ALL' | PendingItem['status']>('PENDING')
+  const [blockedFilter, setBlockedFilter] = useState<'ALL' | 'BLOCKED' | 'UNBLOCKED'>('ALL')
+  const [blockedRooms, setBlockedRooms] = useState<Set<string>>(new Set())
+  const [updatingRoom, setUpdatingRoom] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -80,13 +87,20 @@ export default function MaintenancePendingPage() {
     setLoading(true)
     setError('')
 
-    const result = await supabase
-      .from('maintenance_pending_items')
-      .select('id, hotel_id, location, category, pending, status, source_status, assigned_to, priority, source_priority, observation, source_date, source_file, source_row')
-      .eq('hotel_id', hotel.id)
-      .eq('active', true)
-      .order('source_date', { ascending: true, nullsFirst: false })
-      .order('source_row', { ascending: true })
+    const [result, blockedResult] = await Promise.all([
+      supabase
+        .from('maintenance_pending_items')
+        .select('id, hotel_id, location, category, pending, status, source_status, assigned_to, priority, source_priority, observation, source_date, source_file, source_row')
+        .eq('hotel_id', hotel.id)
+        .eq('active', true)
+        .order('source_date', { ascending: true, nullsFirst: false })
+        .order('source_row', { ascending: true }),
+      supabase
+        .from('maintenance_blocked_rooms')
+        .select('room_number')
+        .eq('hotel_id', hotel.id)
+        .order('room_number', { ascending: true }),
+    ])
 
     if (result.error) {
       setItems([])
@@ -96,8 +110,21 @@ export default function MaintenancePendingPage() {
       return
     }
 
+    if (blockedResult.error) {
+      setItems([])
+      setSelectedId('')
+      setError(blockedResult.error.message)
+      setLoading(false)
+      return
+    }
+
     const loaded = (result.data ?? []) as PendingItem[]
+    const blocked = new Set(
+      ((blockedResult.data ?? []) as Array<{ room_number: string }>).map((item) => item.room_number.trim()),
+    )
+
     setItems(loaded)
+    setBlockedRooms(blocked)
     setSelectedId((current) => loaded.some((item) => item.id === current) ? current : (loaded[0]?.id ?? ''))
     setLoading(false)
   }
@@ -125,6 +152,11 @@ export default function MaintenancePendingPage() {
       if (priority !== 'ALL' && item.priority !== priority) return false
       if (assigned !== 'ALL' && (item.assigned_to ?? 'UNASSIGNED') !== assigned) return false
 
+      const roomLocation = item.location?.trim() ?? ''
+      const roomIsBlocked = isRoomLocation(roomLocation) && blockedRooms.has(roomLocation)
+      if (blockedFilter === 'BLOCKED' && !roomIsBlocked) return false
+      if (blockedFilter === 'UNBLOCKED' && (!isRoomLocation(roomLocation) || roomIsBlocked)) return false
+
       if (!query) return true
 
       return [
@@ -140,13 +172,14 @@ export default function MaintenancePendingPage() {
         .toLocaleLowerCase('es')
         .includes(query)
     })
-  }, [items, status, category, priority, assigned, search])
+  }, [items, status, category, priority, assigned, blockedFilter, blockedRooms, search])
 
   const counts = useMemo(() => ({
     pending: items.filter((item) => item.status === 'PENDING').length,
     high: items.filter((item) => item.status === 'PENDING' && (item.priority === 'HIGH' || item.priority === 'CRITICAL')).length,
     completed: items.filter((item) => item.status === 'COMPLETED').length,
-  }), [items])
+    blockedRooms: blockedRooms.size,
+  }), [items, blockedRooms])
 
   const selected = filtered.find((item) => item.id === selectedId) ?? null
 
@@ -166,6 +199,81 @@ export default function MaintenancePendingPage() {
     setPriority('ALL')
     setAssigned('ALL')
     setStatus('PENDING')
+    setBlockedFilter('ALL')
+  }
+
+  function applySummaryFilter(kind: 'PENDING' | 'HIGH' | 'COMPLETED' | 'BLOCKED') {
+    setSearch('')
+    setCategory('ALL')
+    setAssigned('ALL')
+
+    if (kind === 'PENDING') {
+      setStatus('PENDING')
+      setPriority('ALL')
+      setBlockedFilter('ALL')
+      return
+    }
+
+    if (kind === 'HIGH') {
+      setStatus('PENDING')
+      setPriority('HIGH')
+      setBlockedFilter('ALL')
+      return
+    }
+
+    if (kind === 'COMPLETED') {
+      setStatus('COMPLETED')
+      setPriority('ALL')
+      setBlockedFilter('ALL')
+      return
+    }
+
+    setStatus('PENDING')
+    setPriority('ALL')
+    setBlockedFilter('BLOCKED')
+  }
+
+  async function toggleRoomBlocked(location: string) {
+    if (!hotel?.id || !isRoomLocation(location)) return
+
+    const roomNumber = location.trim()
+    const isBlocked = blockedRooms.has(roomNumber)
+    setUpdatingRoom(roomNumber)
+    setError('')
+
+    if (isBlocked) {
+      const result = await supabase
+        .from('maintenance_blocked_rooms')
+        .delete()
+        .eq('hotel_id', hotel.id)
+        .eq('room_number', roomNumber)
+
+      if (result.error) {
+        setError(result.error.message)
+      } else {
+        setBlockedRooms((current) => {
+          const next = new Set(current)
+          next.delete(roomNumber)
+          return next
+        })
+      }
+    } else {
+      const result = await supabase
+        .from('maintenance_blocked_rooms')
+        .insert({ hotel_id: hotel.id, room_number: roomNumber })
+
+      if (result.error) {
+        setError(result.error.message)
+      } else {
+        setBlockedRooms((current) => {
+          const next = new Set(current)
+          next.add(roomNumber)
+          return next
+        })
+      }
+    }
+
+    setUpdatingRoom(null)
   }
 
   return (
@@ -194,23 +302,43 @@ export default function MaintenancePendingPage() {
           </div>
         )}
 
-        <section className="mb-3 grid gap-3 sm:grid-cols-3">
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <section className="mb-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <button
+            type="button"
+            onClick={() => applySummaryFilter('PENDING')}
+            className="rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+          >
             <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Pendientes</div>
             <div className="mt-1 text-2xl font-bold text-slate-900">{counts.pending}</div>
-          </div>
-          <div className="rounded-2xl border border-rose-200 bg-white p-4 shadow-sm">
+          </button>
+          <button
+            type="button"
+            onClick={() => applySummaryFilter('HIGH')}
+            className="rounded-2xl border border-rose-200 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+          >
             <div className="text-xs font-semibold uppercase tracking-wide text-rose-600">Prioridad alta</div>
             <div className="mt-1 text-2xl font-bold text-slate-900">{counts.high}</div>
-          </div>
-          <div className="rounded-2xl border border-emerald-200 bg-white p-4 shadow-sm">
+          </button>
+          <button
+            type="button"
+            onClick={() => applySummaryFilter('COMPLETED')}
+            className="rounded-2xl border border-emerald-200 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+          >
             <div className="text-xs font-semibold uppercase tracking-wide text-emerald-600">Terminados</div>
             <div className="mt-1 text-2xl font-bold text-slate-900">{counts.completed}</div>
-          </div>
+          </button>
+          <button
+            type="button"
+            onClick={() => applySummaryFilter('BLOCKED')}
+            className="rounded-2xl border border-amber-200 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+          >
+            <div className="text-xs font-semibold uppercase tracking-wide text-amber-700">Habitaciones bloqueadas</div>
+            <div className="mt-1 text-2xl font-bold text-slate-900">{counts.blockedRooms}</div>
+          </button>
         </section>
 
         <section className="mb-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_180px_170px_190px_180px]">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_180px_170px_190px_180px_180px]">
             <label>
               <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Buscar</span>
               <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Ubicación, pendiente, categoría, proveedor…" className="w-full rounded-xl border border-slate-300 px-3 py-2 outline-none focus:border-blue-500" />
@@ -248,9 +376,17 @@ export default function MaintenancePendingPage() {
                 {assignees.map((item) => <option key={item} value={item}>{item}</option>)}
               </select>
             </label>
+            <label>
+              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Habitación</span>
+              <select value={blockedFilter} onChange={(event) => setBlockedFilter(event.target.value as typeof blockedFilter)} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2">
+                <option value="ALL">Todas</option>
+                <option value="BLOCKED">Bloqueadas</option>
+                <option value="UNBLOCKED">No bloqueadas</option>
+              </select>
+            </label>
           </div>
 
-          {(search || category !== 'ALL' || priority !== 'ALL' || assigned !== 'ALL' || status !== 'PENDING') && (
+          {(search || category !== 'ALL' || priority !== 'ALL' || assigned !== 'ALL' || blockedFilter !== 'ALL' || status !== 'PENDING') && (
             <div className="mt-3 flex justify-end">
               <ActionButton icon={FilterX} label="Limpiar filtros" onClick={clearFilters} className="min-h-9 px-3 py-1.5 text-xs" />
             </div>
@@ -278,6 +414,7 @@ export default function MaintenancePendingPage() {
                     <th className="px-3 py-2.5">Estado</th>
                     <th className="px-3 py-2.5">Asignado a</th>
                     <th className="px-3 py-2.5">Prioridad</th>
+                    <th className="px-3 py-2.5">Habitación</th>
                     <th className="px-3 py-2.5">Fecha</th>
                   </tr>
                 </thead>
@@ -296,11 +433,30 @@ export default function MaintenancePendingPage() {
                         <td className="px-3 py-3"><span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${statusClass(item.status)}`}>{statusLabels[item.status]}</span></td>
                         <td className="px-3 py-3 text-slate-600">{item.assigned_to ?? 'Sin asignar'}</td>
                         <td className="px-3 py-3"><span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${priorityClass(item.priority)}`}>{priorityLabels[item.priority]}</span></td>
+                        <td className="px-3 py-3">
+                          {isRoomLocation(item.location) ? (
+                            <div className="flex items-center gap-2">
+                              <IconButton
+                                icon={blockedRooms.has(item.location!.trim()) ? Lock : Unlock}
+                                label={blockedRooms.has(item.location!.trim()) ? 'Desbloquear habitación' : 'Bloquear habitación'}
+                                title={blockedRooms.has(item.location!.trim()) ? 'Desbloquear habitación' : 'Bloquear habitación'}
+                                onClick={() => void toggleRoomBlocked(item.location!)}
+                                disabled={updatingRoom === item.location!.trim()}
+                                className={`h-9 w-9 ${blockedRooms.has(item.location!.trim()) ? 'border-amber-200 bg-amber-50 text-amber-700' : ''}`}
+                              />
+                              <span className={`text-xs font-semibold ${blockedRooms.has(item.location!.trim()) ? 'text-amber-700' : 'text-slate-400'}`}>
+                                {blockedRooms.has(item.location!.trim()) ? 'Sí' : 'No'}
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-slate-400">—</span>
+                          )}
+                        </td>
                         <td className="px-3 py-3 text-slate-600">{formatDate(item.source_date)}</td>
                       </tr>
                     )
                   })}
-                  {!loading && filtered.length === 0 && <tr><td colSpan={7} className="px-3 py-10 text-center text-sm text-slate-500">No hay pendientes para estos filtros.</td></tr>}
+                  {!loading && filtered.length === 0 && <tr><td colSpan={8} className="px-3 py-10 text-center text-sm text-slate-500">No hay pendientes para estos filtros.</td></tr>}
                 </tbody>
               </table>
               </div>
@@ -330,6 +486,14 @@ export default function MaintenancePendingPage() {
                 <div className="grid gap-2 rounded-xl border bg-slate-50 p-3 text-sm text-slate-700">
                   <div><strong>Asignado a:</strong> {selected.assigned_to ?? 'Sin asignar'}</div>
                   <div><strong>Fecha:</strong> {formatDate(selected.source_date)}</div>
+                  {isRoomLocation(selected.location) && (
+                    <div className="flex items-center gap-2">
+                      <strong>Habitación:</strong>
+                      <span className={`font-semibold ${blockedRooms.has(selected.location!.trim()) ? 'text-amber-700' : 'text-slate-500'}`}>
+                        {blockedRooms.has(selected.location!.trim()) ? 'Bloqueada' : 'No bloqueada'}
+                      </span>
+                    </div>
+                  )}
                   {selected.observation && <div><strong>Observación:</strong> {selected.observation}</div>}
                 </div>
 

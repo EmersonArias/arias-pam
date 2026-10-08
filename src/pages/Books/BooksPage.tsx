@@ -550,7 +550,6 @@ export default function BooksPage() {
                           <div className="mt-0.5 truncate text-[10px] font-semibold text-slate-600">
                             {alert.apparatus_code ? alert.apparatus_code + ' · ' : ''}{alert.apparatus_name ?? 'Equipo no identificado'}
                           </div>
-                          <div className="mt-1 line-clamp-2 text-[10px] text-slate-500">{alert.message}</div>
                         </div>
                         <span className={`shrink-0 rounded-full px-2 py-1 text-[9px] font-semibold ${statusView.className}`}>{statusView.label}</span>
                       </div>
@@ -605,9 +604,6 @@ export default function BooksPage() {
                           </div>
                           <div className="truncate text-[10px] font-semibold text-slate-600">
                             {alert.apparatus_code ? alert.apparatus_code + ' · ' : ''}{alert.apparatus_name ?? 'Equipo no identificado'}
-                          </div>
-                          <div className="truncate text-[10px] text-slate-500">
-                            {alert.message}
                           </div>
                         </td>
                         <td className="whitespace-nowrap px-3 py-2 text-slate-600">

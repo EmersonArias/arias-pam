@@ -17,6 +17,7 @@ export function useGridKeyboardNavigation({
 }: UseGridKeyboardNavigationOptions) {
   const gridRef = useRef<HTMLDivElement | null>(null)
   const rowRefs = useRef<Record<string, HTMLTableRowElement | null>>({})
+  const hasAutoFocusedRef = useRef(false)
 
   const selectedIndex = useMemo(() => {
     if (!selectedId) return 0
@@ -70,7 +71,8 @@ export function useGridKeyboardNavigation({
 
     const frame = window.requestAnimationFrame(() => {
       scrollRowIntoView(targetId)
-      if (autoFocusFirst) {
+      if (autoFocusFirst && !hasAutoFocusedRef.current) {
+        hasAutoFocusedRef.current = true
         gridRef.current?.focus({ preventScroll: true })
       }
     })

@@ -92,58 +92,134 @@ WHERE mp.active = true
       AND c.derived_periodicity_unit <> 'VARIABLE'
   );
 
--- 3) Fecha real de cada marca PAM ya materializada como trabajo programado.
-UPDATE public.maintenance_scheduled_jobs j
-SET
-  scheduled_date = public.pam_week_slot_start_date(
-    j.plan_year,
-    j.month_number,
-    j.week_slot
-  ),
-  updated_at = now()
-WHERE j.scheduled_date IS NULL;
+-- 3) Fecha real de cada trabajo programado.
+--
+-- Existe un índice UNIQUE vigente sobre:
+--   (maintenance_plan_id, scheduled_date)
+--   WHERE scheduled_date IS NOT NULL.
+--
+-- Un mismo mantenimiento PAM puede tener varias marcas en una misma
+-- semana/fecha. Por ello no intentamos actualizar todas las filas a la misma
+-- fecha, porque provocaría una colisión. Se representa una sola vez cada
+-- combinación plan + fecha, reutilizando primero el job de la misma marca y,
+-- después, otro job sin fecha del mismo plan.
+DO $
+DECLARE
+  v_desired record;
+  v_existing_job_id uuid;
+  v_candidate_job_id uuid;
+  v_schedule_date date;
+BEGIN
+  FOR v_desired IN
+    SELECT DISTINCT ON (
+      l.maintenance_plan_id,
+      psm.plan_year,
+      psm.month_number,
+      psm.week_slot
+    )
+      l.maintenance_plan_id,
+      psm.id AS source_mark_id,
+      psm.plan_year,
+      psm.month_number,
+      psm.week_slot
+    FROM public.pam_source_marks psm
+    JOIN public.pam_source_groups psg
+      ON psg.hotel_id = psm.hotel_id
+     AND psg.source_version = psm.source_version
+     AND psg.source_sheet = psm.source_sheet
+     AND psg.source_row = psm.source_row
+    JOIN public.pam_maintenance_plan_links l
+      ON l.source_group_id = psg.id
+     AND l.source_apparatus_id = psm.source_apparatus_id
+     AND l.mark_code = psm.mark_code
+     AND l.plan_year = psm.plan_year
+    JOIN public.maintenance_plans mp
+      ON mp.id = l.maintenance_plan_id
+     AND mp.active = true
+    WHERE psm.apparatus_registry_id IS NOT NULL
+    ORDER BY
+      l.maintenance_plan_id,
+      psm.plan_year,
+      psm.month_number,
+      psm.week_slot,
+      psm.source_column,
+      psm.id
+  LOOP
+    v_schedule_date := public.pam_week_slot_start_date(
+      v_desired.plan_year,
+      v_desired.month_number,
+      v_desired.week_slot
+    );
 
--- 4) Materializamos los trabajos programados que todavía no existan para
---    todas las marcas PAM enlazadas a planes activos.
-INSERT INTO public.maintenance_scheduled_jobs (
-  hotel_id,
-  maintenance_plan_id,
-  source_mark_id,
-  plan_year,
-  month_number,
-  week_slot,
-  scheduled_date,
-  status
-)
-SELECT
-  psm.hotel_id,
-  l.maintenance_plan_id,
-  psm.id,
-  psm.plan_year,
-  psm.month_number,
-  psm.week_slot,
-  public.pam_week_slot_start_date(
-    psm.plan_year,
-    psm.month_number,
-    psm.week_slot
-  ),
-  'PENDING'
-FROM public.pam_source_marks psm
-JOIN public.pam_source_groups psg
-  ON psg.hotel_id = psm.hotel_id
- AND psg.source_version = psm.source_version
- AND psg.source_sheet = psm.source_sheet
- AND psg.source_row = psm.source_row
-JOIN public.pam_maintenance_plan_links l
-  ON l.source_group_id = psg.id
- AND l.source_apparatus_id = psm.source_apparatus_id
- AND l.mark_code = psm.mark_code
- AND l.plan_year = psm.plan_year
-JOIN public.maintenance_plans mp
-  ON mp.id = l.maintenance_plan_id
- AND mp.active = true
-WHERE psm.apparatus_registry_id IS NOT NULL
-ON CONFLICT (maintenance_plan_id, source_mark_id) DO NOTHING;
+    SELECT j.id
+      INTO v_existing_job_id
+    FROM public.maintenance_scheduled_jobs j
+    WHERE j.maintenance_plan_id = v_desired.maintenance_plan_id
+      AND j.scheduled_date = v_schedule_date
+    ORDER BY j.created_at, j.id
+    LIMIT 1;
+
+    IF v_existing_job_id IS NOT NULL THEN
+      CONTINUE;
+    END IF;
+
+    SELECT j.id
+      INTO v_candidate_job_id
+    FROM public.maintenance_scheduled_jobs j
+    WHERE j.maintenance_plan_id = v_desired.maintenance_plan_id
+      AND j.source_mark_id = v_desired.source_mark_id
+      AND j.scheduled_date IS NULL
+    LIMIT 1;
+
+    IF v_candidate_job_id IS NULL THEN
+      SELECT j.id
+        INTO v_candidate_job_id
+      FROM public.maintenance_scheduled_jobs j
+      WHERE j.maintenance_plan_id = v_desired.maintenance_plan_id
+        AND j.scheduled_date IS NULL
+      ORDER BY j.created_at, j.id
+      LIMIT 1;
+    END IF;
+
+    IF v_candidate_job_id IS NOT NULL THEN
+      UPDATE public.maintenance_scheduled_jobs
+      SET
+        scheduled_date = v_schedule_date,
+        updated_at = now()
+      WHERE id = v_candidate_job_id;
+    ELSE
+      INSERT INTO public.maintenance_scheduled_jobs (
+        hotel_id,
+        maintenance_plan_id,
+        source_mark_id,
+        plan_year,
+        month_number,
+        week_slot,
+        scheduled_date,
+        status
+      )
+      SELECT
+        mp.hotel_id,
+        v_desired.maintenance_plan_id,
+        v_desired.source_mark_id,
+        v_desired.plan_year,
+        v_desired.month_number,
+        v_desired.week_slot,
+        v_schedule_date,
+        'PENDING'
+      FROM public.maintenance_plans mp
+      WHERE mp.id = v_desired.maintenance_plan_id
+      ON CONFLICT (maintenance_plan_id, scheduled_date)
+        WHERE scheduled_date IS NOT NULL
+      DO NOTHING;
+    END IF;
+  END LOOP;
+END;
+$;
+
+-- 4) Las marcas adicionales del mismo plan y de la misma fecha no generan
+--    una segunda fila, porque el índice de la tabla establece una única
+--    representación operativa por plan + fecha.
 
 -- 5) El motor existente crea ahora los Tickets que por fecha ya correspondan.
 DO $$

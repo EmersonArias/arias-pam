@@ -436,7 +436,7 @@ export default function MaintenanceWorkOrdersPage() {
 
     const confirmed = await confirm({
       title: 'Cerrar ticket',
-      message: `¿Quieres cerrar el ticket ${ticket.ot_number}? Para añadir una fotografía antes del cierre, abre su ficha.`,
+      message: `¿Quieres cerrar el ticket ${ticket.ot_number}?`,
       variant: 'info',
       confirmLabel: 'Cerrar ticket',
       cancelLabel: 'Cancelar',
@@ -653,8 +653,8 @@ export default function MaintenanceWorkOrdersPage() {
                       <td className="px-3 py-2">
                         <div className="flex items-center gap-1.5">
                           {item.status === 'PENDING' && (
-                            <button type="button" onClick={(event) => { event.stopPropagation(); void setTicketStatus(item, 'IN_MANAGEMENT') }} className="rounded-lg border border-violet-200 bg-violet-50 px-2 py-1.5 text-[10px] font-semibold text-violet-700 hover:bg-violet-100" title="Marcar como en gestión">
-                              Atender
+                            <button type="button" onClick={(event) => { event.stopPropagation(); void setTicketStatus(item, 'IN_MANAGEMENT') }} className="rounded-lg border border-violet-200 bg-violet-50 px-2 py-1.5 text-[10px] font-semibold text-violet-700 hover:bg-violet-100" title="Pasar a en gestión">
+                              En gestión
                             </button>
                           )}
                           {item.status === 'IN_MANAGEMENT' && (

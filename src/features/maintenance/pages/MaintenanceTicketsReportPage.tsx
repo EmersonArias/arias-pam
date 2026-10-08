@@ -14,7 +14,7 @@ type TicketReportRow = {
   ot_number: string
   title: string
   work_type: 'PREVENTIVE' | 'CORRECTIVE' | 'ACTUATION'
-  status: 'PENDING' | 'ACKNOWLEDGED' | 'IN_PROGRESS'
+  status: 'PENDING' | 'IN_MANAGEMENT' | 'IN_PROGRESS'
   scheduled_date: string | null
   assigned_user_name: string | null
   maintenance_plan_name: string | null
@@ -26,7 +26,7 @@ type TicketReportRow = {
 
 const statusLabels: Record<TicketReportRow['status'], string> = {
   PENDING: 'Pendiente',
-  ACKNOWLEDGED: 'Atendido',
+  IN_MANAGEMENT: 'En gestión',
   IN_PROGRESS: 'En curso',
 }
 
@@ -38,7 +38,7 @@ const typeLabels: Record<TicketReportRow['work_type'], string> = {
 
 function statusClass(status: TicketReportRow['status']) {
   if (status === 'IN_PROGRESS') return 'bg-blue-50 text-blue-700'
-  if (status === 'ACKNOWLEDGED') return 'bg-violet-50 text-violet-700'
+  if (status === 'IN_MANAGEMENT') return 'bg-violet-50 text-violet-700'
   return 'bg-amber-50 text-amber-700'
 }
 

@@ -15,7 +15,7 @@ type HistoryOrder = {
   ot_number: string
   title: string
   work_type: 'PREVENTIVE' | 'CORRECTIVE' | 'ACTUATION'
-  status: 'COMPLETED'
+  status: 'COMPLETED' | 'REJECTED'
   completion_timing: 'ON_TIME' | 'OUT_OF_DATE' | null
   maintenance_plan_name: string | null
   apparatus_code: string | null
@@ -32,12 +32,14 @@ const typeLabels: Record<HistoryOrder['work_type'], string> = {
 }
 
 function statusLabel(item: HistoryOrder) {
+  if (item.status === 'REJECTED') return 'Rechazado'
   return item.completion_timing === 'OUT_OF_DATE'
-    ? 'Finalizada · Fuera de fecha'
-    : 'Finalizada'
+    ? 'Cerrado · Fuera de fecha'
+    : 'Cerrado'
 }
 
 function statusClass(item: HistoryOrder) {
+  if (item.status === 'REJECTED') return 'bg-slate-200 text-slate-600'
   return item.completion_timing === 'OUT_OF_DATE'
     ? 'bg-amber-100 text-amber-700'
     : 'bg-emerald-100 text-emerald-700'
@@ -68,7 +70,7 @@ export default function MaintenanceWorkOrderHistoryPage() {
       .from('maintenance_work_orders_resolved')
       .select('id, hotel_id, ot_number, title, work_type, status, completion_timing, maintenance_plan_name, apparatus_code, apparatus_name, scheduled_date, completed_at, assigned_user_name')
       .eq('hotel_id', hotel.id)
-      .eq('status', 'COMPLETED')
+      .in('status', ['COMPLETED', 'REJECTED'])
       .order('completed_at', { ascending: false, nullsFirst: false })
       .order('created_at', { ascending: false })
 
@@ -131,7 +133,7 @@ export default function MaintenanceWorkOrderHistoryPage() {
                   <Archive size={18} className="shrink-0 text-slate-500" />
                   <h1 className="text-xl font-bold leading-tight sm:text-2xl">Histórico de tickets</h1>
                 </div>
-                <p className="text-xs text-slate-500 sm:text-sm">Tickets finalizados del hotel actual</p>
+                <p className="text-xs text-slate-500 sm:text-sm">Tickets cerrados y rechazados del hotel actual</p>
               </div>
             </div>
             <div className="grid w-full grid-cols-2 gap-2 lg:flex lg:w-auto">
@@ -158,7 +160,7 @@ export default function MaintenanceWorkOrderHistoryPage() {
 
         <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="flex items-center justify-between border-b px-4 py-3">
-            <div className="text-sm font-semibold">Tickets finalizados</div>
+            <div className="text-sm font-semibold">Tickets cerrados y rechazados</div>
             <span className="text-xs text-slate-500">{filteredRecords.length} resultado{filteredRecords.length === 1 ? '' : 's'}</span>
           </div>
 

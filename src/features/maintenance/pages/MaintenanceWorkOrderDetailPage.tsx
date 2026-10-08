@@ -71,7 +71,7 @@ export default function MaintenanceWorkOrderDetailPage(){
   const [canAssign,setCanAssign]=useState(false)
   const [assignmentSaving,setAssignmentSaving]=useState(false)
   const galleryRef=useRef<HTMLInputElement|null>(null)
-  const canEdit = order?.status === 'IN_PROGRESS'
+  const canEdit = order?.status !== 'COMPLETED'
 
   async function load(){
     if(!workOrderId) return
@@ -198,14 +198,6 @@ export default function MaintenanceWorkOrderDetailPage(){
     await load()
   }
 
-  async function startOrder(){
-    if(!order)return
-    setWorking(true);setError('');setMessage('')
-    const q=await supabase.rpc('start_maintenance_work_order',{target_work_order_id:order.id})
-    setWorking(false)
-    if(q.error){setError(q.error.message);return}
-    setMessage('Ticket iniciado.');await load()
-  }
   async function completeOrder(){
     if(!order)return
     setWorking(true);setError('');setMessage('')
@@ -289,13 +281,12 @@ export default function MaintenanceWorkOrderDetailPage(){
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div><div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Estado</div><span className={'mt-1 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold '+statusTone(order)}>{statusLabel(order)}</span></div>
             <div className="flex flex-wrap gap-2">
-              {order.status==='PENDING'&&<button type="button" onClick={()=>void startOrder()} disabled={working} className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 disabled:opacity-50"><Wrench size={16}/>Iniciar ticket</button>}
               {order.status!=='COMPLETED'&&<button type="button" onClick={()=>void completeOrder()} disabled={working} className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"><CheckCircle2 size={16}/>Finalizar ticket</button>}
             </div>
           </div>
           {order.status!=='COMPLETED'&&<div className="mt-4 grid gap-3 sm:grid-cols-[240px_1fr]">
             <label><span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Resultado de finalización</span><select value={result} onChange={e=>setResult(e.target.value as typeof result)} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm">{resultOptions.map(x=><option key={x.value} value={x.value}>{x.label}</option>)}</select></label>
-            <div className="flex items-end text-xs text-slate-500">En un ticket preventivo, finalizar desde aquí registra la ejecución real, recalcula la próxima revisión y genera el siguiente ticket automáticamente.</div>
+            <div className="flex items-end text-xs text-slate-500">Al finalizar un ticket preventivo se registra la ejecución real, se recalcula la próxima revisión y se genera automáticamente el siguiente ticket.</div>
           </div>}
         </section>
 

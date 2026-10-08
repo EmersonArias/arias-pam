@@ -269,7 +269,8 @@ export default function MaintenancePendingPage() {
             </div>
 
             <GridViewport className="max-h-[calc(100vh-400px)]">
-              <table className="min-w-[1080px] w-full border-collapse text-sm" {...getGridProps()}>
+              <div {...getGridProps()} className="outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-200">
+              <table className="min-w-[1080px] w-full border-collapse text-sm">
                 <thead className="sticky top-0 z-10 bg-slate-50">
                   <tr className="border-b text-left text-[11px] uppercase tracking-wide text-slate-500">
                     <th className="px-3 py-2.5">Ubicación</th>
@@ -303,6 +304,7 @@ export default function MaintenancePendingPage() {
                   {!loading && filtered.length === 0 && <tr><td colSpan={7} className="px-3 py-10 text-center text-sm text-slate-500">No hay pendientes para estos filtros.</td></tr>}
                 </tbody>
               </table>
+              </div>
             </GridViewport>
 
             <div className="flex items-center justify-between border-t border-slate-200 px-3 py-2">

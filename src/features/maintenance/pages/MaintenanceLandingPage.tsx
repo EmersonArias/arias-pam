@@ -18,6 +18,7 @@ type Counts = {
   assets: number | null
   pendingTickets: number | null
   inProgressTickets: number | null
+  acknowledgedTickets: number | null
   interventions: number | null
   pam: number | null
 }
@@ -26,6 +27,7 @@ const EMPTY_COUNTS: Counts = {
   assets: null,
   pendingTickets: null,
   inProgressTickets: null,
+  acknowledgedTickets: null,
   interventions: null,
   pam: null,
 }
@@ -61,6 +63,11 @@ export default function MaintenanceLandingPage() {
           .eq('hotel_id', hotel.id)
           .eq('status', 'IN_PROGRESS'),
         supabase
+          .from('maintenance_work_orders')
+          .select('id', { count: 'exact', head: true })
+          .eq('hotel_id', hotel.id)
+          .eq('status', 'ACKNOWLEDGED'),
+        supabase
           .from('maintenance_actions')
           .select('id', { count: 'exact', head: true })
           .eq('hotel_id', hotel.id)
@@ -78,6 +85,7 @@ export default function MaintenanceLandingPage() {
         assets: assets.error ? null : assets.count ?? 0,
         pendingTickets: pending.error ? null : pending.count ?? 0,
         inProgressTickets: inProgress.error ? null : inProgress.count ?? 0,
+        acknowledgedTickets: acknowledged.error ? null : acknowledged.count ?? 0,
         interventions: interventions.error ? null : interventions.count ?? 0,
         pam: pam.error ? null : pam.count ?? 0,
       })
@@ -104,9 +112,9 @@ export default function MaintenanceLandingPage() {
       icon: ClipboardList,
       href: '/maintenance/tickets',
       metric:
-        counts.pendingTickets == null || counts.inProgressTickets == null
+        counts.pendingTickets == null || counts.acknowledgedTickets == null || counts.inProgressTickets == null
           ? undefined
-          : `${counts.pendingTickets} pendientes · ${counts.inProgressTickets} en curso`,
+          : `${counts.pendingTickets} pendientes · ${counts.acknowledgedTickets} atendidos · ${counts.inProgressTickets} en curso`,
     },
     {
       title: 'Intervenciones',

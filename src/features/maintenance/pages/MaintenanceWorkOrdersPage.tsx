@@ -44,7 +44,7 @@ type WorkOrder = {
   title: string
   description: string | null
   work_type: 'PREVENTIVE' | 'CORRECTIVE' | 'ACTUATION'
-  status: 'PENDING' | 'ACKNOWLEDGED' | 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED'
+  status: 'PENDING' | 'IN_MANAGEMENT' | 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED'
   completion_timing: 'ON_TIME' | 'OUT_OF_DATE' | null
   assigned_user_id: string | null
   assigned_user_name: string | null
@@ -71,7 +71,7 @@ type WorkOrder = {
 
 const statusLabels: Record<WorkOrder['status'], string> = {
   PENDING: 'Pendiente',
-  ACKNOWLEDGED: 'Atendido',
+  IN_MANAGEMENT: 'Atendido',
   IN_PROGRESS: 'En curso',
   COMPLETED: 'Cerrado',
   REJECTED: 'Rechazado',
@@ -102,7 +102,7 @@ function displayStatusClass(item: WorkOrder) {
   if (item.status === 'COMPLETED' && item.completion_timing === 'OUT_OF_DATE') return 'bg-amber-100 text-amber-700'
   if (item.status === 'COMPLETED') return 'bg-emerald-100 text-emerald-700'
   if (item.status === 'IN_PROGRESS') return 'bg-blue-100 text-blue-700'
-  if (item.status === 'ACKNOWLEDGED') return 'bg-violet-100 text-violet-700'
+  if (item.status === 'IN_MANAGEMENT') return 'bg-violet-100 text-violet-700'
   return 'bg-amber-100 text-amber-700'
 }
 
@@ -150,7 +150,7 @@ export default function MaintenanceWorkOrdersPage() {
   const { confirm } = useSystemDialog()
   const [records, setRecords] = useState<WorkOrder[]>([])
   const [selectedId, setSelectedId] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'ACKNOWLEDGED' | 'IN_PROGRESS'>('ALL')
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'IN_MANAGEMENT' | 'IN_PROGRESS'>('ALL')
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -404,10 +404,10 @@ export default function MaintenanceWorkOrdersPage() {
     autoFocusFirst: true,
   })
 
-  async function setTicketStatus(ticket: WorkOrder, targetStatus: 'ACKNOWLEDGED' | 'IN_PROGRESS') {
+  async function setTicketStatus(ticket: WorkOrder, targetStatus: 'IN_MANAGEMENT' | 'IN_PROGRESS') {
     if (ticket.status === 'COMPLETED' || ticket.status === 'REJECTED') return
 
-    const label = targetStatus === 'ACKNOWLEDGED' ? 'atendido' : 'en curso'
+    const label = targetStatus === 'IN_MANAGEMENT' ? 'en gestión' : 'en curso'
     const confirmed = await confirm({
       title: `Cambiar estado a ${label}`,
       message: `¿Quieres marcar el ticket ${ticket.ot_number} como ${label}?`,
@@ -557,7 +557,7 @@ export default function MaintenanceWorkOrdersPage() {
               >
                 <option value="ALL">Todos los tickets activos</option>
                 <option value="PENDING">Pendiente</option>
-                <option value="ACKNOWLEDGED">Atendido</option>
+                <option value="IN_MANAGEMENT">En gestión</option>
                 <option value="IN_PROGRESS">En curso</option>
               </select>
             </label>
@@ -653,11 +653,11 @@ export default function MaintenanceWorkOrdersPage() {
                       <td className="px-3 py-2">
                         <div className="flex items-center gap-1.5">
                           {item.status === 'PENDING' && (
-                            <button type="button" onClick={(event) => { event.stopPropagation(); void setTicketStatus(item, 'ACKNOWLEDGED') }} className="rounded-lg border border-violet-200 bg-violet-50 px-2 py-1.5 text-[10px] font-semibold text-violet-700 hover:bg-violet-100" title="Marcar como atendido">
+                            <button type="button" onClick={(event) => { event.stopPropagation(); void setTicketStatus(item, 'IN_MANAGEMENT') }} className="rounded-lg border border-violet-200 bg-violet-50 px-2 py-1.5 text-[10px] font-semibold text-violet-700 hover:bg-violet-100" title="Marcar como en gestión">
                               Atender
                             </button>
                           )}
-                          {item.status === 'ACKNOWLEDGED' && (
+                          {item.status === 'IN_MANAGEMENT' && (
                             <button type="button" onClick={(event) => { event.stopPropagation(); void setTicketStatus(item, 'IN_PROGRESS') }} className="rounded-lg border border-blue-200 bg-blue-50 px-2 py-1.5 text-[10px] font-semibold text-blue-700 hover:bg-blue-100" title="Pasar a en curso">
                               En curso
                             </button>

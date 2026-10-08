@@ -56,7 +56,7 @@ function formatDate(value: string | null) {
 }
 
 function isRoomLocation(value: string | null) {
-  return !!value && /^\\d{3,4}$/.test(value.trim())
+  return !!value && /^\d{3,4}$/.test(value.trim())
 }
 
 export default function MaintenancePendingPage() {
@@ -306,46 +306,46 @@ export default function MaintenancePendingPage() {
           <button
             type="button"
             onClick={() => applySummaryFilter('PENDING')}
-            className="rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+            className="rounded-2xl border border-slate-200 bg-white p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
           >
             <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Pendientes</div>
-            <div className="mt-1 text-2xl font-bold text-slate-900">{counts.pending}</div>
+            <div className="mt-0.5 text-xl font-bold text-slate-900">{counts.pending}</div>
           </button>
           <button
             type="button"
             onClick={() => applySummaryFilter('HIGH')}
-            className="rounded-2xl border border-rose-200 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+            className="rounded-2xl border border-rose-200 bg-white p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
           >
             <div className="text-xs font-semibold uppercase tracking-wide text-rose-600">Prioridad alta</div>
-            <div className="mt-1 text-2xl font-bold text-slate-900">{counts.high}</div>
+            <div className="mt-0.5 text-xl font-bold text-slate-900">{counts.high}</div>
           </button>
           <button
             type="button"
             onClick={() => applySummaryFilter('COMPLETED')}
-            className="rounded-2xl border border-emerald-200 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+            className="rounded-2xl border border-emerald-200 bg-white p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
           >
             <div className="text-xs font-semibold uppercase tracking-wide text-emerald-600">Terminados</div>
-            <div className="mt-1 text-2xl font-bold text-slate-900">{counts.completed}</div>
+            <div className="mt-0.5 text-xl font-bold text-slate-900">{counts.completed}</div>
           </button>
           <button
             type="button"
             onClick={() => applySummaryFilter('BLOCKED')}
-            className="rounded-2xl border border-amber-200 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+            className="rounded-2xl border border-amber-200 bg-white p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
           >
             <div className="text-xs font-semibold uppercase tracking-wide text-amber-700">Habitaciones bloqueadas</div>
-            <div className="mt-1 text-2xl font-bold text-slate-900">{counts.blockedRooms}</div>
+            <div className="mt-0.5 text-xl font-bold text-slate-900">{counts.blockedRooms}</div>
           </button>
         </section>
 
-        <section className="mb-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <section className="mb-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_180px_170px_190px_180px_180px]">
             <label>
               <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Buscar</span>
-              <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Ubicación, pendiente, categoría, proveedor…" className="w-full rounded-xl border border-slate-300 px-3 py-2 outline-none focus:border-blue-500" />
+              <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Ubicación, pendiente, categoría, proveedor…" className="w-full rounded-xl border border-slate-300 px-3 py-1.5 outline-none focus:border-blue-500" />
             </label>
             <label>
               <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Estado</span>
-              <select value={status} onChange={(event) => setStatus(event.target.value as typeof status)} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2">
+              <select value={status} onChange={(event) => setStatus(event.target.value as typeof status)} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-1.5">
                 <option value="PENDING">Pendientes</option>
                 <option value="COMPLETED">Terminados</option>
                 <option value="ALL">Todos</option>
@@ -353,14 +353,14 @@ export default function MaintenancePendingPage() {
             </label>
             <label>
               <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Categoría</span>
-              <select value={category} onChange={(event) => setCategory(event.target.value)} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2">
+              <select value={category} onChange={(event) => setCategory(event.target.value)} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-1.5">
                 <option value="ALL">Todas</option>
                 {categories.map((item) => <option key={item} value={item}>{item}</option>)}
               </select>
             </label>
             <label>
               <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Prioridad</span>
-              <select value={priority} onChange={(event) => setPriority(event.target.value as typeof priority)} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2">
+              <select value={priority} onChange={(event) => setPriority(event.target.value as typeof priority)} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-1.5">
                 <option value="ALL">Todas</option>
                 <option value="CRITICAL">Crítica</option>
                 <option value="HIGH">Alta</option>
@@ -370,7 +370,7 @@ export default function MaintenancePendingPage() {
             </label>
             <label>
               <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Asignado</span>
-              <select value={assigned} onChange={(event) => setAssigned(event.target.value)} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2">
+              <select value={assigned} onChange={(event) => setAssigned(event.target.value)} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-1.5">
                 <option value="ALL">Todos</option>
                 <option value="UNASSIGNED">Sin asignar</option>
                 {assignees.map((item) => <option key={item} value={item}>{item}</option>)}
@@ -378,7 +378,7 @@ export default function MaintenancePendingPage() {
             </label>
             <label>
               <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Habitación</span>
-              <select value={blockedFilter} onChange={(event) => setBlockedFilter(event.target.value as typeof blockedFilter)} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2">
+              <select value={blockedFilter} onChange={(event) => setBlockedFilter(event.target.value as typeof blockedFilter)} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-1.5">
                 <option value="ALL">Todas</option>
                 <option value="BLOCKED">Bloqueadas</option>
                 <option value="UNBLOCKED">No bloqueadas</option>

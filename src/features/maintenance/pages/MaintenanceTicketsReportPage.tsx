@@ -70,6 +70,7 @@ export default function MaintenanceTicketsReportPage() {
         .from('maintenance_work_orders_resolved')
         .select('id, ot_number, title, work_type, status, scheduled_date, assigned_user_name, maintenance_plan_name, apparatus_code, apparatus_name, plant, location')
         .eq('hotel_id', hotel.id)
+      .neq('work_type', 'PREVENTIVE')
         .not('status', 'in', '(COMPLETED,REJECTED)')
         .order('scheduled_date', { ascending: true, nullsFirst: false })
         .order('created_at', { ascending: true })

@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ChevronDown, ChevronUp, RefreshCw } from 'lucide-react'
+import { ChevronDown, ChevronUp, FilterX, RefreshCw } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import BrandLogo from '../../../shared/components/branding/BrandLogo'
 import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
 import IconButton from '../../../shared/components/buttons/IconButton'
+import ActionButton from '../../../shared/components/buttons/ActionButton'
 import GridViewport from '../../../shared/components/grid/GridViewport'
 import { useGridKeyboardNavigation } from '../../../shared/components/grid/useGridKeyboardNavigation'
 import { useHotelScope } from '../../../shared/context/HotelScopeContext'
@@ -181,7 +182,7 @@ export default function MaintenancePendingPage() {
             </div>
             <div className="flex items-center gap-2">
               <IconButton icon={RefreshCw} label="Actualizar" title="Actualizar" onClick={() => void loadItems()} disabled={loading} />
-              <BackButton onBack={() => navigate('/')} />
+              <BackButton onBack={() => navigate('/maintenance')} />
               <HomeButton onHome={() => navigate('/')} />
             </div>
           </div>
@@ -251,9 +252,7 @@ export default function MaintenancePendingPage() {
 
           {(search || category !== 'ALL' || priority !== 'ALL' || assigned !== 'ALL' || status !== 'PENDING') && (
             <div className="mt-3 flex justify-end">
-              <button type="button" onClick={clearFilters} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50">
-                Limpiar filtros
-              </button>
+              <ActionButton icon={FilterX} label="Limpiar filtros" onClick={clearFilters} className="min-h-9 px-3 py-1.5 text-xs" />
             </div>
           )}
         </section>

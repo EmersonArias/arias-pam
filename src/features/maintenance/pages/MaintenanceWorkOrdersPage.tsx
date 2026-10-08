@@ -10,6 +10,7 @@ import { useGridKeyboardNavigation } from '../../../shared/components/grid/useGr
 import { useHotelScope } from '../../../shared/context/HotelScopeContext'
 import { supabase } from '../../../lib/supabase'
 import { useAuth } from '../../auth/context/AuthProvider'
+import { useSystemDialog } from '../../../shared/components/dialogs/SystemDialogProvider'
 
 type TicketAsset = {
   id: string
@@ -43,7 +44,7 @@ type WorkOrder = {
   title: string
   description: string | null
   work_type: 'PREVENTIVE' | 'CORRECTIVE' | 'ACTUATION'
-  status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED'
+  status: 'PENDING' | 'ACKNOWLEDGED' | 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED'
   completion_timing: 'ON_TIME' | 'OUT_OF_DATE' | null
   assigned_user_id: string | null
   assigned_user_name: string | null
@@ -70,8 +71,10 @@ type WorkOrder = {
 
 const statusLabels: Record<WorkOrder['status'], string> = {
   PENDING: 'Pendiente',
+  ACKNOWLEDGED: 'Atendido',
   IN_PROGRESS: 'En curso',
-  COMPLETED: 'Finalizada',
+  COMPLETED: 'Cerrado',
+  REJECTED: 'Rechazado',
 }
 
 const typeLabels: Record<WorkOrder['work_type'], string> = {
@@ -94,10 +97,12 @@ function displayStatusLabel(item: WorkOrder) {
 }
 
 function displayStatusClass(item: WorkOrder) {
-  if (isOverdue(item)) return 'bg-rose-100 text-rose-700'
+  if (isOverdue(item) && item.status !== 'REJECTED') return 'bg-rose-100 text-rose-700'
+  if (item.status === 'REJECTED') return 'bg-slate-200 text-slate-600'
   if (item.status === 'COMPLETED' && item.completion_timing === 'OUT_OF_DATE') return 'bg-amber-100 text-amber-700'
   if (item.status === 'COMPLETED') return 'bg-emerald-100 text-emerald-700'
   if (item.status === 'IN_PROGRESS') return 'bg-blue-100 text-blue-700'
+  if (item.status === 'ACKNOWLEDGED') return 'bg-violet-100 text-violet-700'
   return 'bg-amber-100 text-amber-700'
 }
 
@@ -142,9 +147,10 @@ export default function MaintenanceWorkOrdersPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const { hotel } = useHotelScope()
   const { session } = useAuth()
+  const { confirm } = useSystemDialog()
   const [records, setRecords] = useState<WorkOrder[]>([])
   const [selectedId, setSelectedId] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'IN_PROGRESS'>('ALL')
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'ACKNOWLEDGED' | 'IN_PROGRESS'>('ALL')
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -182,7 +188,7 @@ export default function MaintenanceWorkOrdersPage() {
         .from('maintenance_work_orders_resolved')
         .select('*')
         .eq('hotel_id', hotel.id)
-        .neq('status', 'COMPLETED')
+        .not('status', 'in', '(COMPLETED,REJECTED)')
         .order('scheduled_date', { ascending: true, nullsFirst: false })
         .order('created_at', { ascending: false }),
       supabase
@@ -398,6 +404,86 @@ export default function MaintenanceWorkOrdersPage() {
     autoFocusFirst: true,
   })
 
+  async function setTicketStatus(ticket: WorkOrder, targetStatus: 'ACKNOWLEDGED' | 'IN_PROGRESS') {
+    if (ticket.status === 'COMPLETED' || ticket.status === 'REJECTED') return
+
+    const label = targetStatus === 'ACKNOWLEDGED' ? 'atendido' : 'en curso'
+    const confirmed = await confirm({
+      title: `Cambiar estado a ${label}`,
+      message: `¿Quieres marcar el ticket ${ticket.ot_number} como ${label}?`,
+      variant: 'info',
+      confirmLabel: 'Confirmar',
+      cancelLabel: 'Cancelar',
+    })
+
+    if (!confirmed) return
+
+    const result = await supabase.rpc('set_maintenance_work_order_status', {
+      target_work_order_id: ticket.id,
+      target_status: targetStatus,
+    })
+
+    if (result.error) {
+      setError(result.error.message)
+      return
+    }
+
+    await loadData()
+  }
+
+  async function closeTicket(ticket: WorkOrder) {
+    if (ticket.status === 'COMPLETED' || ticket.status === 'REJECTED') return
+
+    const confirmed = await confirm({
+      title: 'Cerrar ticket',
+      message: `¿Quieres cerrar el ticket ${ticket.ot_number}? Para añadir una fotografía antes del cierre, abre su ficha.`,
+      variant: 'info',
+      confirmLabel: 'Cerrar ticket',
+      cancelLabel: 'Cancelar',
+    })
+
+    if (!confirmed) return
+
+    const result = await supabase.rpc('complete_maintenance_work_order', {
+      target_work_order_id: ticket.id,
+      target_result: 'COMPLETED',
+      target_observations: ticket.observations,
+    })
+
+    if (result.error) {
+      setError(result.error.message)
+      return
+    }
+
+    await loadData()
+  }
+
+  async function rejectTicket(ticket: WorkOrder) {
+    if (ticket.status === 'COMPLETED' || ticket.status === 'REJECTED') return
+
+    const confirmed = await confirm({
+      title: 'Rechazar ticket',
+      message: `¿Quieres enviar el ticket ${ticket.ot_number} al histórico como rechazado?`,
+      variant: 'warning',
+      confirmLabel: 'Rechazar',
+      cancelLabel: 'Cancelar',
+    })
+
+    if (!confirmed) return
+
+    const result = await supabase.rpc('reject_maintenance_work_order', {
+      target_work_order_id: ticket.id,
+      target_observations: ticket.observations,
+    })
+
+    if (result.error) {
+      setError(result.error.message)
+      return
+    }
+
+    await loadData()
+  }
+
   return (
     <div className="min-h-screen bg-slate-100 px-3 py-3 text-slate-900 sm:px-5 sm:py-5">
       <div className="mx-auto max-w-[1500px]">
@@ -423,6 +509,7 @@ export default function MaintenanceWorkOrdersPage() {
                 setTicketOpen(true)
               }} />
               <IconButton icon={RefreshCw} label="Actualizar" title="Actualizar" onClick={() => void loadData()} disabled={loading} />
+              <ActionButton icon={FileText} label="Reporte" onClick={() => navigate('/maintenance/tickets/report')} />
               <ActionButton icon={Archive} label="Histórico" onClick={() => navigate('/maintenance/tickets/history')} />
               <BackButton onBack={() => navigate('/maintenance')} />
               <HomeButton onHome={() => navigate('/')} />
@@ -464,8 +551,9 @@ export default function MaintenanceWorkOrdersPage() {
                 onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)}
                 className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2"
               >
-                <option value="ALL">Pendientes y en curso</option>
+                <option value="ALL">Todos los tickets activos</option>
                 <option value="PENDING">Pendiente</option>
+                <option value="ACKNOWLEDGED">Atendido</option>
                 <option value="IN_PROGRESS">En curso</option>
               </select>
             </label>
@@ -499,6 +587,9 @@ export default function MaintenanceWorkOrdersPage() {
                       {item.apparatus_code ?? '—'} · {item.apparatus_name ?? 'Equipo no disponible'}
                     </div>
                     <div className="mt-1 text-[10px] text-slate-400">
+                      {[item.plant, item.location].filter(Boolean).join(' · ') || 'Sin ubicación'}
+                    </div>
+                    <div className="mt-1 text-[10px] text-slate-400">
                       Prevista: {item.scheduled_date ? new Date(item.scheduled_date + 'T12:00:00').toLocaleDateString('es-ES') : '—'}
                     </div>
                   </button>
@@ -518,9 +609,11 @@ export default function MaintenanceWorkOrdersPage() {
                     <th className="px-3 py-2.5 font-semibold">Ticket</th>
                     <th className="px-3 py-2.5 font-semibold">Mantenimiento</th>
                     <th className="px-3 py-2.5 font-semibold">Equipo</th>
+                    <th className="px-3 py-2.5 font-semibold">Ubicación</th>
                     <th className="px-3 py-2.5 font-semibold">Fecha prevista</th>
                     <th className="px-3 py-2.5 font-semibold">Asignado</th>
                     <th className="px-3 py-2.5 font-semibold">Estado</th>
+                    <th className="px-3 py-2.5 font-semibold">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -543,6 +636,9 @@ export default function MaintenanceWorkOrdersPage() {
                         <div className="font-medium text-slate-700">{item.apparatus_code ?? '—'}</div>
                         <div className="text-[10px] text-slate-400">{item.apparatus_name ?? '—'}</div>
                       </td>
+                      <td className="px-3 py-3 text-slate-600">
+                        {[item.plant, item.location].filter(Boolean).join(' · ') || '—'}
+                      </td>
                       <td className="whitespace-nowrap px-3 py-3 text-slate-600">
                         {item.scheduled_date ? new Date(item.scheduled_date + 'T12:00:00').toLocaleDateString('es-ES') : '—'}
                       </td>
@@ -550,10 +646,34 @@ export default function MaintenanceWorkOrdersPage() {
                       <td className="whitespace-nowrap px-3 py-3">
                         <span className={'inline-flex rounded-full px-2 py-1 text-[10px] font-semibold ' + displayStatusClass(item)}>{displayStatusLabel(item)}</span>
                       </td>
+                      <td className="px-3 py-2">
+                        <div className="flex items-center gap-1.5">
+                          {item.status === 'PENDING' && (
+                            <button type="button" onClick={(event) => { event.stopPropagation(); void setTicketStatus(item, 'ACKNOWLEDGED') }} className="rounded-lg border border-violet-200 bg-violet-50 px-2 py-1.5 text-[10px] font-semibold text-violet-700 hover:bg-violet-100" title="Marcar como atendido">
+                              Atender
+                            </button>
+                          )}
+                          {item.status === 'ACKNOWLEDGED' && (
+                            <button type="button" onClick={(event) => { event.stopPropagation(); void setTicketStatus(item, 'IN_PROGRESS') }} className="rounded-lg border border-blue-200 bg-blue-50 px-2 py-1.5 text-[10px] font-semibold text-blue-700 hover:bg-blue-100" title="Pasar a en curso">
+                              En curso
+                            </button>
+                          )}
+                          {item.status !== 'COMPLETED' && item.status !== 'REJECTED' && (
+                            <>
+                              <button type="button" onClick={(event) => { event.stopPropagation(); void closeTicket(item) }} className="rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1.5 text-[10px] font-semibold text-emerald-700 hover:bg-emerald-100" title="Cerrar ticket">
+                                Cerrar
+                              </button>
+                              <button type="button" onClick={(event) => { event.stopPropagation(); void rejectTicket(item) }} className="rounded-lg border border-rose-200 bg-rose-50 px-2 py-1.5 text-[10px] font-semibold text-rose-700 hover:bg-rose-100" title="Rechazar ticket">
+                                Rechazar
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </td>
                     </tr>
                   ))}
                   {!loading && filteredRecords.length === 0 && (
-                    <tr><td colSpan={6} className="px-3 py-10 text-center text-sm text-slate-500">No hay tickets para mostrar.</td></tr>
+                    <tr><td colSpan={8} className="px-3 py-10 text-center text-sm text-slate-500">No hay tickets para mostrar.</td></tr>
                   )}
                 </tbody>
               </table>

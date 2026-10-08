@@ -18,7 +18,7 @@ type Counts = {
   assets: number | null
   pendingTickets: number | null
   inProgressTickets: number | null
-  acknowledgedTickets: number | null
+  inManagementTickets: number | null
   interventions: number | null
   pam: number | null
 }
@@ -27,7 +27,7 @@ const EMPTY_COUNTS: Counts = {
   assets: null,
   pendingTickets: null,
   inProgressTickets: null,
-  acknowledgedTickets: null,
+  inManagementTickets: null,
   interventions: null,
   pam: null,
 }
@@ -46,7 +46,7 @@ export default function MaintenanceLandingPage() {
         return
       }
 
-      const [assets, pending, inProgress, acknowledged, interventions, pam] = await Promise.all([
+      const [assets, pending, inProgress, inManagement, interventions, pam] = await Promise.all([
         supabase
           .from('apparatus_registry')
           .select('id', { count: 'exact', head: true })
@@ -66,7 +66,7 @@ export default function MaintenanceLandingPage() {
           .from('maintenance_work_orders')
           .select('id', { count: 'exact', head: true })
           .eq('hotel_id', hotel.id)
-          .eq('status', 'ACKNOWLEDGED'),
+          .eq('status', 'IN_MANAGEMENT'),
         supabase
           .from('maintenance_actions')
           .select('id', { count: 'exact', head: true })
@@ -85,7 +85,7 @@ export default function MaintenanceLandingPage() {
         assets: assets.error ? null : assets.count ?? 0,
         pendingTickets: pending.error ? null : pending.count ?? 0,
         inProgressTickets: inProgress.error ? null : inProgress.count ?? 0,
-        acknowledgedTickets: acknowledged.error ? null : acknowledged.count ?? 0,
+        inManagementTickets: inManagement.error ? null : inManagement.count ?? 0,
         interventions: interventions.error ? null : interventions.count ?? 0,
         pam: pam.error ? null : pam.count ?? 0,
       })
@@ -112,9 +112,9 @@ export default function MaintenanceLandingPage() {
       icon: ClipboardList,
       href: '/maintenance/tickets',
       metric:
-        counts.pendingTickets == null || counts.acknowledgedTickets == null || counts.inProgressTickets == null
+        counts.pendingTickets == null || counts.inManagementTickets == null || counts.inProgressTickets == null
           ? undefined
-          : `${counts.pendingTickets} pendientes · ${counts.acknowledgedTickets} atendidos · ${counts.inProgressTickets} en curso`,
+          : `${counts.pendingTickets} pendientes · ${counts.inManagementTickets} en gestión · ${counts.inProgressTickets} en curso`,
     },
     {
       title: 'Intervenciones',

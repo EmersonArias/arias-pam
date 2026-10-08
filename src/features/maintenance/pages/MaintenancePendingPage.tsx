@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Archive, ChevronDown, ChevronUp, FilterX, Lock, Pencil, RefreshCw, RotateCcw, Trash2, Unlock } from 'lucide-react'
+import { Archive, ChevronDown, ChevronUp, FilterX, Lock, Pencil, Plus, RefreshCw, RotateCcw, Trash2, Unlock } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import BrandLogo from '../../../shared/components/branding/BrandLogo'
 import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
@@ -76,6 +76,16 @@ export default function MaintenancePendingPage() {
   const [showHistory, setShowHistory] = useState(false)
   const [editing, setEditing] = useState(false)
   const [savingEdit, setSavingEdit] = useState(false)
+  const [creating, setCreating] = useState(false)
+  const [savingCreate, setSavingCreate] = useState(false)
+  const emptyForm = {
+    location: '',
+    category: '',
+    pending: '',
+    priority: 'NORMAL' as PendingItem['priority'],
+    assigned_to: '',
+    observation: '',
+  }
   const [editForm, setEditForm] = useState({
     location: '',
     category: '',
@@ -84,6 +94,7 @@ export default function MaintenancePendingPage() {
     assigned_to: '',
     observation: '',
   })
+  const [newForm, setNewForm] = useState(emptyForm)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -187,9 +198,9 @@ export default function MaintenancePendingPage() {
   }, [items, showHistory, status, category, priority, assigned, blockedFilter, blockedRooms, search])
 
   const counts = useMemo(() => ({
-    pending: items.filter((item) => item.status === 'PENDING').length,
-    high: items.filter((item) => item.status === 'PENDING' && (item.priority === 'HIGH' || item.priority === 'CRITICAL')).length,
-    completed: items.filter((item) => item.status === 'COMPLETED').length,
+    pending: items.filter((item) => item.active && item.status === 'PENDING').length,
+    high: items.filter((item) => item.active && item.status === 'PENDING' && (item.priority === 'HIGH' || item.priority === 'CRITICAL')).length,
+    completed: items.filter((item) => item.active && item.status === 'COMPLETED').length,
     blockedRooms: blockedRooms.size,
   }), [items, blockedRooms])
 
@@ -225,6 +236,56 @@ export default function MaintenancePendingPage() {
       observation: item.observation ?? '',
     })
     setEditing(true)
+  }
+
+  function openNew() {
+    setNewForm(emptyForm)
+    setError('')
+    setCreating(true)
+  }
+
+  async function saveNew() {
+    if (!hotel?.id || savingCreate) return
+
+    if (!newForm.pending.trim()) {
+      setError('El pendiente es obligatorio.')
+      return
+    }
+
+    setSavingCreate(true)
+    setError('')
+
+    const result = await supabase
+      .from('maintenance_pending_items')
+      .insert({
+        hotel_id: hotel.id,
+        location: newForm.location.trim() || null,
+        category: newForm.category.trim() || null,
+        pending: newForm.pending.trim(),
+        status: 'PENDING',
+        source_status: 'Pendiente',
+        assigned_to: newForm.assigned_to.trim() || null,
+        priority: newForm.priority,
+        source_priority: null,
+        observation: newForm.observation.trim() || null,
+        source_date: new Date().toISOString().slice(0, 10),
+        source_file: 'ARIAS_SUITE',
+        source_row: Date.now(),
+        active: true,
+      })
+      .select('id')
+      .single()
+
+    if (result.error) {
+      setError(result.error.message)
+    } else {
+      const createdId = result.data?.id as string | undefined
+      setCreating(false)
+      await loadItems()
+      if (createdId) setSelectedId(createdId)
+    }
+
+    setSavingCreate(false)
   }
 
   async function saveEdit() {
@@ -394,8 +455,15 @@ export default function MaintenancePendingPage() {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              {!showHistory && (
+                <ActionButton
+                  icon={Plus}
+                  label="Nuevo pendiente"
+                  onClick={openNew}
+                />
+              )}
               <ActionButton
-                icon={showHistory ? Archive : Archive}
+                icon={showHistory ? RotateCcw : Archive}
                 label={showHistory ? 'Pendientes activos' : 'Histórico'}
                 onClick={() => setShowHistory((current) => !current)}
               />
@@ -685,6 +753,99 @@ export default function MaintenancePendingPage() {
         </main>
       </div>
 
+      {creating && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/35 p-3">
+          <div className="max-h-[calc(100vh-24px)] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b px-5 py-4">
+              <div>
+                <div className="text-lg font-semibold text-slate-900">Nuevo pendiente</div>
+                <div className="text-xs text-slate-500">Crear un registro operativo de mantenimiento.</div>
+              </div>
+              <ActionButton
+                label="Cerrar"
+                onClick={() => !savingCreate && setCreating(false)}
+                disabled={savingCreate}
+                className="min-h-9 px-3 py-1.5 text-xs"
+              />
+            </div>
+
+            <div className="grid gap-4 p-5 sm:grid-cols-2">
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Ubicación / habitación</span>
+                <input
+                  value={newForm.location}
+                  onChange={(event) => setNewForm((value) => ({ ...value, location: event.target.value }))}
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Categoría</span>
+                <input
+                  value={newForm.category}
+                  onChange={(event) => setNewForm((value) => ({ ...value, category: event.target.value }))}
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2"
+                />
+              </label>
+              <label className="block sm:col-span-2">
+                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Pendiente *</span>
+                <input
+                  value={newForm.pending}
+                  onChange={(event) => setNewForm((value) => ({ ...value, pending: event.target.value }))}
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2"
+                  autoFocus
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Prioridad</span>
+                <select
+                  value={newForm.priority}
+                  onChange={(event) => setNewForm((value) => ({ ...value, priority: event.target.value as PendingItem['priority'] }))}
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2"
+                >
+                  <option value="CRITICAL">Crítica</option>
+                  <option value="HIGH">Alta</option>
+                  <option value="NORMAL">Normal</option>
+                  <option value="LOW">Baja</option>
+                </select>
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Asignado a</span>
+                <input
+                  value={newForm.assigned_to}
+                  onChange={(event) => setNewForm((value) => ({ ...value, assigned_to: event.target.value }))}
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2"
+                />
+              </label>
+              <label className="block sm:col-span-2">
+                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Observación</span>
+                <textarea
+                  rows={4}
+                  value={newForm.observation}
+                  onChange={(event) => setNewForm((value) => ({ ...value, observation: event.target.value }))}
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2"
+                />
+              </label>
+            </div>
+
+            <div className="flex justify-end gap-2 border-t px-5 py-4">
+              <ActionButton
+                label="Cancelar"
+                onClick={() => setCreating(false)}
+                disabled={savingCreate}
+                className="text-xs"
+              />
+              <ActionButton
+                icon={Plus}
+                label={savingCreate ? 'Creando…' : 'Crear pendiente'}
+                onClick={() => void saveNew()}
+                disabled={savingCreate || !newForm.pending.trim()}
+                className="text-xs"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       {editing && selected && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/35 p-3">
           <div className="max-h-[calc(100vh-24px)] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
@@ -693,13 +854,12 @@ export default function MaintenancePendingPage() {
                 <div className="text-lg font-semibold text-slate-900">Modificar pendiente</div>
                 <div className="text-xs text-slate-500">Editar datos operativos del registro.</div>
               </div>
-              <button
-                type="button"
+              <ActionButton
+                label="Cerrar"
                 onClick={() => !savingEdit && setEditing(false)}
-                className="rounded-full border border-slate-200 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-50"
-              >
-                Cerrar
-              </button>
+                disabled={savingEdit}
+                className="min-h-9 px-3 py-1.5 text-xs"
+              />
             </div>
 
             <div className="grid gap-4 p-5 sm:grid-cols-2">

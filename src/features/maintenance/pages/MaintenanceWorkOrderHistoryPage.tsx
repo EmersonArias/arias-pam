@@ -70,6 +70,7 @@ export default function MaintenanceWorkOrderHistoryPage() {
       .from('maintenance_work_orders_resolved')
       .select('id, hotel_id, ot_number, title, work_type, status, completion_timing, maintenance_plan_name, apparatus_code, apparatus_name, scheduled_date, completed_at, assigned_user_name')
       .eq('hotel_id', hotel.id)
+        .neq('work_type', 'PREVENTIVE')
       .in('status', ['COMPLETED', 'REJECTED'])
       .order('completed_at', { ascending: false, nullsFirst: false })
       .order('created_at', { ascending: false })

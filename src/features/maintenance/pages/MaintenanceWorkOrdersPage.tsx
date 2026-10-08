@@ -71,7 +71,7 @@ type WorkOrder = {
 
 const statusLabels: Record<WorkOrder['status'], string> = {
   PENDING: 'Pendiente',
-  IN_MANAGEMENT: 'Atendido',
+  IN_MANAGEMENT: 'En gestión',
   IN_PROGRESS: 'En curso',
   COMPLETED: 'Cerrado',
   REJECTED: 'Rechazado',

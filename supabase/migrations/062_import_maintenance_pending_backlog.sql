@@ -92,12 +92,10 @@ BEGIN
     NULLIF(x.location, ''),
     NULLIF(x.category, ''),
     x.pending,
-    CASE WHEN lower(trim(COALESCE(x.source_status, ''))) = 'terminado'
-      THEN 'COMPLETED' ELSE 'PENDING' END,
+    x.status_normalized,
     NULLIF(x.source_status, ''),
     NULLIF(x.assigned_to, ''),
-    CASE WHEN lower(trim(COALESCE(x.source_priority, ''))) = 'alta'
-      THEN 'HIGH' ELSE 'NORMAL' END,
+    x.priority_normalized,
     NULLIF(x.source_priority, ''),
     NULLIF(x.observation, ''),
     x.source_date::date,
@@ -110,9 +108,10 @@ $json$::jsonb) AS x(
     location text,
     category text,
     pending text,
+    status_normalized text,
     source_status text,
     assigned_to text,
-    priority_raw text,
+    priority_normalized text,
     source_priority text,
     observation text,
     source_date text

@@ -71,9 +71,19 @@ export function useGridKeyboardNavigation({
 
     const frame = window.requestAnimationFrame(() => {
       scrollRowIntoView(targetId)
+
       if (autoFocusFirst && !hasAutoFocusedRef.current) {
         hasAutoFocusedRef.current = true
-        gridRef.current?.focus({ preventScroll: true })
+
+        const activeElement = document.activeElement
+        const isEditingText =
+          activeElement instanceof HTMLInputElement ||
+          activeElement instanceof HTMLTextAreaElement ||
+          activeElement instanceof HTMLSelectElement
+
+        if (!isEditingText) {
+          gridRef.current?.focus({ preventScroll: true })
+        }
       }
     })
 

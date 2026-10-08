@@ -4,6 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import BrandLogo from '../../../shared/components/branding/BrandLogo'
 import { HomeButton } from '../../../shared/components/navigation/NavigationButtons'
 import { useHotelScope } from '../../../shared/context/HotelScopeContext'
+import { useSystemDialog } from '../../../shared/components/dialogs/SystemDialogProvider'
 import { supabase } from '../../../lib/supabase'
 import { useAuth } from '../../auth/context/AuthProvider'
 
@@ -12,7 +13,7 @@ type WorkOrder = {
   parent_work_order_id: string | null; resolved_apparatus_registry_id: string | null
   apparatus_registry_id: string | null; ot_number: string; title: string; description: string | null
   work_type: 'PREVENTIVE' | 'CORRECTIVE' | 'ACTUATION'
-  status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED'
+  status: 'PENDING' | 'ACKNOWLEDGED' | 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED'
   completion_timing: 'ON_TIME' | 'OUT_OF_DATE' | null
   assigned_user_id: string | null; assigned_user_name: string | null; assigned_user_email: string | null
   scheduled_date: string | null; started_at: string | null; completed_at: string | null
@@ -32,16 +33,20 @@ const resultOptions = [
 ] as const
 
 function statusLabel(item:WorkOrder){
-  if(item.status==='COMPLETED' && item.completion_timing==='OUT_OF_DATE') return 'Finalizada · Fuera de fecha'
+  if(item.status==='REJECTED') return 'Rechazado'
+  if(item.status==='COMPLETED' && item.completion_timing==='OUT_OF_DATE') return 'Cerrado · Fuera de fecha'
   if(item.status==='PENDING' && item.scheduled_date && item.scheduled_date < new Date().toISOString().slice(0,10)) return 'Vencida'
+  if(item.status==='ACKNOWLEDGED') return 'Atendido'
   if(item.status==='IN_PROGRESS') return 'En curso'
-  if(item.status==='COMPLETED') return 'Finalizada'
+  if(item.status==='COMPLETED') return 'Cerrado'
   return 'Pendiente'
 }
 function statusTone(item:WorkOrder){
+  if(item.status==='REJECTED') return 'bg-slate-200 text-slate-600'
   if(item.status==='COMPLETED' && item.completion_timing==='OUT_OF_DATE') return 'bg-amber-100 text-amber-700'
   if(item.status==='COMPLETED') return 'bg-emerald-100 text-emerald-700'
   if(item.status==='IN_PROGRESS') return 'bg-blue-100 text-blue-700'
+  if(item.status==='ACKNOWLEDGED') return 'bg-violet-100 text-violet-700'
   if(item.scheduled_date && item.scheduled_date < new Date().toISOString().slice(0,10)) return 'bg-rose-100 text-rose-700'
   return 'bg-amber-100 text-amber-700'
 }
@@ -52,6 +57,7 @@ export default function MaintenanceWorkOrderDetailPage(){
   const { workOrderId }=useParams<{workOrderId:string}>()
   const { hotel }=useHotelScope()
   const { session } = useAuth()
+  const { confirm } = useSystemDialog()
   const [order,setOrder]=useState<WorkOrder|null>(null)
   const [baseline,setBaseline]=useState<WorkOrder|null>(null)
   const [loading,setLoading]=useState(true)
@@ -71,7 +77,7 @@ export default function MaintenanceWorkOrderDetailPage(){
   const [canAssign,setCanAssign]=useState(false)
   const [assignmentSaving,setAssignmentSaving]=useState(false)
   const galleryRef=useRef<HTMLInputElement|null>(null)
-  const canEdit = order?.status !== 'COMPLETED'
+  const canEdit = order?.status !== 'COMPLETED' && order?.status !== 'REJECTED'
 
   async function load(){
     if(!workOrderId) return
@@ -198,6 +204,47 @@ export default function MaintenanceWorkOrderDetailPage(){
     await load()
   }
 
+  async function changeTicketStatus(targetStatus: 'ACKNOWLEDGED' | 'IN_PROGRESS') {
+    if (!order || !canEdit) return
+    const label = targetStatus === 'ACKNOWLEDGED' ? 'atendido' : 'en curso'
+    const confirmed = await confirm({
+      title: 'Cambiar estado del ticket',
+      message: `¿Quieres marcar ${order.ot_number} como ${label}?`,
+      variant: 'info',
+      confirmLabel: 'Confirmar',
+      cancelLabel: 'Cancelar',
+    })
+    if (!confirmed) return
+    setWorking(true); setError(''); setMessage('')
+    const q = await supabase.rpc('set_maintenance_work_order_status', {
+      target_work_order_id: order.id,
+      target_status: targetStatus,
+    })
+    setWorking(false)
+    if (q.error) { setError(q.error.message); return }
+    await load()
+  }
+
+  async function rejectTicket() {
+    if (!order || !canEdit) return
+    const confirmed = await confirm({
+      title: 'Rechazar ticket',
+      message: `¿Quieres enviar ${order.ot_number} al histórico como rechazado?`,
+      variant: 'warning',
+      confirmLabel: 'Rechazar',
+      cancelLabel: 'Cancelar',
+    })
+    if (!confirmed) return
+    setWorking(true); setError(''); setMessage('')
+    const q = await supabase.rpc('reject_maintenance_work_order', {
+      target_work_order_id: order.id,
+      target_observations: order.observations?.trim() || null,
+    })
+    setWorking(false)
+    if (q.error) { setError(q.error.message); return }
+    navigate('/maintenance/tickets/history')
+  }
+
   async function completeOrder(){
     if(!order)return
     setWorking(true);setError('');setMessage('')
@@ -281,7 +328,26 @@ export default function MaintenanceWorkOrderDetailPage(){
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div><div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Estado</div><span className={'mt-1 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold '+statusTone(order)}>{statusLabel(order)}</span></div>
             <div className="flex flex-wrap gap-2">
-              {order.status!=='COMPLETED'&&<button type="button" onClick={()=>void completeOrder()} disabled={working} className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"><CheckCircle2 size={16}/>Finalizar ticket</button>}
+              {order.status === 'PENDING' && (
+                <button type="button" onClick={()=>void changeTicketStatus('ACKNOWLEDGED')} disabled={working} className="inline-flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-semibold text-violet-700 disabled:opacity-50">
+                  Atender
+                </button>
+              )}
+              {order.status === 'ACKNOWLEDGED' && (
+                <button type="button" onClick={()=>void changeTicketStatus('IN_PROGRESS')} disabled={working} className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 disabled:opacity-50">
+                  En curso
+                </button>
+              )}
+              {order.status !== 'COMPLETED' && order.status !== 'REJECTED' && (
+                <>
+                  <button type="button" onClick={()=>void completeOrder()} disabled={working} className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+                    <CheckCircle2 size={16}/>Finalizar ticket
+                  </button>
+                  <button type="button" onClick={()=>void rejectTicket()} disabled={working} className="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-700 disabled:opacity-50">
+                    Rechazar
+                  </button>
+                </>
+              )}
             </div>
           </div>
           {order.status!=='COMPLETED'&&<div className="mt-4 grid gap-3 sm:grid-cols-[240px_1fr]">

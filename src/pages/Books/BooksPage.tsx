@@ -21,6 +21,7 @@ type HomeRegister = {
   name: string
   path: string | null
   comingSoon?: boolean
+  metric?: string
 }
 
 type MaintenanceAlert = {
@@ -87,6 +88,7 @@ const registers: HomeRegister[] = [
   { icon: '📦', name: 'Stock', path: null, comingSoon: true },
   { icon: '🗓️', name: 'Planificador horario', path: null, comingSoon: true },
   { icon: '🏢', name: 'Proveedores', path: '/providers' },
+  { icon: '📋', name: 'Pendientes', path: '/maintenance/pending' },
 ]
 
 export default function BooksPage() {
@@ -100,7 +102,33 @@ export default function BooksPage() {
   const [maintenanceAlerts, setMaintenanceAlerts] = useState<MaintenanceAlert[]>([])
   const alertsGridRef = useRef<HTMLElement | null>(null)
   const [notificationsLoading, setNotificationsLoading] = useState(false)
+  const [pendingCount, setPendingCount] = useState<number | null>(null)
   const [isFullscreen, setIsFullscreen] = useState(false)
+
+  useEffect(() => {
+    let mounted = true
+
+    async function loadPendingCount() {
+      if (!hotel?.id) {
+        if (mounted) setPendingCount(null)
+        return
+      }
+
+      const result = await supabase
+        .from('maintenance_pending_items')
+        .select('id', { count: 'exact', head: true })
+        .eq('hotel_id', hotel.id)
+        .eq('active', true)
+        .eq('status', 'PENDING')
+
+      if (mounted) setPendingCount(result.error ? null : result.count ?? 0)
+    }
+
+    void loadPendingCount()
+    return () => {
+      mounted = false
+    }
+  }, [hotel?.id])
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -483,6 +511,11 @@ export default function BooksPage() {
                   <span className="mt-2 text-center text-xs font-medium leading-tight text-slate-700">
                     {register.name}
                   </span>
+                  {register.name === 'Pendientes' && pendingCount !== null && (
+                    <span className="mt-1 rounded-full bg-amber-50 px-2 py-0.5 text-[9px] font-semibold text-amber-700">
+                      {pendingCount} pendientes
+                    </span>
+                  )}
                 </div>
 
                 {register.comingSoon && (

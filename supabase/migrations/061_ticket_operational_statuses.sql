@@ -3,12 +3,12 @@
 --
 -- Estados:
 --   PENDING       Pendiente
---   ACKNOWLEDGED  Atendido
+--   IN_MANAGEMENT  En gestión
 --   IN_PROGRESS   En curso
 --   COMPLETED     Cerrado / finalizado
 --   REJECTED      Rechazado
 --
--- "Atendido" significa que el equipo ya ha identificado y asumido el ticket,
+-- "En gestión" significa que el equipo ya ha identificado y asumido el ticket,
 -- aunque el trabajo físico todavía no haya comenzado.
 --
 -- No modifica migraciones anteriores.
@@ -23,7 +23,7 @@ ALTER TABLE public.maintenance_work_orders
   CHECK (
     status IN (
       'PENDING',
-      'ACKNOWLEDGED',
+      'IN_MANAGEMENT',
       'IN_PROGRESS',
       'COMPLETED',
       'REJECTED'
@@ -34,7 +34,7 @@ DROP INDEX IF EXISTS public.ux_maintenance_work_orders_one_open_per_plan;
 
 CREATE UNIQUE INDEX IF NOT EXISTS ux_maintenance_work_orders_one_open_per_plan
   ON public.maintenance_work_orders (maintenance_plan_id)
-  WHERE status IN ('PENDING', 'ACKNOWLEDGED', 'IN_PROGRESS');
+  WHERE status IN ('PENDING', 'IN_MANAGEMENT', 'IN_PROGRESS');
 
 -- Cambia el estado operativo sin finalizar el ticket.
 CREATE OR REPLACE FUNCTION public.set_maintenance_work_order_status(
@@ -63,7 +63,7 @@ BEGIN
     RAISE EXCEPTION 'No tienes permiso para modificar este ticket.';
   END IF;
 
-  IF target_status NOT IN ('ACKNOWLEDGED', 'IN_PROGRESS') THEN
+  IF target_status NOT IN ('IN_MANAGEMENT', 'IN_PROGRESS') THEN
     RAISE EXCEPTION 'El estado operativo indicado no es válido.';
   END IF;
 
@@ -138,7 +138,7 @@ REVOKE ALL ON FUNCTION public.reject_maintenance_work_order(uuid, text) FROM PUB
 GRANT EXECUTE ON FUNCTION public.reject_maintenance_work_order(uuid, text) TO authenticated;
 
 COMMENT ON FUNCTION public.set_maintenance_work_order_status(uuid, text) IS
-'Marca un ticket como Atendido (ACKNOWLEDGED) o En curso (IN_PROGRESS) sin finalizarlo.';
+'Marca un ticket como En gestión (IN_MANAGEMENT) o En curso (IN_PROGRESS) sin finalizarlo.';
 
 COMMENT ON FUNCTION public.reject_maintenance_work_order(uuid, text) IS
 'Rechaza un ticket y lo envía al histórico como REJECTED.';

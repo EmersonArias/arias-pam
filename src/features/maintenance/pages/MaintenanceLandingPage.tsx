@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ClipboardList, FileCheck2, ListChecks, Settings2, Wrench, Building2 } from 'lucide-react'
+import { CalendarClock, ClipboardList, FileCheck2, ListChecks, Settings2, Wrench, Building2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import BrandLogo from '../../../shared/components/branding/BrandLogo'
 import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
@@ -19,6 +19,7 @@ type Counts = {
   pendingTickets: number | null
   inProgressTickets: number | null
   inManagementTickets: number | null
+  scheduledJobs: number | null
   interventions: number | null
   pam: number | null
 }
@@ -28,6 +29,7 @@ const EMPTY_COUNTS: Counts = {
   pendingTickets: null,
   inProgressTickets: null,
   inManagementTickets: null,
+  scheduledJobs: null,
   interventions: null,
   pam: null,
 }
@@ -46,7 +48,7 @@ export default function MaintenanceLandingPage() {
         return
       }
 
-      const [assets, pending, inProgress, inManagement, interventions, pam] = await Promise.all([
+      const [assets, pending, inProgress, inManagement, scheduledJobs, interventions, pam] = await Promise.all([
         supabase
           .from('apparatus_registry')
           .select('id', { count: 'exact', head: true })
@@ -66,7 +68,12 @@ export default function MaintenanceLandingPage() {
           .from('maintenance_work_orders')
           .select('id', { count: 'exact', head: true })
           .eq('hotel_id', hotel.id)
-          .eq('status', 'IN_MANAGEMENT'),
+          .eq('status', 'IN_MANAGEMENT')
+          .neq('work_type', 'PREVENTIVE'),
+        supabase
+          .from('maintenance_scheduled_jobs')
+          .select('id', { count: 'exact', head: true })
+          .eq('hotel_id', hotel.id),
         supabase
           .from('maintenance_actions')
           .select('id', { count: 'exact', head: true })
@@ -86,6 +93,7 @@ export default function MaintenanceLandingPage() {
         pendingTickets: pending.error ? null : pending.count ?? 0,
         inProgressTickets: inProgress.error ? null : inProgress.count ?? 0,
         inManagementTickets: inManagement.error ? null : inManagement.count ?? 0,
+        scheduledJobs: scheduledJobs.error ? null : scheduledJobs.count ?? 0,
         interventions: interventions.error ? null : interventions.count ?? 0,
         pam: pam.error ? null : pam.count ?? 0,
       })
@@ -115,6 +123,13 @@ export default function MaintenanceLandingPage() {
         counts.pendingTickets == null || counts.inManagementTickets == null || counts.inProgressTickets == null
           ? undefined
           : `${counts.pendingTickets} pendientes · ${counts.inManagementTickets} en gestión · ${counts.inProgressTickets} en curso`,
+    },
+    {
+      title: 'Trabajos programados',
+      description: 'Calendario operativo de los trabajos derivados del PAM.',
+      icon: CalendarClock,
+      href: '/maintenance/planning',
+      metric: counts.scheduledJobs == null ? undefined : `${counts.scheduledJobs} programados`,
     },
     {
       title: 'Intervenciones',
@@ -167,11 +182,11 @@ export default function MaintenanceLandingPage() {
           <section className="mb-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
             <h2 className="text-sm font-semibold text-slate-800 sm:text-base">Centro de mantenimiento</h2>
             <p className="mt-1 text-xs text-slate-500 sm:text-sm">
-              Equipos, tickets, intervenciones, planificación preventiva y auditoría.
+              Equipos, tickets, trabajos programados, intervenciones, PAM y auditoría.
             </p>
           </section>
 
-          <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+          <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-7">
             {cards.map((card) => {
               const Icon = card.icon
               return (

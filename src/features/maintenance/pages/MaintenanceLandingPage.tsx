@@ -58,12 +58,14 @@ export default function MaintenanceLandingPage() {
           .from('maintenance_work_orders')
           .select('id', { count: 'exact', head: true })
           .eq('hotel_id', hotel.id)
-          .eq('status', 'PENDING'),
+          .eq('status', 'PENDING')
+          .neq('work_type', 'PREVENTIVE'),
         supabase
           .from('maintenance_work_orders')
           .select('id', { count: 'exact', head: true })
           .eq('hotel_id', hotel.id)
-          .eq('status', 'IN_PROGRESS'),
+          .eq('status', 'IN_PROGRESS')
+          .neq('work_type', 'PREVENTIVE'),
         supabase
           .from('maintenance_work_orders')
           .select('id', { count: 'exact', head: true })

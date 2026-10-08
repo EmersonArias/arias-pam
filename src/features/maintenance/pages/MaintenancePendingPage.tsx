@@ -414,7 +414,7 @@ export default function MaintenancePendingPage() {
                     <th className="px-3 py-2.5">Estado</th>
                     <th className="px-3 py-2.5">Asignado a</th>
                     <th className="px-3 py-2.5">Prioridad</th>
-                    <th className="px-3 py-2.5">Habitación</th>
+                    <th className="px-3 py-2.5">Bloqueada</th>
                     <th className="px-3 py-2.5">Fecha</th>
                   </tr>
                 </thead>

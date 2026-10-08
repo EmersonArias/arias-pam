@@ -110,7 +110,7 @@ $json$::jsonb) AS row_data
     WHERE existing.hotel_id = v_hotel_id
       AND existing.source_file = 'PENDIENTES (1).xlsm'
       AND existing.source_row = (row_data ->> 0)::integer
-  )
+  );
 
 END;
 $$;

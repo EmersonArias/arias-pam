@@ -56,7 +56,7 @@ function formatDate(value: string | null) {
 }
 
 function isRoomLocation(value: string | null) {
-  return !!value && /^\d{3,4}$/.test(value.trim())
+  return !!value && /^[0-9]{3,4}$/.test(value.trim())
 }
 
 export default function MaintenancePendingPage() {
@@ -306,7 +306,9 @@ export default function MaintenancePendingPage() {
           <button
             type="button"
             onClick={() => applySummaryFilter('PENDING')}
-            className="rounded-2xl border border-slate-200 bg-white p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+            title="Ver pendientes"
+            aria-label="Ver pendientes"
+            className="cursor-pointer rounded-2xl border border-slate-200 bg-white p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
           >
             <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Pendientes</div>
             <div className="mt-0.5 text-xl font-bold text-slate-900">{counts.pending}</div>
@@ -314,7 +316,9 @@ export default function MaintenancePendingPage() {
           <button
             type="button"
             onClick={() => applySummaryFilter('HIGH')}
-            className="rounded-2xl border border-rose-200 bg-white p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+            title="Ver pendientes de prioridad alta"
+            aria-label="Ver pendientes de prioridad alta"
+            className="cursor-pointer rounded-2xl border border-rose-200 bg-white p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
           >
             <div className="text-xs font-semibold uppercase tracking-wide text-rose-600">Prioridad alta</div>
             <div className="mt-0.5 text-xl font-bold text-slate-900">{counts.high}</div>
@@ -322,7 +326,9 @@ export default function MaintenancePendingPage() {
           <button
             type="button"
             onClick={() => applySummaryFilter('COMPLETED')}
-            className="rounded-2xl border border-emerald-200 bg-white p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+            title="Ver terminados"
+            aria-label="Ver terminados"
+            className="cursor-pointer rounded-2xl border border-emerald-200 bg-white p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
           >
             <div className="text-xs font-semibold uppercase tracking-wide text-emerald-600">Terminados</div>
             <div className="mt-0.5 text-xl font-bold text-slate-900">{counts.completed}</div>
@@ -330,7 +336,9 @@ export default function MaintenancePendingPage() {
           <button
             type="button"
             onClick={() => applySummaryFilter('BLOCKED')}
-            className="rounded-2xl border border-amber-200 bg-white p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+            title="Ver pendientes de habitaciones bloqueadas"
+            aria-label="Ver pendientes de habitaciones bloqueadas"
+            className="cursor-pointer rounded-2xl border border-amber-200 bg-white p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
           >
             <div className="text-xs font-semibold uppercase tracking-wide text-amber-700">Habitaciones bloqueadas</div>
             <div className="mt-0.5 text-xl font-bold text-slate-900">{counts.blockedRooms}</div>

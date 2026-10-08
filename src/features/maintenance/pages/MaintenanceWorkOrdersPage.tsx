@@ -192,6 +192,7 @@ export default function MaintenanceWorkOrdersPage() {
         .from('maintenance_work_orders_resolved')
         .select('*')
         .eq('hotel_id', hotel.id)
+        .neq('work_type', 'PREVENTIVE')
         .not('status', 'in', '(COMPLETED,REJECTED)')
         .order('scheduled_date', { ascending: true, nullsFirst: false })
         .order('created_at', { ascending: false }),

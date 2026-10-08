@@ -509,7 +509,11 @@ export default function MaintenanceWorkOrdersPage() {
                 setTicketOpen(true)
               }} />
               <IconButton icon={RefreshCw} label="Actualizar" title="Actualizar" onClick={() => void loadData()} disabled={loading} />
-              <ActionButton icon={FileText} label="Reporte" onClick={() => navigate('/maintenance/tickets/report')} />
+              <ActionButton
+                icon={FileText}
+                label="Reporte"
+                onClick={() => navigate('/maintenance/tickets/report?search=' + encodeURIComponent(search) + '&status=' + encodeURIComponent(statusFilter))}
+              />
               <ActionButton icon={Archive} label="Histórico" onClick={() => navigate('/maintenance/tickets/history')} />
               <BackButton onBack={() => navigate('/maintenance')} />
               <HomeButton onHome={() => navigate('/')} />

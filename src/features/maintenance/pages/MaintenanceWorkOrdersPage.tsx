@@ -67,6 +67,7 @@ type WorkOrder = {
   source_mark_id: string | null
   created_at: string
   updated_at: string
+  priority: 'LOW' | 'NORMAL' | 'HIGH' | 'CRITICAL'
 }
 
 const statusLabels: Record<WorkOrder['status'], string> = {
@@ -151,6 +152,9 @@ export default function MaintenanceWorkOrdersPage() {
   const [records, setRecords] = useState<WorkOrder[]>([])
   const [selectedId, setSelectedId] = useState('')
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'IN_MANAGEMENT' | 'IN_PROGRESS'>('ALL')
+  const [typeFilter, setTypeFilter] = useState<'ALL' | WorkOrder['work_type']>('ALL')
+  const [priorityFilter, setPriorityFilter] = useState<'ALL' | WorkOrder['priority']>('ALL')
+  const [assigneeFilter, setAssigneeFilter] = useState('ALL')
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -363,6 +367,9 @@ export default function MaintenanceWorkOrdersPage() {
 
     return records.filter((item) => {
       if (statusFilter !== 'ALL' && item.status !== statusFilter) return false
+      if (typeFilter !== 'ALL' && item.work_type !== typeFilter) return false
+      if (priorityFilter !== 'ALL' && item.priority !== priorityFilter) return false
+      if (assigneeFilter !== 'ALL' && (item.assigned_user_id ?? 'UNASSIGNED') !== assigneeFilter) return false
       if (!query) return true
 
       const haystack = [
@@ -382,7 +389,7 @@ export default function MaintenanceWorkOrdersPage() {
 
       return haystack.includes(query)
     })
-  }, [records, search, statusFilter])
+  }, [records, search, statusFilter, typeFilter, priorityFilter, assigneeFilter])
 
   const selected = records.find((item) => item.id === selectedId) ?? null
 
@@ -538,13 +545,13 @@ export default function MaintenanceWorkOrdersPage() {
         </div>
 
         <section className="mb-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_220px]">
-            <label>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_repeat(4,minmax(150px,1fr))]">
+            <label className="lg:min-w-0">
               <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Buscar</span>
               <input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="Código de ticket, equipo, mantenimiento, responsable…"
+                placeholder="Código, equipo, mantenimiento, responsable…"
                 className="w-full rounded-xl border border-slate-300 px-3 py-2 outline-none focus:border-blue-500"
               />
             </label>
@@ -555,13 +562,71 @@ export default function MaintenanceWorkOrdersPage() {
                 onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)}
                 className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2"
               >
-                <option value="ALL">Todos los tickets activos</option>
+                <option value="ALL">Todos</option>
                 <option value="PENDING">Pendiente</option>
                 <option value="IN_MANAGEMENT">En gestión</option>
                 <option value="IN_PROGRESS">En curso</option>
               </select>
             </label>
+            <label>
+              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Tipo</span>
+              <select
+                value={typeFilter}
+                onChange={(event) => setTypeFilter(event.target.value as typeof typeFilter)}
+                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2"
+              >
+                <option value="ALL">Todos</option>
+                <option value="PREVENTIVE">Preventiva</option>
+                <option value="CORRECTIVE">Correctiva</option>
+                <option value="ACTUATION">Actuación</option>
+              </select>
+            </label>
+            <label>
+              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Prioridad</span>
+              <select
+                value={priorityFilter}
+                onChange={(event) => setPriorityFilter(event.target.value as typeof priorityFilter)}
+                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2"
+              >
+                <option value="ALL">Todas</option>
+                <option value="CRITICAL">Crítica</option>
+                <option value="HIGH">Alta</option>
+                <option value="NORMAL">Normal</option>
+                <option value="LOW">Baja</option>
+              </select>
+            </label>
+            <label>
+              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Asignado</span>
+              <select
+                value={assigneeFilter}
+                onChange={(event) => setAssigneeFilter(event.target.value)}
+                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2"
+              >
+                <option value="ALL">Todos</option>
+                <option value="UNASSIGNED">Sin asignar</option>
+                {assignees.map((assignee) => (
+                  <option key={assignee.id} value={assignee.id}>{assignee.name}</option>
+                ))}
+              </select>
+            </label>
           </div>
+          {(statusFilter !== 'ALL' || typeFilter !== 'ALL' || priorityFilter !== 'ALL' || assigneeFilter !== 'ALL' || search) && (
+            <div className="mt-3 flex justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setStatusFilter('ALL')
+                  setTypeFilter('ALL')
+                  setPriorityFilter('ALL')
+                  setAssigneeFilter('ALL')
+                  setSearch('')
+                }}
+                className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+              >
+                Limpiar filtros
+              </button>
+            </div>
+          )}
         </section>
 
         <main className="grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(360px,0.55fr)]">

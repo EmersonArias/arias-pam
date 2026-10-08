@@ -349,7 +349,13 @@ export default function MaintenancePendingPage() {
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_180px_170px_190px_180px_180px]">
             <label>
               <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Buscar</span>
-              <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Ubicación, pendiente, categoría, proveedor…" className="w-full rounded-xl border border-slate-300 px-3 py-1.5 outline-none focus:border-blue-500" />
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                onKeyDown={(event) => event.stopPropagation()}
+                placeholder="Ubicación, pendiente, categoría, proveedor…"
+                className="w-full rounded-xl border border-slate-300 px-3 py-1.5 outline-none focus:border-blue-500"
+              />
             </label>
             <label>
               <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Estado</span>

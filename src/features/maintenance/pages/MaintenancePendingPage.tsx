@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ChevronDown, ChevronUp, FilterX, Lock, RefreshCw, Unlock } from 'lucide-react'
+import { Archive, ChevronDown, ChevronUp, FilterX, Lock, Pencil, RefreshCw, RotateCcw, Trash2, Unlock } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import BrandLogo from '../../../shared/components/branding/BrandLogo'
 import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
@@ -25,6 +25,7 @@ type PendingItem = {
   source_date: string | null
   source_file: string
   source_row: number
+  active: boolean
 }
 
 const statusLabels = {
@@ -72,6 +73,17 @@ export default function MaintenancePendingPage() {
   const [blockedFilter, setBlockedFilter] = useState<'ALL' | 'BLOCKED' | 'UNBLOCKED'>('ALL')
   const [blockedRooms, setBlockedRooms] = useState<Set<string>>(new Set())
   const [updatingRoom, setUpdatingRoom] = useState<string | null>(null)
+  const [showHistory, setShowHistory] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [savingEdit, setSavingEdit] = useState(false)
+  const [editForm, setEditForm] = useState({
+    location: '',
+    category: '',
+    pending: '',
+    priority: 'NORMAL' as PendingItem['priority'],
+    assigned_to: '',
+    observation: '',
+  })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -90,9 +102,8 @@ export default function MaintenancePendingPage() {
     const [result, blockedResult] = await Promise.all([
       supabase
         .from('maintenance_pending_items')
-        .select('id, hotel_id, location, category, pending, status, source_status, assigned_to, priority, source_priority, observation, source_date, source_file, source_row')
+        .select('id, hotel_id, location, category, pending, status, source_status, assigned_to, priority, source_priority, observation, source_date, source_file, source_row, active')
         .eq('hotel_id', hotel.id)
-        .eq('active', true)
         .order('source_date', { ascending: true, nullsFirst: false })
         .order('source_row', { ascending: true }),
       supabase
@@ -147,6 +158,7 @@ export default function MaintenancePendingPage() {
     const query = search.trim().toLocaleLowerCase('es')
 
     return items.filter((item) => {
+      if (item.active === showHistory) return false
       if (status !== 'ALL' && item.status !== status) return false
       if (category !== 'ALL' && item.category !== category) return false
       if (priority !== 'ALL' && item.priority !== priority) return false
@@ -172,7 +184,7 @@ export default function MaintenancePendingPage() {
         .toLocaleLowerCase('es')
         .includes(query)
     })
-  }, [items, status, category, priority, assigned, blockedFilter, blockedRooms, search])
+  }, [items, showHistory, status, category, priority, assigned, blockedFilter, blockedRooms, search])
 
   const counts = useMemo(() => ({
     pending: items.filter((item) => item.status === 'PENDING').length,
@@ -200,6 +212,99 @@ export default function MaintenancePendingPage() {
     setAssigned('ALL')
     setStatus('PENDING')
     setBlockedFilter('ALL')
+  }
+
+  function openEdit(item: PendingItem) {
+    setSelectedId(item.id)
+    setEditForm({
+      location: item.location ?? '',
+      category: item.category ?? '',
+      pending: item.pending,
+      priority: item.priority,
+      assigned_to: item.assigned_to ?? '',
+      observation: item.observation ?? '',
+    })
+    setEditing(true)
+  }
+
+  async function saveEdit() {
+    if (!selected || !hotel?.id || savingEdit) return
+
+    if (!editForm.pending.trim()) {
+      setError('El pendiente es obligatorio.')
+      return
+    }
+
+    setSavingEdit(true)
+    setError('')
+
+    const result = await supabase
+      .from('maintenance_pending_items')
+      .update({
+        location: editForm.location.trim() || null,
+        category: editForm.category.trim() || null,
+        pending: editForm.pending.trim(),
+        priority: editForm.priority,
+        assigned_to: editForm.assigned_to.trim() || null,
+        observation: editForm.observation.trim() || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', selected.id)
+      .eq('hotel_id', hotel.id)
+
+    if (result.error) {
+      setError(result.error.message)
+    } else {
+      setEditing(false)
+      await loadItems()
+    }
+
+    setSavingEdit(false)
+  }
+
+  async function deactivateItem(item: PendingItem) {
+    if (!hotel?.id || !item.active) return
+
+    const confirmed = window.confirm(
+      '¿Quieres eliminar este pendiente del listado operativo? Se desactivará y quedará conservado en el histórico.',
+    )
+    if (!confirmed) return
+
+    const result = await supabase
+      .from('maintenance_pending_items')
+      .update({
+        active: false,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', item.id)
+      .eq('hotel_id', hotel.id)
+
+    if (result.error) {
+      setError(result.error.message)
+      return
+    }
+
+    await loadItems()
+  }
+
+  async function restoreItem(item: PendingItem) {
+    if (!hotel?.id || item.active) return
+
+    const result = await supabase
+      .from('maintenance_pending_items')
+      .update({
+        active: true,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', item.id)
+      .eq('hotel_id', hotel.id)
+
+    if (result.error) {
+      setError(result.error.message)
+      return
+    }
+
+    await loadItems()
   }
 
   function applySummaryFilter(kind: 'PENDING' | 'HIGH' | 'COMPLETED' | 'BLOCKED') {
@@ -289,6 +394,11 @@ export default function MaintenancePendingPage() {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <ActionButton
+                icon={showHistory ? Archive : Archive}
+                label={showHistory ? 'Pendientes activos' : 'Histórico'}
+                onClick={() => setShowHistory((current) => !current)}
+              />
               <IconButton icon={RefreshCw} label="Actualizar" title="Actualizar" onClick={() => void loadItems()} disabled={loading} />
               <BackButton onBack={() => navigate('/maintenance')} />
               <HomeButton onHome={() => navigate('/')} />
@@ -411,8 +521,8 @@ export default function MaintenancePendingPage() {
           <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
             <div className="flex items-center justify-between border-b px-4 py-3">
               <div>
-                <div className="text-sm font-semibold">Listado de pendientes</div>
-                <div className="text-xs text-slate-400">Importado del registro PENDIENTES</div>
+                <div className="text-sm font-semibold">{showHistory ? 'Histórico de pendientes' : 'Listado de pendientes'}</div>
+                <div className="text-xs text-slate-400">{showHistory ? 'Registros desactivados · no se eliminan físicamente' : 'Backlog operativo de mantenimiento'}</div>
               </div>
               <span className="text-xs text-slate-500">{filtered.length} resultado{filtered.length === 1 ? '' : 's'}</span>
             </div>
@@ -430,6 +540,7 @@ export default function MaintenancePendingPage() {
                     <th className="px-3 py-2.5">Prioridad</th>
                     <th className="px-3 py-2.5">Bloqueada</th>
                     <th className="px-3 py-2.5">Fecha</th>
+                    <th className="px-3 py-2.5 text-right">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -467,10 +578,40 @@ export default function MaintenancePendingPage() {
                           )}
                         </td>
                         <td className="px-3 py-3 text-slate-600">{formatDate(item.source_date)}</td>
+                        <td className="px-3 py-3 text-right">
+                          <div className="flex justify-end gap-1">
+                            {showHistory ? (
+                              <IconButton
+                                icon={RotateCcw}
+                                label="Restaurar pendiente"
+                                title="Restaurar"
+                                onClick={() => void restoreItem(item)}
+                                className="h-9 w-9"
+                              />
+                            ) : (
+                              <>
+                                <IconButton
+                                  icon={Pencil}
+                                  label="Modificar pendiente"
+                                  title="Modificar"
+                                  onClick={() => openEdit(item)}
+                                  className="h-9 w-9"
+                                />
+                                <IconButton
+                                  icon={Trash2}
+                                  label="Eliminar pendiente"
+                                  title="Eliminar (desactivar)"
+                                  onClick={() => void deactivateItem(item)}
+                                  className="h-9 w-9"
+                                />
+                              </>
+                            )}
+                          </div>
+                        </td>
                       </tr>
                     )
                   })}
-                  {!loading && filtered.length === 0 && <tr><td colSpan={8} className="px-3 py-10 text-center text-sm text-slate-500">No hay pendientes para estos filtros.</td></tr>}
+                  {!loading && filtered.length === 0 && <tr><td colSpan={9} className="px-3 py-10 text-center text-sm text-slate-500">No hay pendientes para estos filtros.</td></tr>}
                 </tbody>
               </table>
               </div>
@@ -511,6 +652,31 @@ export default function MaintenancePendingPage() {
                   {selected.observation && <div><strong>Observación:</strong> {selected.observation}</div>}
                 </div>
 
+                <div className="flex flex-wrap gap-2">
+                  {showHistory ? (
+                    <ActionButton
+                      icon={RotateCcw}
+                      label="Restaurar"
+                      onClick={() => void restoreItem(selected)}
+                      className="text-xs"
+                    />
+                  ) : (
+                    <>
+                      <ActionButton
+                        icon={Pencil}
+                        label="Modificar"
+                        onClick={() => openEdit(selected)}
+                        className="text-xs"
+                      />
+                      <ActionButton
+                        icon={Trash2}
+                        label="Eliminar"
+                        onClick={() => void deactivateItem(selected)}
+                        className="text-xs"
+                      />
+                    </>
+                  )}
+                </div>
               </div>
             ) : (
               <div className="p-8 text-center text-sm text-slate-400">Selecciona un pendiente.</div>
@@ -518,6 +684,98 @@ export default function MaintenancePendingPage() {
           </aside>
         </main>
       </div>
+
+      {editing && selected && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/35 p-3">
+          <div className="max-h-[calc(100vh-24px)] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b px-5 py-4">
+              <div>
+                <div className="text-lg font-semibold text-slate-900">Modificar pendiente</div>
+                <div className="text-xs text-slate-500">Editar datos operativos del registro.</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => !savingEdit && setEditing(false)}
+                className="rounded-full border border-slate-200 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-50"
+              >
+                Cerrar
+              </button>
+            </div>
+
+            <div className="grid gap-4 p-5 sm:grid-cols-2">
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Ubicación / habitación</span>
+                <input
+                  value={editForm.location}
+                  onChange={(event) => setEditForm((value) => ({ ...value, location: event.target.value }))}
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Categoría</span>
+                <input
+                  value={editForm.category}
+                  onChange={(event) => setEditForm((value) => ({ ...value, category: event.target.value }))}
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2"
+                />
+              </label>
+              <label className="block sm:col-span-2">
+                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Pendiente</span>
+                <input
+                  value={editForm.pending}
+                  onChange={(event) => setEditForm((value) => ({ ...value, pending: event.target.value }))}
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Prioridad</span>
+                <select
+                  value={editForm.priority}
+                  onChange={(event) => setEditForm((value) => ({ ...value, priority: event.target.value as PendingItem['priority'] }))}
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2"
+                >
+                  <option value="CRITICAL">Crítica</option>
+                  <option value="HIGH">Alta</option>
+                  <option value="NORMAL">Normal</option>
+                  <option value="LOW">Baja</option>
+                </select>
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Asignado a</span>
+                <input
+                  value={editForm.assigned_to}
+                  onChange={(event) => setEditForm((value) => ({ ...value, assigned_to: event.target.value }))}
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2"
+                />
+              </label>
+              <label className="block sm:col-span-2">
+                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Observación</span>
+                <textarea
+                  rows={4}
+                  value={editForm.observation}
+                  onChange={(event) => setEditForm((value) => ({ ...value, observation: event.target.value }))}
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2"
+                />
+              </label>
+            </div>
+
+            <div className="flex justify-end gap-2 border-t px-5 py-4">
+              <ActionButton
+                label="Cancelar"
+                onClick={() => setEditing(false)}
+                disabled={savingEdit}
+                className="text-xs"
+              />
+              <ActionButton
+                label={savingEdit ? 'Guardando…' : 'Guardar cambios'}
+                onClick={() => void saveEdit()}
+                disabled={savingEdit}
+                className="text-xs"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

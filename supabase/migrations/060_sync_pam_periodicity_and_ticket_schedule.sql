@@ -103,7 +103,7 @@ WHERE mp.active = true
 -- fecha, porque provocaría una colisión. Se representa una sola vez cada
 -- combinación plan + fecha, reutilizando primero el job de la misma marca y,
 -- después, otro job sin fecha del mismo plan.
-DO $
+DO $$
 DECLARE
   v_desired record;
   v_existing_job_id uuid;
@@ -215,7 +215,7 @@ BEGIN
     END IF;
   END LOOP;
 END;
-$;
+$$;
 
 -- 4) Las marcas adicionales del mismo plan y de la misma fecha no generan
 --    una segunda fila, porque el índice de la tabla establece una única

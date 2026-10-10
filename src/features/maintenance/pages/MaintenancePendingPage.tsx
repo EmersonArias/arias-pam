@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Archive, CheckCircle2, ChevronDown, ChevronUp, ChevronsDown, ChevronsUp, CornerUpLeft, FilterX, House, Lock, Pencil, Plus, RefreshCw, RotateCcw, Search, SlidersHorizontal, Trash2, Unlock, X } from 'lucide-react'
+import { Archive, CheckCircle2, ChevronDown, ChevronUp, ChevronsDown, ChevronsUp, CornerUpLeft, Eraser, FilterX, House, Lock, Pencil, Plus, RefreshCw, RotateCcw, Search, SlidersHorizontal, Trash2, Unlock, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import BrandLogo from '../../../shared/components/branding/BrandLogo'
 import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
@@ -68,6 +68,14 @@ function formatDate(value: string | null) {
   return new Date(value + 'T12:00:00').toLocaleDateString('es-ES')
 }
 
+function todayLocalISO() {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 function isRoomLocation(value: string | null) {
   return !!value && /^[0-9]{3,4}$/.test(value.trim())
 }
@@ -106,6 +114,7 @@ export default function MaintenancePendingPage() {
     priority: 'NORMAL' as PendingItem['priority'],
     assigned_to: '',
     observation: '',
+    source_date: todayLocalISO(),
   }
   const [editForm, setEditForm] = useState({
     location: '',
@@ -114,6 +123,7 @@ export default function MaintenancePendingPage() {
     priority: 'NORMAL' as PendingItem['priority'],
     assigned_to: '',
     observation: '',
+    source_date: todayLocalISO(),
   })
   const [newForm, setNewForm] = useState(emptyForm)
   const [loading, setLoading] = useState(true)
@@ -360,14 +370,21 @@ export default function MaintenancePendingPage() {
       priority: item.priority,
       assigned_to: item.assigned_to ?? '',
       observation: item.observation ?? '',
+      source_date: item.source_date ?? todayLocalISO(),
     })
     setEditing(true)
   }
 
   function openNew() {
-    setNewForm(emptyForm)
+    setNewForm({ ...emptyForm })
     setError('')
     setCreating(true)
+  }
+
+  function clearNewForm() {
+    if (!window.confirm('¿Deseas limpiar el formulario? Se restablecerán los campos a sus valores iniciales.')) return
+    setNewForm({ ...emptyForm })
+    setError('')
   }
 
   async function saveNew() {
@@ -394,7 +411,7 @@ export default function MaintenancePendingPage() {
         priority: newForm.priority,
         source_priority: null,
         observation: newForm.observation.trim() || null,
-        source_date: new Date().toISOString().slice(0, 10),
+        source_date: newForm.source_date || todayLocalISO(),
         source_file: 'ARIAS_SUITE',
         source_row: Date.now(),
         active: true,
@@ -436,6 +453,7 @@ export default function MaintenancePendingPage() {
         priority: editForm.priority,
         assigned_to: editForm.assigned_to.trim() || null,
         observation: editForm.observation.trim() || null,
+        source_date: editForm.source_date || null,
         updated_at: new Date().toISOString(),
       })
       .eq('id', selected.id)
@@ -1250,6 +1268,15 @@ export default function MaintenancePendingPage() {
                 />
                 {getSupplierContact(newForm.assigned_to) && <span className="mt-1 block text-[11px] text-slate-500">Contacto: {getSupplierContact(newForm.assigned_to)}</span>}
               </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Fecha</span>
+                <input
+                  type="date"
+                  value={newForm.source_date}
+                  onChange={(event) => setNewForm((value) => ({ ...value, source_date: event.target.value }))}
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2"
+                />
+              </label>
               <label className="block sm:col-span-2">
                 <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Observación</span>
                 <textarea
@@ -1261,7 +1288,14 @@ export default function MaintenancePendingPage() {
               </label>
             </div>
 
-            <div className="flex justify-end gap-2 border-t px-5 py-4">
+            <div className="flex flex-wrap justify-end gap-2 border-t px-5 py-4">
+              <ActionButton
+                icon={Eraser}
+                label="Limpiar formulario"
+                onClick={clearNewForm}
+                disabled={savingCreate}
+                className="text-xs"
+              />
               <ActionButton
                 label="Cancelar"
                 onClick={() => setCreating(false)}
@@ -1348,6 +1382,15 @@ export default function MaintenancePendingPage() {
                   className="w-full rounded-xl border border-slate-300 px-3 py-2"
                 />
                 {getSupplierContact(editForm.assigned_to) && <span className="mt-1 block text-[11px] text-slate-500">Contacto: {getSupplierContact(editForm.assigned_to)}</span>}
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Fecha</span>
+                <input
+                  type="date"
+                  value={editForm.source_date}
+                  onChange={(event) => setEditForm((value) => ({ ...value, source_date: event.target.value }))}
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2"
+                />
               </label>
               <label className="block sm:col-span-2">
                 <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Observación</span>

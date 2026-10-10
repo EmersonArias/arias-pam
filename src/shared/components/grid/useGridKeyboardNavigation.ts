@@ -16,7 +16,10 @@ export function useGridKeyboardNavigation({
   autoFocusFirst = true,
 }: UseGridKeyboardNavigationOptions) {
   const gridRef = useRef<HTMLDivElement | null>(null)
-  const rowRefs = useRef<Record<string, HTMLTableRowElement | null>>({})
+  // A responsive screen can render both a desktop table and a mobile list.
+  // Keep each view's refs separately so a hidden row can never mask the visible one.
+  const rowRefs = useRef<Record<string, Record<string, HTMLElement | null>>>({})
+  const rowRefCallbacks = useRef<Record<string, Record<string, (row: HTMLElement | null) => void>>>({})
   const hasAutoFocusedRef = useRef(false)
 
   const selectedIndex = useMemo(() => {
@@ -25,15 +28,30 @@ export function useGridKeyboardNavigation({
     return index >= 0 ? index : 0
   }, [ids, selectedId])
 
-  const setRowRef = useCallback(
-    (id: string, row: HTMLTableRowElement | null) => {
-      rowRefs.current[id] = row
-    },
-    [],
-  )
+  const getRowRef = useCallback((id: string, viewKey: string) => {
+    if (!rowRefCallbacks.current[viewKey]) {
+      rowRefCallbacks.current[viewKey] = {}
+    }
+
+    if (!rowRefCallbacks.current[viewKey][id]) {
+      rowRefCallbacks.current[viewKey][id] = (row) => {
+        if (!rowRefs.current[viewKey]) {
+          rowRefs.current[viewKey] = {}
+        }
+        rowRefs.current[viewKey][id] = row
+      }
+    }
+
+    return rowRefCallbacks.current[viewKey][id]
+  }, [])
 
   const scrollRowIntoView = useCallback((id: string) => {
-    const row = rowRefs.current[id]
+    const row = Object.values(rowRefs.current)
+      .map((viewRows) => viewRows[id])
+      .find((candidate): candidate is HTMLElement =>
+        !!candidate && candidate.getClientRects().length > 0,
+      )
+
     if (!row) return
 
     row.scrollIntoView({
@@ -72,7 +90,10 @@ export function useGridKeyboardNavigation({
     const frame = window.requestAnimationFrame(() => {
       scrollRowIntoView(targetId)
 
-      if (autoFocusFirst && !hasAutoFocusedRef.current) {
+      const gridElement = gridRef.current
+      const gridIsVisible = !!gridElement && gridElement.getClientRects().length > 0
+
+      if (autoFocusFirst && !hasAutoFocusedRef.current && gridIsVisible && gridElement) {
         hasAutoFocusedRef.current = true
 
         const activeElement = document.activeElement
@@ -82,7 +103,7 @@ export function useGridKeyboardNavigation({
           activeElement instanceof HTMLSelectElement
 
         if (!isEditingText) {
-          gridRef.current?.focus({ preventScroll: true })
+          gridElement.focus({ preventScroll: true })
         }
       }
     })
@@ -146,10 +167,10 @@ export function useGridKeyboardNavigation({
     }
   }
 
-  function getRowProps(id: string) {
+  function getRowProps(id: string, viewKey = 'default') {
     return {
-      ref: (row: HTMLTableRowElement | null) => setRowRef(id, row),
-      id: `grid-row-${id}`,
+      ref: getRowRef(id, viewKey),
+      id: viewKey === 'default' ? `grid-row-${id}` : `grid-row-${viewKey}-${id}`,
       role: 'row',
       'aria-selected': id === selectedId,
     }

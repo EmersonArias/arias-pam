@@ -1,13 +1,15 @@
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 
 interface GridViewportProps {
   children: ReactNode
   className?: string
+  style?: CSSProperties
 }
 
 export default function GridViewport({
   children,
   className = '',
+  style,
 }: GridViewportProps) {
   return (
     <div
@@ -16,6 +18,7 @@ export default function GridViewport({
         scrollbarGutter: 'stable',
         scrollbarWidth: 'auto',
         scrollbarColor: '#94a3b8 #f1f5f9',
+        ...style,
       }}
     >
       {children}

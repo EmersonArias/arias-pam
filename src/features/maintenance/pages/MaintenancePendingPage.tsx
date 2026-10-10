@@ -333,7 +333,10 @@ export default function MaintenancePendingPage() {
     ids: gridIds,
     selectedId,
     onSelectedIdChange: setSelectedId,
-    onOpen: () => {},
+    onOpen: (id) => {
+      const item = filtered.find((candidate) => candidate.id === id)
+      if (item) openEdit(item)
+    },
     autoFocusFirst: true,
   })
 

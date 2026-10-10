@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Archive, ChevronDown, ChevronUp, CornerUpLeft, FilterX, House, Lock, Pencil, Plus, RefreshCw, RotateCcw, Trash2, Unlock } from 'lucide-react'
+import { Archive, ChevronDown, ChevronUp, ChevronsDown, ChevronsUp, CornerUpLeft, FilterX, House, Lock, Pencil, Plus, RefreshCw, RotateCcw, Trash2, Unlock, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import BrandLogo from '../../../shared/components/branding/BrandLogo'
 import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
@@ -74,6 +74,7 @@ export default function MaintenancePendingPage() {
   const [blockedRooms, setBlockedRooms] = useState<Set<string>>(new Set())
   const [updatingRoom, setUpdatingRoom] = useState<string | null>(null)
   const [showHistory, setShowHistory] = useState(false)
+  const [mobileDetailOpen, setMobileDetailOpen] = useState(false)
   const [editing, setEditing] = useState(false)
   const [savingEdit, setSavingEdit] = useState(false)
   const [creating, setCreating] = useState(false)
@@ -451,7 +452,7 @@ export default function MaintenancePendingPage() {
               <BrandLogo onActivate={() => navigate('/')} className="h-9 w-auto shrink-0 object-contain sm:h-11" />
               <div className="min-w-0">
                 <h1 className="text-xl font-bold leading-tight sm:text-2xl">Pendientes</h1>
-                <p className="text-xs text-slate-500 sm:text-sm">Backlog operativo de mantenimiento del hotel</p>
+                <p className="text-xs text-slate-500 sm:text-sm">Backlog operativo de mantenimiento<span className="hidden sm:inline"> del hotel</span></p>
               </div>
             </div>
             <div className="hidden items-center gap-2 sm:flex sm:justify-end">
@@ -726,21 +727,25 @@ export default function MaintenancePendingPage() {
                       key={item.id}
                       role="group"
                       aria-label={accessibleSummary}
-                      onClick={() => setSelectedId(item.id)}
-                      title={accessibleSummary}
                       className={`flex min-w-0 items-center gap-1 px-1.5 py-1.5 ${item.id === selectedId ? 'bg-blue-50' : 'bg-white'}`}
                     >
                       <div className="w-8 shrink-0 truncate text-[11px] font-bold text-slate-700" title={item.location ?? 'Sin ubicación'}>
                         {item.location ?? '—'}
                       </div>
-                      <div className="min-w-0 flex-1">
+                      <button
+                        type="button"
+                        onClick={() => { setSelectedId(item.id); setMobileDetailOpen(true) }}
+                        title={accessibleSummary}
+                        aria-label={`Ver detalle de ${item.pending}`}
+                        className="min-w-0 flex-1 text-left"
+                      >
                         <div className="truncate text-xs font-semibold leading-tight text-slate-900" title={item.pending}>
                           {item.pending}
                         </div>
                         <div className="truncate text-[10px] leading-tight text-slate-500">
                           {(item.category ?? 'Sin categoría')} · {(item.assigned_to ?? 'Sin asignar')} · {formatDate(item.source_date)}
                         </div>
-                      </div>
+                      </button>
                       <div className="flex shrink-0 items-center gap-0.5">
                         <span className={`rounded px-1 py-0.5 text-[9px] font-semibold leading-tight ${statusClass(item.status)}`} title={statusLabels[item.status]}>
                           {statusShort}
@@ -800,9 +805,11 @@ export default function MaintenancePendingPage() {
 
             <div className="flex items-center justify-between border-t border-slate-200 px-3 py-2">
               <span className="text-[11px] text-slate-500">{filtered.length === 0 ? 'Sin pendientes' : `${currentIndex + 1} / ${filtered.length}`}</span>
-              <div className="flex items-center gap-1">
-                <IconButton icon={ChevronUp} label="Pendiente anterior" title="Pendiente anterior" onClick={() => moveSelection(currentIndex - 1)} disabled={filtered.length === 0 || currentIndex === 0} className="h-9 w-9" />
-                <IconButton icon={ChevronDown} label="Pendiente siguiente" title="Pendiente siguiente" onClick={() => moveSelection(currentIndex + 1)} disabled={filtered.length === 0 || currentIndex === filtered.length - 1} className="h-9 w-9" />
+              <div className="flex items-center gap-0.5">
+                <IconButton icon={ChevronsUp} label="Ir al primer pendiente" title="Ir al inicio" onClick={() => moveSelection(0)} disabled={filtered.length === 0 || currentIndex === 0} className="h-8 w-8 sm:h-9 sm:w-9" />
+                <IconButton icon={ChevronUp} label="Pendiente anterior" title="Anterior" onClick={() => moveSelection(currentIndex - 1)} disabled={filtered.length === 0 || currentIndex === 0} className="h-8 w-8 sm:h-9 sm:w-9" />
+                <IconButton icon={ChevronDown} label="Pendiente siguiente" title="Siguiente" onClick={() => moveSelection(currentIndex + 1)} disabled={filtered.length === 0 || currentIndex === filtered.length - 1} className="h-8 w-8 sm:h-9 sm:w-9" />
+                <IconButton icon={ChevronsDown} label="Ir al último pendiente" title="Ir al final" onClick={() => moveSelection(filtered.length - 1)} disabled={filtered.length === 0 || currentIndex === filtered.length - 1} className="h-8 w-8 sm:h-9 sm:w-9" />
               </div>
             </div>
           </section>
@@ -865,6 +872,106 @@ export default function MaintenancePendingPage() {
           </aside>
         </main>
       </div>
+
+      {mobileDetailOpen && selected && (
+        <div
+          className="fixed inset-0 z-40 flex items-end justify-center bg-slate-900/20 p-3 sm:hidden"
+          onClick={() => setMobileDetailOpen(false)}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="mobile-pending-detail-title"
+            className="w-full max-w-lg overflow-y-auto rounded-2xl border border-slate-200 bg-white p-3 shadow-2xl"
+            style={{ maxHeight: 'min(62dvh, 30rem)' }}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mb-2 flex items-start justify-between gap-3 border-b border-slate-100 pb-2">
+              <div className="min-w-0">
+                <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                  {selected.location ?? 'Sin ubicación'} · {selected.category ?? 'Sin categoría'}
+                </div>
+                <h2 id="mobile-pending-detail-title" className="mt-0.5 break-words text-base font-bold leading-snug text-slate-900">
+                  {selected.pending}
+                </h2>
+              </div>
+              <IconButton
+                icon={X}
+                label="Cerrar detalle"
+                title="Cerrar"
+                onClick={() => setMobileDetailOpen(false)}
+                className="h-8 w-8"
+              />
+            </div>
+
+            <div className="mb-2 flex flex-wrap gap-1.5">
+              <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${statusClass(selected.status)}`}>
+                {statusLabels[selected.status]}
+              </span>
+              <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${priorityClass(selected.priority)}`}>
+                {priorityLabels[selected.priority]}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
+              <div><span className="text-slate-500">Asignado: </span><strong className="break-words">{selected.assigned_to ?? 'Sin asignar'}</strong></div>
+              <div><span className="text-slate-500">Fecha: </span><strong>{formatDate(selected.source_date)}</strong></div>
+              {isRoomLocation(selected.location) && (
+                <div className="col-span-2">
+                  <span className="text-slate-500">Habitación: </span>
+                  <strong className={blockedRooms.has(selected.location!.trim()) ? 'text-amber-700' : 'text-slate-700'}>
+                    {blockedRooms.has(selected.location!.trim()) ? 'Bloqueada' : 'No bloqueada'}
+                  </strong>
+                </div>
+              )}
+              {selected.observation && (
+                <div className="col-span-2 break-words">
+                  <span className="text-slate-500">Observación: </span>{selected.observation}
+                </div>
+              )}
+            </div>
+
+            <div className="mt-3 flex items-center justify-end gap-1.5 border-t border-slate-100 pt-2">
+              {isRoomLocation(selected.location) && (
+                <IconButton
+                  icon={blockedRooms.has(selected.location!.trim()) ? Lock : Unlock}
+                  label={blockedRooms.has(selected.location!.trim()) ? 'Desbloquear habitación' : 'Bloquear habitación'}
+                  title={blockedRooms.has(selected.location!.trim()) ? 'Desbloquear habitación' : 'Bloquear habitación'}
+                  onClick={() => void toggleRoomBlocked(selected.location!)}
+                  disabled={updatingRoom === selected.location!.trim()}
+                  className="h-9 w-9"
+                />
+              )}
+              {showHistory ? (
+                <IconButton
+                  icon={RotateCcw}
+                  label="Restaurar pendiente"
+                  title="Restaurar"
+                  onClick={() => { setMobileDetailOpen(false); void restoreItem(selected) }}
+                  className="h-9 w-9"
+                />
+              ) : (
+                <>
+                  <IconButton
+                    icon={Pencil}
+                    label="Modificar pendiente"
+                    title="Modificar"
+                    onClick={() => { setMobileDetailOpen(false); openEdit(selected) }}
+                    className="h-9 w-9"
+                  />
+                  <IconButton
+                    icon={Trash2}
+                    label="Eliminar pendiente"
+                    title="Eliminar (desactivar)"
+                    onClick={() => { setMobileDetailOpen(false); void deactivateItem(selected) }}
+                    className="h-9 w-9"
+                  />
+                </>
+              )}
+            </div>
+          </section>
+        </div>
+      )}
 
       {creating && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/35 p-3">

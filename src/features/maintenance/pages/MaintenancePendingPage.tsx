@@ -445,8 +445,8 @@ export default function MaintenancePendingPage() {
   }
 
   return (
-    <div className="flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-slate-100 px-3 py-3 text-slate-900 sm:min-h-screen sm:h-auto sm:overflow-visible sm:px-5 sm:py-5">
-      <div className="mx-auto flex min-h-0 w-full max-w-[1500px] flex-1 flex-col sm:block sm:flex-none">
+    <div className="flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-slate-100 px-3 py-3 text-slate-900 sm:min-h-screen sm:h-auto sm:overflow-visible sm:px-5 sm:py-5 2xl:h-[100dvh] 2xl:min-h-0 2xl:overflow-hidden">
+      <div className="mx-auto flex min-h-0 w-full max-w-[1500px] flex-1 flex-col sm:block sm:flex-none 2xl:flex 2xl:min-h-0 2xl:flex-1 2xl:flex-col">
         <header className="mb-3 shrink-0 rounded-2xl border border-slate-200 bg-white p-3 shadow-lg sm:p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex min-w-0 items-center gap-3">
@@ -498,7 +498,7 @@ export default function MaintenancePendingPage() {
         </header>
 
         {error && (
-          <div className="mb-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+          <div className="mb-3 shrink-0 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
             {error}
           </div>
         )}
@@ -634,8 +634,8 @@ export default function MaintenancePendingPage() {
           )}
         </section>
 
-        <main className="flex min-h-0 flex-1 flex-col gap-4 2xl:grid 2xl:grid-cols-[minmax(0,1.5fr)_minmax(330px,0.5fr)]">
-          <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <main className="flex min-h-0 flex-1 flex-col gap-4 2xl:grid 2xl:min-h-0 2xl:grid-rows-[minmax(0,1fr)] 2xl:grid-cols-[minmax(0,1.5fr)_minmax(330px,0.5fr)]">
+          <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm 2xl:h-full">
             <div className="flex items-center justify-between gap-1 border-b px-3 py-2 sm:px-4">
               <div className="min-w-0 flex-1">
                 <div className="truncate text-sm font-semibold">{showHistory ? 'Histórico de pendientes' : 'Listado de pendientes'}</div>
@@ -654,8 +654,8 @@ export default function MaintenancePendingPage() {
               </div>
             </div>
 
-            <div className="hidden 2xl:block">
-            <GridViewport className="max-h-[calc(100vh-400px)]">
+            <div className="hidden min-h-0 2xl:flex 2xl:flex-1 2xl:flex-col">
+            <GridViewport className="min-h-0 max-h-none flex-1" style={{ minHeight: 0, maxHeight: "none", flex: "1 1 0%" }}>
               <div {...getGridProps()} className="outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-200">
               <table className="min-w-[1080px] w-full border-collapse text-sm">
                 <thead className="sticky top-0 z-10 bg-slate-50">

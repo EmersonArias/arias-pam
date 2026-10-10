@@ -306,6 +306,7 @@ export default function MaintenancePendingPage() {
 
   function openEdit(item: PendingItem) {
     setSelectedId(item.id)
+    setError('')
     setEditForm({
       location: item.location ?? '',
       category: item.category ?? '',
@@ -551,6 +552,15 @@ export default function MaintenancePendingPage() {
   return (
     <div className="flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-slate-100 px-3 py-3 text-slate-900 sm:min-h-screen sm:h-auto sm:overflow-visible sm:px-5 sm:py-5 2xl:h-[100dvh] 2xl:min-h-0 2xl:overflow-hidden">
       <div className="mx-auto flex min-h-0 w-full max-w-[1500px] flex-1 flex-col sm:block sm:flex-none 2xl:flex 2xl:min-h-0 2xl:flex-1 2xl:flex-col">
+        <datalist id="pending-location-options">
+          {locations.map((value) => <option key={value} value={value} />)}
+        </datalist>
+        <datalist id="pending-category-options">
+          {categories.map((value) => <option key={value} value={value} />)}
+        </datalist>
+        <datalist id="pending-supplier-options">
+          {assignees.map((value) => <option key={value} value={value} />)}
+        </datalist>
         <header className="mb-3 shrink-0 rounded-2xl border border-slate-200 bg-white p-3 shadow-lg sm:p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex min-w-0 items-center gap-3">
@@ -871,7 +881,7 @@ export default function MaintenancePendingPage() {
                   return (
                     <div
                       key={item.id}
-                      role="group"
+                      {...getRowProps(item.id, 'mobile')}
                       aria-label={accessibleSummary}
                       className={`flex min-w-0 items-center gap-1 px-1.5 py-1.5 ${item.id === selectedId ? 'bg-blue-50' : 'bg-white'}`}
                     >
@@ -989,6 +999,12 @@ export default function MaintenancePendingPage() {
                   ) : (
                     <>
                       <ActionButton
+                        icon={selected.status === 'COMPLETED' ? RotateCcw : CheckCircle2}
+                        label={selected.status === 'COMPLETED' ? 'Reabrir pendiente' : 'Marcar terminado'}
+                        onClick={() => void setItemStatus(selected)}
+                        className="text-xs"
+                      />
+                      <ActionButton
                         icon={Pencil}
                         label="Modificar"
                         onClick={() => openEdit(selected)}
@@ -1091,6 +1107,13 @@ export default function MaintenancePendingPage() {
               ) : (
                 <>
                   <IconButton
+                    icon={selected.status === 'COMPLETED' ? RotateCcw : CheckCircle2}
+                    label={selected.status === 'COMPLETED' ? 'Reabrir pendiente' : 'Marcar terminado'}
+                    title={selected.status === 'COMPLETED' ? 'Reabrir' : 'Terminar'}
+                    onClick={() => { setMobileDetailOpen(false); void setItemStatus(selected) }}
+                    className="h-9 w-9"
+                  />
+                  <IconButton
                     icon={Pencil}
                     label="Modificar pendiente"
                     title="Modificar"
@@ -1127,10 +1150,14 @@ export default function MaintenancePendingPage() {
               />
             </div>
 
+            {catalogWarning && <div className="mx-5 mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">{catalogWarning}</div>}
+            {error && <div role="alert" className="mx-5 mt-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-800">{error}</div>}
+
             <div className="grid gap-4 p-5 sm:grid-cols-2">
               <label className="block">
                 <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Ubicación / habitación</span>
                 <input
+                  list="pending-location-options"
                   value={newForm.location}
                   onChange={(event) => setNewForm((value) => ({ ...value, location: event.target.value }))}
                   className="w-full rounded-xl border border-slate-300 px-3 py-2"
@@ -1139,8 +1166,9 @@ export default function MaintenancePendingPage() {
               <label className="block">
                 <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Categoría</span>
                 <input
+                  list="pending-category-options"
                   value={newForm.category}
-                  onChange={(event) => setNewForm((value) => ({ ...value, category: event.target.value }))}
+                  onChange={(event) => handleNewCategoryChange(event.target.value)}
                   className="w-full rounded-xl border border-slate-300 px-3 py-2"
                 />
               </label>
@@ -1169,10 +1197,12 @@ export default function MaintenancePendingPage() {
               <label className="block">
                 <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Asignado a</span>
                 <input
+                  list="pending-supplier-options"
                   value={newForm.assigned_to}
                   onChange={(event) => setNewForm((value) => ({ ...value, assigned_to: event.target.value }))}
                   className="w-full rounded-xl border border-slate-300 px-3 py-2"
                 />
+                {getSupplierContact(newForm.assigned_to) && <span className="mt-1 block text-[11px] text-slate-500">Contacto: {getSupplierContact(newForm.assigned_to)}</span>}
               </label>
               <label className="block sm:col-span-2">
                 <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Observación</span>
@@ -1220,10 +1250,14 @@ export default function MaintenancePendingPage() {
               />
             </div>
 
+            {catalogWarning && <div className="mx-5 mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">{catalogWarning}</div>}
+            {error && <div role="alert" className="mx-5 mt-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-800">{error}</div>}
+
             <div className="grid gap-4 p-5 sm:grid-cols-2">
               <label className="block">
                 <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Ubicación / habitación</span>
                 <input
+                  list="pending-location-options"
                   value={editForm.location}
                   onChange={(event) => setEditForm((value) => ({ ...value, location: event.target.value }))}
                   className="w-full rounded-xl border border-slate-300 px-3 py-2"
@@ -1232,8 +1266,9 @@ export default function MaintenancePendingPage() {
               <label className="block">
                 <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Categoría</span>
                 <input
+                  list="pending-category-options"
                   value={editForm.category}
-                  onChange={(event) => setEditForm((value) => ({ ...value, category: event.target.value }))}
+                  onChange={(event) => handleEditCategoryChange(event.target.value)}
                   className="w-full rounded-xl border border-slate-300 px-3 py-2"
                 />
               </label>
@@ -1261,10 +1296,12 @@ export default function MaintenancePendingPage() {
               <label className="block">
                 <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Asignado a</span>
                 <input
+                  list="pending-supplier-options"
                   value={editForm.assigned_to}
                   onChange={(event) => setEditForm((value) => ({ ...value, assigned_to: event.target.value }))}
                   className="w-full rounded-xl border border-slate-300 px-3 py-2"
                 />
+                {getSupplierContact(editForm.assigned_to) && <span className="mt-1 block text-[11px] text-slate-500">Contacto: {getSupplierContact(editForm.assigned_to)}</span>}
               </label>
               <label className="block sm:col-span-2">
                 <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Observación</span>

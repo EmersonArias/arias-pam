@@ -488,44 +488,44 @@ export default function MaintenancePendingPage() {
             onClick={() => applySummaryFilter('PENDING')}
             title="Ver pendientes"
             aria-label="Ver pendientes"
-            className="cursor-pointer rounded-2xl border border-slate-200 bg-white p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+            className="cursor-pointer rounded-xl border border-slate-200 bg-white p-2 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:rounded-2xl sm:p-3"
           >
-            <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Pendientes</div>
-            <div className="mt-0.5 text-xl font-bold text-slate-900">{counts.pending}</div>
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 sm:text-xs">Pendientes</div>
+            <div className="mt-0.5 text-lg font-bold leading-tight text-slate-900 sm:text-xl">{counts.pending}</div>
           </button>
           <button
             type="button"
             onClick={() => applySummaryFilter('HIGH')}
             title="Ver pendientes de prioridad alta"
             aria-label="Ver pendientes de prioridad alta"
-            className="cursor-pointer rounded-2xl border border-rose-200 bg-white p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+            className="cursor-pointer rounded-xl border border-rose-200 bg-white p-2 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:rounded-2xl sm:p-3"
           >
-            <div className="text-xs font-semibold uppercase tracking-wide text-rose-600">Prioridad alta</div>
-            <div className="mt-0.5 text-xl font-bold text-slate-900">{counts.high}</div>
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-rose-600 sm:text-xs">Prioridad alta</div>
+            <div className="mt-0.5 text-lg font-bold leading-tight text-slate-900 sm:text-xl">{counts.high}</div>
           </button>
           <button
             type="button"
             onClick={() => applySummaryFilter('COMPLETED')}
             title="Ver terminados"
             aria-label="Ver terminados"
-            className="cursor-pointer rounded-2xl border border-emerald-200 bg-white p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+            className="cursor-pointer rounded-xl border border-emerald-200 bg-white p-2 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:rounded-2xl sm:p-3"
           >
-            <div className="text-xs font-semibold uppercase tracking-wide text-emerald-600">Terminados</div>
-            <div className="mt-0.5 text-xl font-bold text-slate-900">{counts.completed}</div>
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-emerald-600 sm:text-xs">Terminados</div>
+            <div className="mt-0.5 text-lg font-bold leading-tight text-slate-900 sm:text-xl">{counts.completed}</div>
           </button>
           <button
             type="button"
             onClick={() => applySummaryFilter('BLOCKED')}
             title="Ver pendientes de habitaciones bloqueadas"
             aria-label="Ver pendientes de habitaciones bloqueadas"
-            className="cursor-pointer rounded-2xl border border-amber-200 bg-white p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+            className="cursor-pointer rounded-xl border border-amber-200 bg-white p-2 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:rounded-2xl sm:p-3"
           >
-            <div className="text-xs font-semibold uppercase tracking-wide text-amber-700">Habitaciones bloqueadas</div>
-            <div className="mt-0.5 text-xl font-bold text-slate-900">{counts.blockedRooms}</div>
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-amber-700 sm:text-xs">Hab. bloqueadas</div>
+            <div className="mt-0.5 text-lg font-bold leading-tight text-slate-900 sm:text-xl">{counts.blockedRooms}</div>
           </button>
         </section>
 
-        <section className="mb-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+        <section className="mb-3 rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm sm:rounded-2xl sm:p-3">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_180px_170px_190px_180px_180px]">
             <label className="col-span-2 lg:col-span-1">
               <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Buscar</span>
@@ -534,12 +534,12 @@ export default function MaintenancePendingPage() {
                 onChange={(event) => setSearch(event.target.value)}
                 onKeyDown={(event) => event.stopPropagation()}
                 placeholder="Ubicación, pendiente, categoría, proveedor…"
-                className="w-full rounded-xl border border-slate-300 px-3 py-1.5 outline-none focus:border-blue-500"
+                className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-sm outline-none focus:border-blue-500 sm:rounded-xl sm:px-3"
               />
             </label>
             <label>
               <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Estado</span>
-              <select value={status} onChange={(event) => setStatus(event.target.value as typeof status)} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-1.5">
+              <select value={status} onChange={(event) => setStatus(event.target.value as typeof status)} className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm sm:rounded-xl sm:px-3">
                 <option value="PENDING">Pendientes</option>
                 <option value="COMPLETED">Terminados</option>
                 <option value="ALL">Todos</option>
@@ -547,14 +547,14 @@ export default function MaintenancePendingPage() {
             </label>
             <label>
               <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Categoría</span>
-              <select value={category} onChange={(event) => setCategory(event.target.value)} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-1.5">
+              <select value={category} onChange={(event) => setCategory(event.target.value)} className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm sm:rounded-xl sm:px-3">
                 <option value="ALL">Todas</option>
                 {categories.map((item) => <option key={item} value={item}>{item}</option>)}
               </select>
             </label>
             <label>
               <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Prioridad</span>
-              <select value={priority} onChange={(event) => setPriority(event.target.value as typeof priority)} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-1.5">
+              <select value={priority} onChange={(event) => setPriority(event.target.value as typeof priority)} className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm sm:rounded-xl sm:px-3">
                 <option value="ALL">Todas</option>
                 <option value="CRITICAL">Crítica</option>
                 <option value="HIGH">Alta</option>
@@ -564,7 +564,7 @@ export default function MaintenancePendingPage() {
             </label>
             <label>
               <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Asignado</span>
-              <select value={assigned} onChange={(event) => setAssigned(event.target.value)} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-1.5">
+              <select value={assigned} onChange={(event) => setAssigned(event.target.value)} className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm sm:rounded-xl sm:px-3">
                 <option value="ALL">Todos</option>
                 <option value="UNASSIGNED">Sin asignar</option>
                 {assignees.map((item) => <option key={item} value={item}>{item}</option>)}
@@ -572,7 +572,7 @@ export default function MaintenancePendingPage() {
             </label>
             <label>
               <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Habitación</span>
-              <select value={blockedFilter} onChange={(event) => setBlockedFilter(event.target.value as typeof blockedFilter)} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-1.5">
+              <select value={blockedFilter} onChange={(event) => setBlockedFilter(event.target.value as typeof blockedFilter)} className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm sm:rounded-xl sm:px-3">
                 <option value="ALL">Todas</option>
                 <option value="BLOCKED">Bloqueadas</option>
                 <option value="UNBLOCKED">No bloqueadas</option>
@@ -689,8 +689,8 @@ export default function MaintenancePendingPage() {
             </GridViewport>
             </div>
 
-            <GridViewport className="max-h-[calc(100vh-330px)] 2xl:hidden">
-              <div className="space-y-3 p-3">
+            <GridViewport className="max-h-[calc(100vh-280px)] 2xl:hidden">
+              <div className="space-y-2 p-2">
                 {filtered.map((item) => {
                   const roomLocation = item.location?.trim() ?? ''
                   const roomIsBlocked = isRoomLocation(roomLocation) && blockedRooms.has(roomLocation)
@@ -698,63 +698,58 @@ export default function MaintenancePendingPage() {
                     <article
                       key={item.id}
                       onClick={() => setSelectedId(item.id)}
-                      className={`rounded-xl border p-3 shadow-sm ${item.id === selectedId ? 'border-blue-300 bg-blue-50' : 'border-slate-200 bg-white'}`}
+                      className={`rounded-lg border px-2.5 py-2 shadow-sm ${item.id === selectedId ? 'border-blue-300 bg-blue-50' : 'border-slate-200 bg-white'}`}
                     >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="text-xs font-semibold text-slate-500">
+                      <div className="flex min-w-0 items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="text-[11px] font-semibold leading-tight text-slate-500">
                             {item.location ?? 'Sin ubicación'} · {item.category ?? 'Sin categoría'}
                           </div>
-                          <h3 className="mt-1 break-words text-base font-semibold text-slate-900">{item.pending}</h3>
+                          <h3 className="mt-0.5 break-words text-sm font-semibold leading-snug text-slate-900">{item.pending}</h3>
                         </div>
-                        <span className={`shrink-0 rounded-full px-2 py-1 text-[11px] font-semibold ${roomIsBlocked ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-500'}`}>
-                          {roomIsBlocked ? 'Bloqueada' : (isRoomLocation(item.location) ? 'No bloqueada' : '—')}
-                        </span>
+                        <div className="flex shrink-0 flex-col items-end gap-1">
+                          <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-tight ${statusClass(item.status)}`}>
+                            {statusLabels[item.status]}
+                          </span>
+                          <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-tight ${priorityClass(item.priority)}`}>
+                            {priorityLabels[item.priority]}
+                          </span>
+                        </div>
                       </div>
 
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${statusClass(item.status)}`}>
-                          {statusLabels[item.status]}
-                        </span>
-                        <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${priorityClass(item.priority)}`}>
-                          {priorityLabels[item.priority]}
-                        </span>
-                      </div>
-
-                      <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 border-t border-slate-100 pt-3 text-sm">
+                      <div className="mt-2 grid grid-cols-2 gap-x-2 border-t border-slate-100 pt-1.5 text-xs">
                         <div className="min-w-0">
-                          <div className="text-xs text-slate-500">Asignado a</div>
-                          <div className="break-words font-medium text-slate-800">{item.assigned_to ?? 'Sin asignar'}</div>
+                          <span className="text-slate-500">Asignado: </span>
+                          <span className="break-words font-semibold text-slate-800">{item.assigned_to ?? 'Sin asignar'}</span>
                         </div>
-                        <div>
-                          <div className="text-xs text-slate-500">Fecha</div>
-                          <div className="font-medium text-slate-800">{formatDate(item.source_date)}</div>
+                        <div className="min-w-0 text-right">
+                          <span className="text-slate-500">Fecha: </span>
+                          <span className="font-medium text-slate-800">{formatDate(item.source_date)}</span>
                         </div>
                       </div>
 
                       {item.observation && (
-                        <div className="mt-2 break-words text-sm text-slate-600">
+                        <div className="mt-1 break-words text-xs leading-snug text-slate-600">
                           <span className="font-semibold">Observación: </span>{item.observation}
                         </div>
                       )}
 
-                      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
+                      <div className="mt-2 flex min-h-8 flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-1.5">
                         {isRoomLocation(item.location) ? (
-                          <div className="flex items-center gap-2">
+                          <div className="flex min-w-0 items-center gap-1.5">
                             <IconButton
                               icon={roomIsBlocked ? Lock : Unlock}
                               label={roomIsBlocked ? 'Desbloquear habitación' : 'Bloquear habitación'}
                               title={roomIsBlocked ? 'Desbloquear habitación' : 'Bloquear habitación'}
                               onClick={() => void toggleRoomBlocked(item.location!)}
                               disabled={updatingRoom === roomLocation}
-                              className={`h-10 w-10 shrink-0 ${roomIsBlocked ? 'border-amber-200 bg-amber-50 text-amber-700' : ''}`}
+                              className={`h-9 w-9 shrink-0 ${roomIsBlocked ? 'border-amber-200 bg-amber-50 text-amber-700' : ''}`}
                             />
-                            <span className={`text-xs font-semibold ${roomIsBlocked ? 'text-amber-700' : 'text-slate-500'}`}>
-                              {roomIsBlocked ? 'Habitación bloqueada' : 'Habitación disponible'}
+                            <span className={`text-[10px] font-semibold leading-tight ${roomIsBlocked ? 'text-amber-700' : 'text-slate-500'}`}>
+                              {roomIsBlocked ? 'Bloqueada' : 'Disponible'}
                             </span>
                           </div>
                         ) : <span />}
-
                         <div className="flex items-center gap-1">
                           {showHistory ? (
                             <IconButton
@@ -762,7 +757,7 @@ export default function MaintenancePendingPage() {
                               label="Restaurar pendiente"
                               title="Restaurar"
                               onClick={() => void restoreItem(item)}
-                              className="h-10 w-10"
+                              className="h-9 w-9"
                             />
                           ) : (
                             <>
@@ -771,14 +766,14 @@ export default function MaintenancePendingPage() {
                                 label="Modificar pendiente"
                                 title="Modificar"
                                 onClick={() => openEdit(item)}
-                                className="h-10 w-10"
+                                className="h-9 w-9"
                               />
                               <IconButton
                                 icon={Trash2}
                                 label="Eliminar pendiente"
                                 title="Eliminar (desactivar)"
                                 onClick={() => void deactivateItem(item)}
-                                className="h-10 w-10"
+                                className="h-9 w-9"
                               />
                             </>
                           )}
@@ -788,7 +783,7 @@ export default function MaintenancePendingPage() {
                   )
                 })}
                 {!loading && filtered.length === 0 && (
-                  <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500">
+                  <div className="rounded-lg border border-dashed border-slate-300 p-5 text-center text-sm text-slate-500">
                     No hay pendientes para estos filtros.
                   </div>
                 )}

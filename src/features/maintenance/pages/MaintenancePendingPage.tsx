@@ -636,20 +636,24 @@ export default function MaintenancePendingPage() {
 
         <main className="flex min-h-0 flex-1 flex-col gap-4 2xl:grid 2xl:grid-cols-[minmax(0,1.5fr)_minmax(330px,0.5fr)]">
           <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div className="flex flex-col gap-2 border-b px-3 py-2 sm:flex-row sm:items-center sm:justify-between sm:px-4">
+            <div className="flex flex-col gap-1.5 border-b px-3 py-2 sm:flex-row sm:items-center sm:justify-between sm:px-4">
               <div className="min-w-0">
-                <div className="text-sm font-semibold">{showHistory ? 'Histórico de pendientes' : 'Listado de pendientes'}</div>
-                <div className="text-xs text-slate-500">{filtered.length} resultado{filtered.length === 1 ? '' : 's'}</div>
+                <div className="truncate text-sm font-semibold">{showHistory ? 'Histórico de pendientes' : 'Listado de pendientes'}</div>
               </div>
-              <div className="flex items-center justify-between gap-1 sm:justify-end sm:gap-2">
-                <span className="shrink-0 text-[11px] font-medium text-slate-500 sm:text-xs" aria-live="polite">
-                  {filtered.length === 0 ? '0 / 0' : `${currentIndex + 1} / ${filtered.length}`}
+              <div className="flex min-w-0 items-center justify-between gap-1 sm:justify-end sm:gap-2">
+                <span className="min-w-0 truncate text-[11px] font-medium text-slate-500 sm:text-xs" aria-live="polite">
+                  {filtered.length} resultado{filtered.length === 1 ? '' : 's'}
                 </span>
-                <div className="flex items-center gap-0">
-                  <IconButton icon={ChevronsUp} label="Ir al primer pendiente" title="Ir al inicio" onClick={() => moveSelection(0)} disabled={filtered.length === 0 || currentIndex === 0} className="h-7 w-7 sm:h-8 sm:w-8" />
-                  <IconButton icon={ChevronUp} label="Pendiente anterior" title="Anterior" onClick={() => moveSelection(currentIndex - 1)} disabled={filtered.length === 0 || currentIndex === 0} className="h-7 w-7 sm:h-8 sm:w-8" />
-                  <IconButton icon={ChevronDown} label="Pendiente siguiente" title="Siguiente" onClick={() => moveSelection(currentIndex + 1)} disabled={filtered.length === 0 || currentIndex === filtered.length - 1} className="h-7 w-7 sm:h-8 sm:w-8" />
-                  <IconButton icon={ChevronsDown} label="Ir al último pendiente" title="Ir al final" onClick={() => moveSelection(filtered.length - 1)} disabled={filtered.length === 0 || currentIndex === filtered.length - 1} className="h-7 w-7 sm:h-8 sm:w-8" />
+                <div className="flex shrink-0 items-center gap-1">
+                  <span className="shrink-0 text-[10px] font-medium text-slate-500 sm:text-xs" aria-live="polite">
+                    {filtered.length === 0 ? '0 / 0' : `${currentIndex + 1} / ${filtered.length}`}
+                  </span>
+                  <div className="flex items-center gap-0">
+                    <IconButton icon={ChevronsUp} size="compact" label="Ir al primer pendiente" title="Ir al inicio" onClick={() => moveSelection(0)} disabled={filtered.length === 0 || currentIndex === 0} />
+                    <IconButton icon={ChevronUp} size="compact" label="Pendiente anterior" title="Anterior" onClick={() => moveSelection(currentIndex - 1)} disabled={filtered.length === 0 || currentIndex === 0} />
+                    <IconButton icon={ChevronDown} size="compact" label="Pendiente siguiente" title="Siguiente" onClick={() => moveSelection(currentIndex + 1)} disabled={filtered.length === 0 || currentIndex === filtered.length - 1} />
+                    <IconButton icon={ChevronsDown} size="compact" label="Ir al último pendiente" title="Ir al final" onClick={() => moveSelection(filtered.length - 1)} disabled={filtered.length === 0 || currentIndex === filtered.length - 1} />
+                  </div>
                 </div>
               </div>
             </div>
@@ -803,7 +807,8 @@ export default function MaintenancePendingPage() {
                             title={roomIsBlocked ? 'Desbloquear habitación' : 'Bloquear habitación'}
                             onClick={() => void toggleRoomBlocked(item.location!)}
                             disabled={updatingRoom === roomLocation}
-                            className={`h-8 w-8 ${roomIsBlocked ? 'border-amber-200 bg-amber-50 text-amber-700' : ''}`}
+                            size="compact"
+                            className={roomIsBlocked ? 'border-amber-200 bg-amber-50 text-amber-700' : ''}
                           />
                         )}
                         {showHistory ? (
@@ -812,7 +817,7 @@ export default function MaintenancePendingPage() {
                             label="Restaurar pendiente"
                             title="Restaurar"
                             onClick={() => void restoreItem(item)}
-                            className="h-8 w-8"
+                            size="compact"
                           />
                         ) : (
                           <>
@@ -821,14 +826,14 @@ export default function MaintenancePendingPage() {
                               label="Modificar pendiente"
                               title="Modificar"
                               onClick={() => openEdit(item)}
-                              className="h-8 w-8"
+                              size="compact"
                             />
                             <IconButton
                               icon={Trash2}
                               label="Eliminar pendiente"
                               title="Eliminar (desactivar)"
                               onClick={() => void deactivateItem(item)}
-                              className="h-8 w-8"
+                              size="compact"
                             />
                           </>
                         )}

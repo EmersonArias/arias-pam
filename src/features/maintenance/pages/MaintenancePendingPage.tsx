@@ -47,7 +47,7 @@ const statusLabels = {
 
 const priorityLabels = {
   LOW: 'Baja',
-  NORMAL: 'Normal',
+  NORMAL: 'Media',
   HIGH: 'Alta',
   CRITICAL: 'Crítica',
 } as const
@@ -784,7 +784,7 @@ export default function MaintenancePendingPage() {
                 <option value="HIGH_OR_CRITICAL">Alta o crítica</option>
                 <option value="CRITICAL">Crítica</option>
                 <option value="HIGH">Alta</option>
-                <option value="NORMAL">Normal</option>
+                <option value="NORMAL">Media</option>
                 <option value="LOW">Baja</option>
               </select>
             </label>
@@ -931,7 +931,7 @@ export default function MaintenancePendingPage() {
                   const roomLocation = item.location?.trim() ?? ''
                   const roomIsBlocked = isRoomLocation(roomLocation) && blockedRooms.has(roomLocation)
                   const statusShort = item.status === 'COMPLETED' ? 'Fin.' : 'Pend.'
-                  const priorityShort = item.priority === 'NORMAL' ? 'Norm.' : priorityLabels[item.priority]
+                  const priorityShort = item.priority === 'NORMAL' ? 'Med.' : priorityLabels[item.priority]
                   const accessibleSummary = [
                     item.location ?? 'Sin ubicación',
                     item.category ?? 'Sin categoría',
@@ -1229,12 +1229,14 @@ export default function MaintenancePendingPage() {
               </label>
               <label className="block">
                 <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Categoría</span>
-                <input
-                  list="pending-category-options"
+                <select
                   value={newForm.category}
                   onChange={(event) => handleNewCategoryChange(event.target.value)}
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2"
-                />
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2"
+                >
+                  <option value="">Selecciona categoría</option>
+                  {categories.map((item) => <option key={item} value={item}>{item}</option>)}
+                </select>
               </label>
               <label className="block sm:col-span-2">
                 <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Pendiente *</span>
@@ -1254,7 +1256,7 @@ export default function MaintenancePendingPage() {
                 >
                   <option value="CRITICAL">Crítica</option>
                   <option value="HIGH">Alta</option>
-                  <option value="NORMAL">Normal</option>
+                  <option value="NORMAL">Media</option>
                   <option value="LOW">Baja</option>
                 </select>
               </label>
@@ -1266,6 +1268,9 @@ export default function MaintenancePendingPage() {
                   onChange={(event) => setNewForm((value) => ({ ...value, assigned_to: event.target.value }))}
                   className="w-full rounded-xl border border-slate-300 px-3 py-2"
                 />
+                {newForm.category && getSupplierForCategory(newForm.category) && (
+                  <span className="mt-1 block text-[11px] text-slate-500">Proveedor sugerido según categoría. Puedes cambiarlo si procede.</span>
+                )}
                 {getSupplierContact(newForm.assigned_to) && <span className="mt-1 block text-[11px] text-slate-500">Contacto: {getSupplierContact(newForm.assigned_to)}</span>}
               </label>
               <label className="block">
@@ -1345,12 +1350,14 @@ export default function MaintenancePendingPage() {
               </label>
               <label className="block">
                 <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Categoría</span>
-                <input
-                  list="pending-category-options"
+                <select
                   value={editForm.category}
                   onChange={(event) => handleEditCategoryChange(event.target.value)}
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2"
-                />
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2"
+                >
+                  <option value="">Selecciona categoría</option>
+                  {categories.map((item) => <option key={item} value={item}>{item}</option>)}
+                </select>
               </label>
               <label className="block sm:col-span-2">
                 <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Pendiente</span>
@@ -1369,7 +1376,7 @@ export default function MaintenancePendingPage() {
                 >
                   <option value="CRITICAL">Crítica</option>
                   <option value="HIGH">Alta</option>
-                  <option value="NORMAL">Normal</option>
+                  <option value="NORMAL">Media</option>
                   <option value="LOW">Baja</option>
                 </select>
               </label>

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Archive, ChevronDown, ChevronUp, ChevronsDown, ChevronsUp, CornerUpLeft, FilterX, House, Lock, Pencil, Plus, RefreshCw, RotateCcw, Trash2, Unlock, X } from 'lucide-react'
+import { Archive, ChevronDown, ChevronUp, ChevronsDown, ChevronsUp, CornerUpLeft, FilterX, House, Lock, Pencil, Plus, RefreshCw, RotateCcw, Search, SlidersHorizontal, Trash2, Unlock, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import BrandLogo from '../../../shared/components/branding/BrandLogo'
 import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
@@ -75,6 +75,7 @@ export default function MaintenancePendingPage() {
   const [updatingRoom, setUpdatingRoom] = useState<string | null>(null)
   const [showHistory, setShowHistory] = useState(false)
   const [mobileDetailOpen, setMobileDetailOpen] = useState(false)
+  const [showMobileFilters, setShowMobileFilters] = useState(false)
   const [editing, setEditing] = useState(false)
   const [savingEdit, setSavingEdit] = useState(false)
   const [creating, setCreating] = useState(false)
@@ -541,9 +542,39 @@ export default function MaintenancePendingPage() {
           </button>
         </section>
 
-        <section className="mb-3 rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm sm:rounded-2xl sm:p-3">
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_180px_170px_190px_180px_180px]">
-            <label className="col-span-2 lg:col-span-1">
+        <section className="mb-2 rounded-xl border border-slate-200 bg-white p-2 shadow-sm sm:mb-3 sm:rounded-2xl sm:p-3">
+          <div className="mb-1.5 flex items-center gap-2 lg:hidden">
+            <label className="relative block min-w-0 flex-1">
+              <span className="sr-only">Buscar pendientes</span>
+              <Search size={16} aria-hidden="true" className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                onKeyDown={(event) => event.stopPropagation()}
+                placeholder="Buscar pendiente o ubicación…"
+                className="w-full rounded-lg border border-slate-300 py-2 pl-8 pr-2 text-sm outline-none focus:border-blue-500"
+              />
+            </label>
+            <IconButton
+              icon={SlidersHorizontal}
+              label={showMobileFilters ? "Ocultar filtros" : "Mostrar filtros"}
+              title={showMobileFilters ? "Ocultar filtros" : "Mostrar filtros"}
+              onClick={() => setShowMobileFilters((current) => !current)}
+              className={`h-10 w-10 ${showMobileFilters ? 'border-blue-300 bg-blue-100' : ''}`}
+            />
+            {(search || category !== 'ALL' || priority !== 'ALL' || assigned !== 'ALL' || blockedFilter !== 'ALL' || status !== 'PENDING') && (
+              <IconButton
+                icon={FilterX}
+                label="Limpiar filtros"
+                title="Limpiar filtros"
+                onClick={clearFilters}
+                className="h-10 w-10"
+              />
+            )}
+          </div>
+
+          <div className={`${showMobileFilters ? 'grid' : 'hidden'} grid-cols-2 gap-2.5 lg:grid lg:grid-cols-[minmax(0,1fr)_150px_150px_160px_150px_160px] sm:gap-3`}>
+            <label className="hidden lg:block lg:col-span-1">
               <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Buscar</span>
               <input
                 value={search}
@@ -554,23 +585,23 @@ export default function MaintenancePendingPage() {
               />
             </label>
             <label>
-              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Estado</span>
-              <select value={status} onChange={(event) => setStatus(event.target.value as typeof status)} className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm sm:rounded-xl sm:px-3">
+              <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-500 sm:text-xs">Estado</span>
+              <select value={status} onChange={(event) => setStatus(event.target.value as typeof status)} className="w-full min-w-0 rounded-lg border border-slate-300 bg-white px-2 py-2 text-sm sm:rounded-xl sm:px-3">
                 <option value="PENDING">Pendientes</option>
                 <option value="COMPLETED">Terminados</option>
                 <option value="ALL">Todos</option>
               </select>
             </label>
             <label>
-              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Categoría</span>
-              <select value={category} onChange={(event) => setCategory(event.target.value)} className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm sm:rounded-xl sm:px-3">
+              <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-500 sm:text-xs">Categoría</span>
+              <select value={category} onChange={(event) => setCategory(event.target.value)} className="w-full min-w-0 rounded-lg border border-slate-300 bg-white px-2 py-2 text-sm sm:rounded-xl sm:px-3">
                 <option value="ALL">Todas</option>
                 {categories.map((item) => <option key={item} value={item}>{item}</option>)}
               </select>
             </label>
             <label>
-              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Prioridad</span>
-              <select value={priority} onChange={(event) => setPriority(event.target.value as typeof priority)} className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm sm:rounded-xl sm:px-3">
+              <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-500 sm:text-xs">Prioridad</span>
+              <select value={priority} onChange={(event) => setPriority(event.target.value as typeof priority)} className="w-full min-w-0 rounded-lg border border-slate-300 bg-white px-2 py-2 text-sm sm:rounded-xl sm:px-3">
                 <option value="ALL">Todas</option>
                 <option value="CRITICAL">Crítica</option>
                 <option value="HIGH">Alta</option>
@@ -579,16 +610,16 @@ export default function MaintenancePendingPage() {
               </select>
             </label>
             <label>
-              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Asignado</span>
-              <select value={assigned} onChange={(event) => setAssigned(event.target.value)} className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm sm:rounded-xl sm:px-3">
+              <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-500 sm:text-xs">Asignado</span>
+              <select value={assigned} onChange={(event) => setAssigned(event.target.value)} className="w-full min-w-0 rounded-lg border border-slate-300 bg-white px-2 py-2 text-sm sm:rounded-xl sm:px-3">
                 <option value="ALL">Todos</option>
                 <option value="UNASSIGNED">Sin asignar</option>
                 {assignees.map((item) => <option key={item} value={item}>{item}</option>)}
               </select>
             </label>
             <label>
-              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Habitación</span>
-              <select value={blockedFilter} onChange={(event) => setBlockedFilter(event.target.value as typeof blockedFilter)} className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm sm:rounded-xl sm:px-3">
+              <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-500 sm:text-xs">Habitación</span>
+              <select value={blockedFilter} onChange={(event) => setBlockedFilter(event.target.value as typeof blockedFilter)} className="w-full min-w-0 rounded-lg border border-slate-300 bg-white px-2 py-2 text-sm sm:rounded-xl sm:px-3">
                 <option value="ALL">Todas</option>
                 <option value="BLOCKED">Bloqueadas</option>
                 <option value="UNBLOCKED">No bloqueadas</option>
@@ -597,7 +628,7 @@ export default function MaintenancePendingPage() {
           </div>
 
           {(search || category !== 'ALL' || priority !== 'ALL' || assigned !== 'ALL' || blockedFilter !== 'ALL' || status !== 'PENDING') && (
-            <div className="mt-3 flex justify-end">
+            <div className="mt-3 hidden justify-end lg:flex">
               <ActionButton icon={FilterX} label="Limpiar filtros" onClick={clearFilters} className="min-h-9 px-3 py-1.5 text-xs" />
             </div>
           )}

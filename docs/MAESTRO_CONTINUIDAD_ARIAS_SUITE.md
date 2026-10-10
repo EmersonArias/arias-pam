@@ -1350,20 +1350,19 @@ El backlog **Pendientes** es independiente de Tickets.
 
 Pendientes actualmente dispone de:
 
-- 216 registros importados inicialmente;
-- tarjetas resumen;
-- filtros;
+- registros importados inicialmente desde Excel;
+- tarjetas resumen y filtros;
 - búsqueda incremental;
 - habitaciones bloqueadas;
-- Nuevo;
-- Modificar;
-- desactivación lógica;
-- Histórico;
-- Restaurar.
+- Nuevo y Modificar;
+- desactivación lógica e Histórico;
+- Restaurar;
+- cambio de estado Pendiente/Terminado desde el detalle;
+- formularios con fecha editable, selección de categoría y autocompletado de proveedor condicionado a la migración 064.
 
-La DB tiene las migraciones **046–063 confirmadas como OK**.
+La DB tiene las migraciones **046–063 confirmadas como OK y congeladas**.
 
-La siguiente migración es **064**.
+La migración **064 está creada en GitHub, pero queda pendiente de ejecución y confirmación en Supabase**. No afirmar que el catálogo está operativo hasta que se aplique. Una vez aplicada y confirmada, la siguiente migración será **065**.
 
 El repositorio activo es:
 
@@ -1394,3 +1393,124 @@ La frase que resume todo el método de trabajo es:
 > **Lee primero. Comprueba. Modifica directamente GitHub. Haz commit. Verifica. No asumas. No rompas lo congelado.**
 
 Este documento debe acompañar la continuidad del proyecto.
+
+
+---
+
+# 42. REVISIÓN AVANZADA — PENDIENTES Y PARIDAD CON EXCEL (2026-10-10)
+
+## 42.1 Fuente Excel revisada
+
+Archivo de referencia: `PENDIENTES (1).xlsm`.
+
+Hojas existentes:
+- `FORMULARIO`
+- `PENDIENTES`
+- `IMPRESION`
+- `PROVEEDORES`
+- `MATERIALES Y CODIGOS`
+
+Campos del formulario Excel:
+- Ubicación
+- Categoría
+- Pendiente
+- Asignado a
+- Prioridad
+- Observación
+- Fecha
+
+La celda de proveedor usa un lookup equivalente a:
+`SI.ERROR(BUSCARX(C18;PROVEEDORES!C:C;PROVEEDORES!A:A);" ")`.
+Por tanto, al seleccionar una categoría se recupera el proveedor asociado en la hoja `PROVEEDORES`.
+
+Prioridades de origen Excel:
+- Alta
+- Media
+- Baja
+
+Arias Suite conserva sus valores normalizados internos (`HIGH`, `NORMAL`, `LOW`, `CRITICAL`), pero la etiqueta visual para `NORMAL` pasa a ser **Media** para mantener la terminología del Excel. `CRITICAL` sigue siendo una ampliación de Arias Suite.
+
+La hoja `PROVEEDORES` contiene relaciones categoría → proveedor y nombres de contacto. La hoja `MATERIALES Y CODIGOS` es un catálogo separado con descripción, código para pedidos y proveedor; no debe confundirse con los campos del formulario de Pendientes.
+
+## 42.2 Proveedores — reutilizar el catálogo maestro
+
+Arias Suite ya tiene módulo maestro de proveedores en `/providers` y usa las tablas:
+- `providers`
+- `provider_hotels`
+- `provider_contacts`
+- `provider_services`
+
+No crear una segunda tabla maestra de proveedores dentro de Pendientes.
+
+## 42.3 Migración 064 — pendiente de ejecución
+
+Archivo creado:
+`supabase/migrations/064_maintenance_supplier_and_material_catalogs.sql`
+
+Commit de la migración:
+`8b7a863f57b4443bf01b6afa244b88d9de3879cb`
+
+Crea:
+- `maintenance_category_supplier_defaults`: proveedor maestro predeterminado por categoría y hotel.
+- `maintenance_material_catalog`: descripción de material, código para pedido y proveedor maestro asociado.
+
+Inicializa los valores de Excel para SB Diagonal Zero, enlazándolos con `providers`, `provider_hotels`, `provider_contacts` y `provider_services`; no crea un catálogo paralelo.
+
+**Estado real:** archivo en GitHub, pero aún no confirmado como ejecutado en Supabase. La aplicación consulta estas tablas; hasta ejecutar 064, el formulario puede mostrar el aviso de catálogo no disponible y no debe darse por probado el autocompletado.
+
+Migraciones 046–063 permanecen congeladas e intactas. Ejecutar y verificar 064 antes de crear 065.
+
+## 42.4 Comportamiento implementado en Pendientes
+
+Archivo:
+`src/features/maintenance/pages/MaintenancePendingPage.tsx`
+
+La interfaz ahora contempla:
+- ubicación con sugerencias de valores existentes;
+- categoría como selector de valores existentes;
+- proveedor sugerido automáticamente desde la relación categoría → proveedor;
+- contacto del proveedor cuando está disponible en su ficha maestra;
+- proveedor editable para admitir excepciones operativas;
+- prioridades con etiquetas Alta, Media, Baja y Crítica;
+- fecha editable en Nuevo y Modificar, guardada en fecha local para evitar desplazamientos por conversión UTC;
+- acción **Limpiar formulario** en Nuevo, con confirmación;
+- mensajes de error y aviso del catálogo dentro del modal;
+- acciones para marcar un pendiente como terminado y reabrirlo desde el detalle;
+- al crear, se limpian los filtros y se vuelve al modo activo para que el registro recién creado sea visible.
+
+No editar `source_file` ni `source_row`; siguen siendo trazabilidad del origen. Eliminar sigue significando **desactivación lógica**, nunca borrado físico.
+
+## 42.5 Correcciones de botones y navegación
+
+- La tarjeta **Prioridad alta** debe mostrar y filtrar tanto `HIGH` como `CRITICAL`.
+- Al pulsar una tarjeta resumen se sale de Histórico y se aplican filtros coherentes con la tarjeta.
+- Limpiar filtros cierra el panel de filtros móvil.
+- La navegación del grid distingue filas de escritorio y móvil y busca la fila visible para desplazar la selección.
+- En el grid de escritorio, Enter abre la edición del registro seleccionado.
+
+## 42.6 Materiales y códigos
+
+Los tres materiales iniciales de `MATERIALES Y CODIGOS` quedan sembrados por 064:
+- Motor tipo 1 fancoil habitaciones — `AERMEC FCX50P 9110233` — AIRLAM.
+- Bandeja de condensados — `Bandeja de condensados BC8` — AIRLAM.
+- Teléfono de ducha — `Tres 134748 Ducha Lex-100 5 posiciones` — TRES.
+
+**No afirmar que ya existe una pantalla de materiales/pedidos conectada al catálogo:** la auditoría de rutas de `src/App.tsx` no encontró una ruta de Stock/Pedidos para consumirlo. Su interfaz de consulta/solicitud sigue siendo un trabajo pendiente y no debe añadirse como campo de Pendientes sin una decisión funcional.
+
+## 42.7 HEAD y despliegue al cierre de esta revisión
+
+Repositorio: `EmersonArias/arias-pam`
+
+Rama: `feature/arias-suite-common-ui-v1`
+
+HEAD confirmado al cierre:
+`a8f573063d2e191841f78c5665c485ccb8169c3c`
+
+Vercel reportó estado **SUCCESS** para ese commit. Esto confirma el estado reportado del deployment web, no la ejecución de la migración 064 en Supabase ni una prueba manual visual de todos los controles.
+
+Siguiente comprobación:
+1. Ejecutar la migración 064 en Supabase.
+2. Abrir Nuevo pendiente y confirmar categoría → proveedor/contacto y fecha.
+3. Probar Limpiar, Guardar, Modificar, Marcar terminado/Reabrir, Eliminar lógico, Histórico y Restaurar.
+4. Verificar en móvil que las acciones y la navegación mantienen su comportamiento.
+

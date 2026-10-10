@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Archive, ChevronDown, ChevronUp, ChevronsDown, ChevronsUp, CornerUpLeft, FilterX, House, Lock, Pencil, Plus, RefreshCw, RotateCcw, Search, SlidersHorizontal, Trash2, Unlock, X } from 'lucide-react'
+import { Archive, CheckCircle2, ChevronDown, ChevronUp, ChevronsDown, ChevronsUp, CornerUpLeft, FilterX, House, Lock, Pencil, Plus, RefreshCw, RotateCcw, Search, SlidersHorizontal, Trash2, Unlock, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import BrandLogo from '../../../shared/components/branding/BrandLogo'
 import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
@@ -26,6 +26,18 @@ type PendingItem = {
   source_file: string
   source_row: number
   active: boolean
+}
+
+type SupplierCatalogItem = {
+  id: string
+  supplier_name: string
+  contact_name: string | null
+}
+
+type CategorySupplierDefault = {
+  id: string
+  category_name: string
+  supplier_id: string
 }
 
 const statusLabels = {
@@ -60,10 +72,17 @@ function isRoomLocation(value: string | null) {
   return !!value && /^[0-9]{3,4}$/.test(value.trim())
 }
 
+function normalizeCatalogKey(value: string) {
+  return value.trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('es')
+}
+
 export default function MaintenancePendingPage() {
   const navigate = useNavigate()
   const { hotel } = useHotelScope()
   const [items, setItems] = useState<PendingItem[]>([])
+  const [suppliers, setSuppliers] = useState<SupplierCatalogItem[]>([])
+  const [categorySupplierDefaults, setCategorySupplierDefaults] = useState<CategorySupplierDefault[]>([])
+  const [catalogWarning, setCatalogWarning] = useState('')
   const [selectedId, setSelectedId] = useState('')
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('ALL')
@@ -103,6 +122,9 @@ export default function MaintenancePendingPage() {
   async function loadItems() {
     if (!hotel?.id) {
       setItems([])
+      setSuppliers([])
+      setCategorySupplierDefaults([])
+      setCatalogWarning('')
       setSelectedId('')
       setLoading(false)
       setError('No se ha seleccionado un hotel de trabajo.')
@@ -112,7 +134,7 @@ export default function MaintenancePendingPage() {
     setLoading(true)
     setError('')
 
-    const [result, blockedResult] = await Promise.all([
+    const [result, blockedResult, suppliersResult, categoryDefaultsResult] = await Promise.all([
       supabase
         .from('maintenance_pending_items')
         .select('id, hotel_id, location, category, pending, status, source_status, assigned_to, priority, source_priority, observation, source_date, source_file, source_row, active')
@@ -124,6 +146,18 @@ export default function MaintenancePendingPage() {
         .select('room_number')
         .eq('hotel_id', hotel.id)
         .order('room_number', { ascending: true }),
+      supabase
+        .from('maintenance_supplier_catalog')
+        .select('id, supplier_name, contact_name')
+        .eq('hotel_id', hotel.id)
+        .eq('active', true)
+        .order('supplier_name', { ascending: true }),
+      supabase
+        .from('maintenance_category_supplier_defaults')
+        .select('id, category_name, supplier_id')
+        .eq('hotel_id', hotel.id)
+        .eq('active', true)
+        .order('category_name', { ascending: true }),
     ])
 
     if (result.error) {
@@ -147,6 +181,13 @@ export default function MaintenancePendingPage() {
       ((blockedResult.data ?? []) as Array<{ room_number: string }>).map((item) => item.room_number.trim()),
     )
 
+    const supplierCatalogError = suppliersResult.error || categoryDefaultsResult.error
+    setSuppliers(suppliersResult.error ? [] : (suppliersResult.data ?? []) as SupplierCatalogItem[])
+    setCategorySupplierDefaults(categoryDefaultsResult.error ? [] : (categoryDefaultsResult.data ?? []) as CategorySupplierDefault[])
+    setCatalogWarning(supplierCatalogError
+      ? 'El catálogo automático no está disponible. Ejecuta la migración 064 en Supabase; mientras tanto, puedes introducir categoría y asignado manualmente.'
+      : '')
+
     setItems(loaded)
     setBlockedRooms(blocked)
     setSelectedId((current) => loaded.some((item) => item.id === current) ? current : (loaded[0]?.id ?? ''))
@@ -158,14 +199,48 @@ export default function MaintenancePendingPage() {
   }, [hotel?.id])
 
   const categories = useMemo(
-    () => Array.from(new Set(items.map((item) => item.category).filter(Boolean) as string[])).sort((a, b) => a.localeCompare(b, 'es')),
+    () => Array.from(new Set([
+      ...items.map((item) => item.category).filter(Boolean) as string[],
+      ...categorySupplierDefaults.map((item) => item.category_name),
+    ])).sort((a, b) => a.localeCompare(b, 'es')),
+    [items, categorySupplierDefaults],
+  )
+
+  const locations = useMemo(
+    () => Array.from(new Set(items.map((item) => item.location).filter(Boolean) as string[])).sort((a, b) => a.localeCompare(b, 'es')),
     [items],
   )
 
   const assignees = useMemo(
-    () => Array.from(new Set(items.map((item) => item.assigned_to).filter(Boolean) as string[])).sort((a, b) => a.localeCompare(b, 'es')),
-    [items],
+    () => Array.from(new Set([
+      ...items.map((item) => item.assigned_to).filter(Boolean) as string[],
+      ...suppliers.map((item) => item.supplier_name),
+    ])).sort((a, b) => a.localeCompare(b, 'es')),
+    [items, suppliers],
   )
+
+  function getSupplierForCategory(categoryName: string) {
+    const mapping = categorySupplierDefaults.find(
+      (item) => normalizeCatalogKey(item.category_name) === normalizeCatalogKey(categoryName),
+    )
+    return suppliers.find((item) => item.id === mapping?.supplier_id) ?? null
+  }
+
+  function getSupplierContact(supplierName: string) {
+    return suppliers.find(
+      (item) => normalizeCatalogKey(item.supplier_name) === normalizeCatalogKey(supplierName),
+    )?.contact_name ?? null
+  }
+
+  function handleNewCategoryChange(categoryName: string) {
+    const supplier = getSupplierForCategory(categoryName)
+    setNewForm((value) => ({ ...value, category: categoryName, assigned_to: supplier?.supplier_name ?? '' }))
+  }
+
+  function handleEditCategoryChange(categoryName: string) {
+    const supplier = getSupplierForCategory(categoryName)
+    setEditForm((value) => ({ ...value, category: categoryName, assigned_to: supplier?.supplier_name ?? '' }))
+  }
 
   const filtered = useMemo(() => {
     const query = search.trim().toLocaleLowerCase('es')
@@ -226,6 +301,7 @@ export default function MaintenancePendingPage() {
     setAssigned('ALL')
     setStatus('PENDING')
     setBlockedFilter('ALL')
+    setShowMobileFilters(false)
   }
 
   function openEdit(item: PendingItem) {
@@ -284,6 +360,8 @@ export default function MaintenancePendingPage() {
     } else {
       const createdId = result.data?.id as string | undefined
       setCreating(false)
+      setShowHistory(false)
+      clearFilters()
       await loadItems()
       if (createdId) setSelectedId(createdId)
     }
@@ -371,7 +449,32 @@ export default function MaintenancePendingPage() {
     await loadItems()
   }
 
+  async function setItemStatus(item: PendingItem) {
+    if (!hotel?.id) return
+
+    const nextStatus: PendingItem['status'] = item.status === 'PENDING' ? 'COMPLETED' : 'PENDING'
+    setError('')
+
+    const result = await supabase
+      .from('maintenance_pending_items')
+      .update({
+        status: nextStatus,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', item.id)
+      .eq('hotel_id', hotel.id)
+
+    if (result.error) {
+      setError(result.error.message)
+      return
+    }
+
+    await loadItems()
+  }
+
   function applySummaryFilter(kind: 'PENDING' | 'HIGH' | 'COMPLETED' | 'BLOCKED') {
+    setShowHistory(false)
+    setShowMobileFilters(false)
     setSearch('')
     setCategory('ALL')
     setAssigned('ALL')

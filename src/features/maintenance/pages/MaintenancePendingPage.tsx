@@ -446,7 +446,7 @@ export default function MaintenancePendingPage() {
     <div className="min-h-screen bg-slate-100 px-3 py-3 text-slate-900 sm:px-5 sm:py-5">
       <div className="mx-auto max-w-[1500px]">
         <header className="mb-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-lg sm:p-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex min-w-0 items-center gap-3">
               <BrandLogo onActivate={() => navigate('/')} className="h-9 w-auto shrink-0 object-contain sm:h-11" />
               <div className="min-w-0">
@@ -454,20 +454,22 @@ export default function MaintenancePendingPage() {
                 <p className="text-xs text-slate-500 sm:text-sm">Backlog operativo de mantenimiento del hotel</p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
               {!showHistory && (
                 <ActionButton
                   icon={Plus}
                   label="Nuevo pendiente"
                   onClick={openNew}
+                  className="min-w-0 basis-[calc(50%-0.25rem)] flex-grow sm:basis-auto sm:flex-grow-0"
                 />
               )}
               <ActionButton
                 icon={showHistory ? RotateCcw : Archive}
                 label={showHistory ? 'Pendientes activos' : 'Histórico'}
                 onClick={() => setShowHistory((current) => !current)}
+                className="min-w-0 basis-[calc(50%-0.25rem)] flex-grow sm:basis-auto sm:flex-grow-0"
               />
-              <IconButton icon={RefreshCw} label="Actualizar" title="Actualizar" onClick={() => void loadItems()} disabled={loading} />
+              <IconButton icon={RefreshCw} label="Actualizar" title="Actualizar" onClick={() => void loadItems()} disabled={loading} className="h-10 w-10 shrink-0" />
               <BackButton onBack={() => navigate('/maintenance')} />
               <HomeButton onHome={() => navigate('/')} />
             </div>
@@ -480,7 +482,7 @@ export default function MaintenancePendingPage() {
           </div>
         )}
 
-        <section className="mb-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <section className="mb-3 grid grid-cols-2 gap-2 sm:gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <button
             type="button"
             onClick={() => applySummaryFilter('PENDING')}
@@ -524,8 +526,8 @@ export default function MaintenancePendingPage() {
         </section>
 
         <section className="mb-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_180px_170px_190px_180px_180px]">
-            <label>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_180px_170px_190px_180px_180px]">
+            <label className="col-span-2 lg:col-span-1">
               <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Buscar</span>
               <input
                 value={search}
@@ -585,7 +587,7 @@ export default function MaintenancePendingPage() {
           )}
         </section>
 
-        <main className="grid gap-4 xl:grid-cols-[minmax(0,1.5fr)_minmax(330px,0.5fr)]">
+        <main className="grid gap-4 2xl:grid-cols-[minmax(0,1.5fr)_minmax(330px,0.5fr)]">
           <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
             <div className="flex items-center justify-between border-b px-4 py-3">
               <div>
@@ -595,6 +597,7 @@ export default function MaintenancePendingPage() {
               <span className="text-xs text-slate-500">{filtered.length} resultado{filtered.length === 1 ? '' : 's'}</span>
             </div>
 
+            <div className="hidden 2xl:block">
             <GridViewport className="max-h-[calc(100vh-400px)]">
               <div {...getGridProps()} className="outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-200">
               <table className="min-w-[1080px] w-full border-collapse text-sm">
@@ -684,6 +687,113 @@ export default function MaintenancePendingPage() {
               </table>
               </div>
             </GridViewport>
+            </div>
+
+            <GridViewport className="max-h-[calc(100vh-330px)] 2xl:hidden">
+              <div className="space-y-3 p-3">
+                {filtered.map((item) => {
+                  const roomLocation = item.location?.trim() ?? ''
+                  const roomIsBlocked = isRoomLocation(roomLocation) && blockedRooms.has(roomLocation)
+                  return (
+                    <article
+                      key={item.id}
+                      onClick={() => setSelectedId(item.id)}
+                      className={`rounded-xl border p-3 shadow-sm ${item.id === selectedId ? 'border-blue-300 bg-blue-50' : 'border-slate-200 bg-white'}`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="text-xs font-semibold text-slate-500">
+                            {item.location ?? 'Sin ubicación'} · {item.category ?? 'Sin categoría'}
+                          </div>
+                          <h3 className="mt-1 break-words text-base font-semibold text-slate-900">{item.pending}</h3>
+                        </div>
+                        <span className={`shrink-0 rounded-full px-2 py-1 text-[11px] font-semibold ${roomIsBlocked ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-500'}`}>
+                          {roomIsBlocked ? 'Bloqueada' : (isRoomLocation(item.location) ? 'No bloqueada' : '—')}
+                        </span>
+                      </div>
+
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${statusClass(item.status)}`}>
+                          {statusLabels[item.status]}
+                        </span>
+                        <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${priorityClass(item.priority)}`}>
+                          {priorityLabels[item.priority]}
+                        </span>
+                      </div>
+
+                      <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 border-t border-slate-100 pt-3 text-sm">
+                        <div className="min-w-0">
+                          <div className="text-xs text-slate-500">Asignado a</div>
+                          <div className="break-words font-medium text-slate-800">{item.assigned_to ?? 'Sin asignar'}</div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-slate-500">Fecha</div>
+                          <div className="font-medium text-slate-800">{formatDate(item.source_date)}</div>
+                        </div>
+                      </div>
+
+                      {item.observation && (
+                        <div className="mt-2 break-words text-sm text-slate-600">
+                          <span className="font-semibold">Observación: </span>{item.observation}
+                        </div>
+                      )}
+
+                      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
+                        {isRoomLocation(item.location) ? (
+                          <div className="flex items-center gap-2">
+                            <IconButton
+                              icon={roomIsBlocked ? Lock : Unlock}
+                              label={roomIsBlocked ? 'Desbloquear habitación' : 'Bloquear habitación'}
+                              title={roomIsBlocked ? 'Desbloquear habitación' : 'Bloquear habitación'}
+                              onClick={() => void toggleRoomBlocked(item.location!)}
+                              disabled={updatingRoom === roomLocation}
+                              className={`h-10 w-10 shrink-0 ${roomIsBlocked ? 'border-amber-200 bg-amber-50 text-amber-700' : ''}`}
+                            />
+                            <span className={`text-xs font-semibold ${roomIsBlocked ? 'text-amber-700' : 'text-slate-500'}`}>
+                              {roomIsBlocked ? 'Habitación bloqueada' : 'Habitación disponible'}
+                            </span>
+                          </div>
+                        ) : <span />}
+
+                        <div className="flex items-center gap-1">
+                          {showHistory ? (
+                            <IconButton
+                              icon={RotateCcw}
+                              label="Restaurar pendiente"
+                              title="Restaurar"
+                              onClick={() => void restoreItem(item)}
+                              className="h-10 w-10"
+                            />
+                          ) : (
+                            <>
+                              <IconButton
+                                icon={Pencil}
+                                label="Modificar pendiente"
+                                title="Modificar"
+                                onClick={() => openEdit(item)}
+                                className="h-10 w-10"
+                              />
+                              <IconButton
+                                icon={Trash2}
+                                label="Eliminar pendiente"
+                                title="Eliminar (desactivar)"
+                                onClick={() => void deactivateItem(item)}
+                                className="h-10 w-10"
+                              />
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </article>
+                  )
+                })}
+                {!loading && filtered.length === 0 && (
+                  <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500">
+                    No hay pendientes para estos filtros.
+                  </div>
+                )}
+              </div>
+            </GridViewport>
 
             <div className="flex items-center justify-between border-t border-slate-200 px-3 py-2">
               <span className="text-[11px] text-slate-500">{filtered.length === 0 ? 'Sin pendientes' : `${currentIndex + 1} / ${filtered.length}`}</span>
@@ -694,7 +804,7 @@ export default function MaintenancePendingPage() {
             </div>
           </section>
 
-          <aside className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <aside className="hidden 2xl:block rounded-2xl border border-slate-200 bg-white shadow-sm">
             <div className="border-b px-4 py-3 text-sm font-semibold">Detalle del pendiente</div>
             {selected ? (
               <div className="space-y-4 p-4">

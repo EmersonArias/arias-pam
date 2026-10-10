@@ -1497,16 +1497,18 @@ Los tres materiales iniciales de `MATERIALES Y CODIGOS` quedan sembrados por 064
 
 **No afirmar que ya existe una pantalla de materiales/pedidos conectada al catálogo:** la auditoría de rutas de `src/App.tsx` no encontró una ruta de Stock/Pedidos para consumirlo. Su interfaz de consulta/solicitud sigue siendo un trabajo pendiente y no debe añadirse como campo de Pendientes sin una decisión funcional.
 
-## 42.7 HEAD y despliegue al cierre de esta revisión
+## 42.7 Commit funcional y despliegue
 
 Repositorio: `EmersonArias/arias-pam`
 
 Rama: `feature/arias-suite-common-ui-v1`
 
-HEAD confirmado al cierre:
+Último commit funcional de la aplicación verificado en esta revisión:
 `a8f573063d2e191841f78c5665c485ccb8169c3c`
 
-Vercel reportó estado **SUCCESS** para ese commit. Esto confirma el estado reportado del deployment web, no la ejecución de la migración 064 en Supabase ni una prueba manual visual de todos los controles.
+Vercel reportó estado **SUCCESS** para ese commit. Después se realizó una actualización documental del Maestro, sin cambios de código de la aplicación; por tanto, al continuar se debe volver a comprobar el HEAD y el estado Vercel actuales.
+
+Esto confirma el deployment web del commit funcional, no la ejecución de la migración 064 en Supabase ni una prueba manual visual de todos los controles.
 
 Siguiente comprobación:
 1. Ejecutar la migración 064 en Supabase.

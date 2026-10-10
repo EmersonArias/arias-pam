@@ -171,9 +171,9 @@ No volver a rediseñarlas sin una petición explícita del usuario.
 Especialmente:
 
 - Login congelado.
-- Migraciones 046–063 ya ejecutadas y congeladas.
+- Migraciones 046–064 ya ejecutadas y congeladas.
 - Nunca editar una migración ya ejecutada.
-- Las siguientes migraciones serán 064+.
+- La siguiente migración nueva será 065+.
 - No mezclar trabajos preventivos del PAM con la gestión operativa de Tickets.
 - No volver a convertir Tickets en un listado gigantesco de todo el PAM.
 - No reintroducir menús laterales grandes.
@@ -288,7 +288,7 @@ No cambiar estos términos salvo petición expresa.
 
 El usuario confirmó que están ejecutadas:
 
-**046–063**
+**046–064**
 
 No volver a pedir que se ejecuten.
 
@@ -296,7 +296,7 @@ No cambiar ninguna de ellas.
 
 La próxima migración disponible es:
 
-**064**
+**065**
 
 ## 058 — sincronización PAM diario / OT
 
@@ -1200,7 +1200,7 @@ No crear una tabla operativa sin revisar:
 
 La siguiente migración disponible será:
 
-**064**
+**065**
 
 Nunca reutilizar 063.
 
@@ -1227,7 +1227,7 @@ Nunca editar:
 
 El patrón debe ser:
 
-`064_nombre_descriptivo.sql`
+`065_nombre_descriptivo.sql`
 
 y posteriormente:
 
@@ -1358,11 +1358,11 @@ Pendientes actualmente dispone de:
 - desactivación lógica e Histórico;
 - Restaurar;
 - cambio de estado Pendiente/Terminado desde el detalle;
-- formularios con fecha editable, selección de categoría y autocompletado de proveedor condicionado a la migración 064.
+- formularios con fecha editable, selección de categoría y autocompletado de proveedor a partir de los catálogos maestros.
 
-La DB tiene las migraciones **046–063 confirmadas como OK y congeladas**.
+La DB tiene las migraciones **046–064 confirmadas como OK y congeladas**, según confirmación del usuario.
 
-La migración **064 está creada en GitHub, pero queda pendiente de ejecución y confirmación en Supabase**. No afirmar que el catálogo está operativo hasta que se aplique. Una vez aplicada y confirmada, la siguiente migración será **065**.
+La migración **064 está ejecutada y queda congelada**. La siguiente migración nueva será **065**.
 
 El repositorio activo es:
 
@@ -1442,7 +1442,7 @@ Arias Suite ya tiene módulo maestro de proveedores en `/providers` y usa las ta
 
 No crear una segunda tabla maestra de proveedores dentro de Pendientes.
 
-## 42.3 Migración 064 — pendiente de ejecución
+## 42.3 Migración 064 — ejecutada y congelada
 
 Archivo creado:
 `supabase/migrations/064_maintenance_supplier_and_material_catalogs.sql`
@@ -1456,9 +1456,9 @@ Crea:
 
 Inicializa los valores de Excel para SB Diagonal Zero, enlazándolos con `providers`, `provider_hotels`, `provider_contacts` y `provider_services`; no crea un catálogo paralelo.
 
-**Estado real:** archivo en GitHub, pero aún no confirmado como ejecutado en Supabase. La aplicación consulta estas tablas; hasta ejecutar 064, el formulario puede mostrar el aviso de catálogo no disponible y no debe darse por probado el autocompletado.
+**Estado real:** el usuario confirma que la migración 064 se ha ejecutado correctamente en Supabase. Por tanto, 064 queda congelada. Las migraciones 046–063 siguen congeladas e intactas. La siguiente migración nueva será 065.
 
-Migraciones 046–063 permanecen congeladas e intactas. Ejecutar y verificar 064 antes de crear 065.
+La ejecución correcta de SQL confirma la estructura y la siembra inicial; el comportamiento funcional del autocompletado aún debe verificarse creando o modificando un pendiente desde la aplicación.
 
 ## 42.4 Comportamiento implementado en Pendientes
 
@@ -1508,11 +1508,12 @@ Rama: `feature/arias-suite-common-ui-v1`
 
 Vercel reportó estado **SUCCESS** para ese commit. Después se realizó una actualización documental del Maestro, sin cambios de código de la aplicación; por tanto, al continuar se debe volver a comprobar el HEAD y el estado Vercel actuales.
 
-Esto confirma el deployment web del commit funcional, no la ejecución de la migración 064 en Supabase ni una prueba manual visual de todos los controles.
+Esto confirma el deployment web del commit funcional. La ejecución de la migración 064 está confirmada por el usuario; aún falta la prueba funcional manual de todos los controles.
 
 Siguiente comprobación:
-1. Ejecutar la migración 064 en Supabase.
-2. Abrir Nuevo pendiente y confirmar categoría → proveedor/contacto y fecha.
-3. Probar Limpiar, Guardar, Modificar, Marcar terminado/Reabrir, Eliminar lógico, Histórico y Restaurar.
+1. Abrir Nuevo pendiente y confirmar categoría → proveedor/contacto y fecha tras la ejecución de 064.
+2. Probar Limpiar, Guardar, Modificar, Marcar terminado/Reabrir, Eliminar lógico, Histórico y Restaurar.
+3. Verificar que la búsqueda/filtros y los contadores siguen siendo coherentes tras modificar estados.
 4. Verificar en móvil que las acciones y la navegación mantienen su comportamiento.
+5. No crear 065 hasta que aparezca una necesidad de esquema nueva.
 

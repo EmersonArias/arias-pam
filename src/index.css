@@ -4,3 +4,195 @@ body {
   margin: 0;
   background: #f1f5f9;
 }
+  
+@media print {
+  @page {
+    margin: 14mm 10mm 12mm 10mm;
+  }
+}
+
+.arias-report-page {
+  padding-top: 4mm;
+  padding-bottom: 12mm;
+}
+
+.arias-report-footer {
+  margin-top: 1rem;
+  padding-top: 0.5rem;
+  font-size: 0.75rem;
+  line-height: 1.2;
+  color: #64748b;
+  text-align: center;
+}
+
+@media print {
+  .arias-report-page {
+    padding-top: 4mm !important;
+    padding-bottom: 12mm !important;
+  }
+
+  .arias-report-footer {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 1.5mm;
+    margin: 0;
+    padding: 0;
+    border-top: 0;
+    background: #ffffff;
+    font-size: 8px;
+    color: #475569;
+    text-align: center;
+    z-index: 50;
+  }
+
+  .arias-report-footer-line {
+    width: 100%;
+    height: 0.3mm;
+    margin-bottom: 1.5mm;
+    background: #cbd5e1;
+  }
+}
+
+/* Arias Suite — capa global de optimización móvil */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  min-width: 320px;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button,
+a,
+select,
+input,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+img,
+svg {
+  max-width: 100%;
+}
+
+@media (max-width: 640px) {
+  .arias-suite-app button {
+    min-height: 44px;
+    touch-action: manipulation;
+  }
+
+  .arias-suite-app input,
+  .arias-suite-app select,
+  .arias-suite-app textarea {
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  .arias-suite-app textarea {
+    min-height: 96px;
+  }
+
+  .arias-suite-app .arias-page-card {
+    border-radius: 1rem !important;
+  }
+
+  .arias-suite-app .arias-grid-toolbar,
+  .arias-suite-app .arias-form-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  .arias-suite-app .arias-grid-toolbar > button:not(.arias-icon-button),
+  .arias-suite-app .arias-form-actions > button:not(.arias-icon-button) {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .arias-suite-app .arias-grid-toolbar > .arias-icon-button,
+  .arias-suite-app .arias-form-actions > .arias-icon-button {
+    justify-self: center;
+  }
+
+  .arias-suite-app .arias-mobile-header-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  .arias-suite-app .arias-mobile-header-actions > * {
+    min-width: 0;
+  }
+
+  .arias-suite-app .arias-mobile-header-actions .arias-grid-toolbar,
+  .arias-suite-app .arias-mobile-header-actions .arias-form-actions {
+    grid-column: 1 / -1;
+  }
+
+  .arias-suite-app .arias-mobile-section {
+    padding: 0.875rem !important;
+  }
+
+  .arias-suite-app .min-h-screen.bg-slate-100 {
+    padding: 0.5rem !important;
+  }
+
+  .arias-suite-app .flex.flex-wrap.items-center.justify-end.gap-2 {
+    width: 100%;
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  .arias-suite-app .flex.flex-wrap.items-center.justify-end.gap-2 > .arias-grid-toolbar,
+  .arias-suite-app .flex.flex-wrap.items-center.justify-end.gap-2 > .arias-form-actions {
+    grid-column: 1 / -1;
+  }
+
+  .arias-suite-app .flex.flex-wrap.items-center.justify-end.gap-2 > .arias-action-button {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .arias-suite-app .flex.flex-wrap.items-center.justify-end.gap-2 > .arias-icon-button {
+    justify-self: center;
+  }
+
+  .arias-suite-app [class*="max-w-7xl"],
+  .arias-suite-app [class*="max-w-6xl"],
+  .arias-suite-app [class*="max-w-5xl"],
+  .arias-suite-app [class*="max-w-4xl"] {
+    min-width: 0;
+  }
+
+  .arias-suite-app table {
+    max-width: none;
+  }
+}
+
+
+.arias-grid-viewport::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+.arias-grid-viewport::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+.arias-grid-viewport::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+  border-radius: 999px;
+  border: 3px solid #f1f5f9;
+}
+
+.arias-grid-viewport::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}

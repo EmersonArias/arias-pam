@@ -37,7 +37,7 @@ type SupplierCatalogItem = {
 type CategorySupplierDefault = {
   id: string
   category_name: string
-  supplier_id: string
+  provider_id: string
 }
 
 const statusLabels = {
@@ -134,7 +134,7 @@ export default function MaintenancePendingPage() {
     setLoading(true)
     setError('')
 
-    const [result, blockedResult, suppliersResult, categoryDefaultsResult] = await Promise.all([
+    const [result, blockedResult, providerHotelsResult, categoryDefaultsResult] = await Promise.all([
       supabase
         .from('maintenance_pending_items')
         .select('id, hotel_id, location, category, pending, status, source_status, assigned_to, priority, source_priority, observation, source_date, source_file, source_row, active')
@@ -147,14 +147,13 @@ export default function MaintenancePendingPage() {
         .eq('hotel_id', hotel.id)
         .order('room_number', { ascending: true }),
       supabase
-        .from('maintenance_supplier_catalog')
-        .select('id, supplier_name, contact_name')
+        .from('provider_hotels')
+        .select('provider_id')
         .eq('hotel_id', hotel.id)
-        .eq('active', true)
-        .order('supplier_name', { ascending: true }),
+        .eq('active', true),
       supabase
         .from('maintenance_category_supplier_defaults')
-        .select('id, category_name, supplier_id')
+        .select('id, category_name, provider_id')
         .eq('hotel_id', hotel.id)
         .eq('active', true)
         .order('category_name', { ascending: true }),
@@ -181,10 +180,54 @@ export default function MaintenancePendingPage() {
       ((blockedResult.data ?? []) as Array<{ room_number: string }>).map((item) => item.room_number.trim()),
     )
 
-    const supplierCatalogError = suppliersResult.error || categoryDefaultsResult.error
-    setSuppliers(suppliersResult.error ? [] : (suppliersResult.data ?? []) as SupplierCatalogItem[])
-    setCategorySupplierDefaults(categoryDefaultsResult.error ? [] : (categoryDefaultsResult.data ?? []) as CategorySupplierDefault[])
-    setCatalogWarning(supplierCatalogError
+    let catalogLoadFailed = Boolean(providerHotelsResult.error || categoryDefaultsResult.error)
+    const categoryDefaults = categoryDefaultsResult.error
+      ? []
+      : (categoryDefaultsResult.data ?? []) as CategorySupplierDefault[]
+    const providerIds = Array.from(new Set(
+      (providerHotelsResult.data ?? []).map((item) => item.provider_id as string),
+    ))
+    let loadedSuppliers: SupplierCatalogItem[] = []
+
+    if (providerIds.length > 0 && !providerHotelsResult.error) {
+      const [providersResult, contactsResult] = await Promise.all([
+        supabase
+          .from('providers')
+          .select('id, legal_name, trade_name')
+          .in('id', providerIds)
+          .eq('active', true)
+          .order('legal_name', { ascending: true }),
+        supabase
+          .from('provider_contacts')
+          .select('provider_id, full_name, is_primary')
+          .in('provider_id', providerIds)
+          .eq('active', true)
+          .order('is_primary', { ascending: false })
+          .order('full_name', { ascending: true }),
+      ])
+
+      if (providersResult.error || contactsResult.error) {
+        catalogLoadFailed = true
+      } else {
+        const contactByProvider = new Map<string, string>()
+        for (const contact of contactsResult.data ?? []) {
+          if (!contactByProvider.has(contact.provider_id)) {
+            contactByProvider.set(contact.provider_id, contact.full_name)
+          }
+        }
+        loadedSuppliers = (providersResult.data ?? []).map((provider) => ({
+          id: provider.id,
+          supplier_name: provider.trade_name?.trim() || provider.legal_name,
+          contact_name: contactByProvider.get(provider.id) ?? null,
+        }))
+      }
+    } else if (categoryDefaults.length > 0 && providerIds.length === 0) {
+      catalogLoadFailed = true
+    }
+
+    setSuppliers(catalogLoadFailed ? [] : loadedSuppliers)
+    setCategorySupplierDefaults(catalogLoadFailed ? [] : categoryDefaults)
+    setCatalogWarning(catalogLoadFailed
       ? 'El catálogo automático no está disponible. Ejecuta la migración 064 en Supabase; mientras tanto, puedes introducir categoría y asignado manualmente.'
       : '')
 
@@ -223,7 +266,7 @@ export default function MaintenancePendingPage() {
     const mapping = categorySupplierDefaults.find(
       (item) => normalizeCatalogKey(item.category_name) === normalizeCatalogKey(categoryName),
     )
-    return suppliers.find((item) => item.id === mapping?.supplier_id) ?? null
+    return suppliers.find((item) => item.id === mapping?.provider_id) ?? null
   }
 
   function getSupplierContact(supplierName: string) {

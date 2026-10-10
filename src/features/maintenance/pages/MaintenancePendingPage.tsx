@@ -445,9 +445,9 @@ export default function MaintenancePendingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 px-3 py-3 text-slate-900 sm:px-5 sm:py-5">
-      <div className="mx-auto max-w-[1500px]">
-        <header className="mb-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-lg sm:p-4">
+    <div className="flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-slate-100 px-3 py-3 text-slate-900 sm:min-h-screen sm:h-auto sm:overflow-visible sm:px-5 sm:py-5">
+      <div className="mx-auto flex min-h-0 w-full max-w-[1500px] flex-1 flex-col sm:block sm:flex-none">
+        <header className="mb-3 shrink-0 rounded-2xl border border-slate-200 bg-white p-3 shadow-lg sm:p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex min-w-0 items-center gap-3">
               <BrandLogo onActivate={() => navigate('/')} className="h-9 w-auto shrink-0 object-contain sm:h-11" />
@@ -503,7 +503,7 @@ export default function MaintenancePendingPage() {
           </div>
         )}
 
-        <section className="mb-2 grid grid-cols-2 gap-1.5 sm:mb-3 sm:gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <section className="mb-2 shrink-0 grid grid-cols-2 gap-1.5 sm:mb-3 sm:gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <button
             type="button"
             onClick={() => applySummaryFilter('PENDING')}
@@ -542,7 +542,7 @@ export default function MaintenancePendingPage() {
           </button>
         </section>
 
-        <section className="mb-2 rounded-xl border border-slate-200 bg-white p-2 shadow-sm sm:mb-3 sm:rounded-2xl sm:p-3">
+        <section className="mb-2 shrink-0 rounded-xl border border-slate-200 bg-white p-2 shadow-sm sm:mb-3 sm:rounded-2xl sm:p-3">
           <div className="mb-1.5 flex items-center gap-2 lg:hidden">
             <label className="relative block min-w-0 flex-1">
               <span className="sr-only">Buscar pendientes</span>
@@ -634,8 +634,8 @@ export default function MaintenancePendingPage() {
           )}
         </section>
 
-        <main className="grid gap-4 2xl:grid-cols-[minmax(0,1.5fr)_minmax(330px,0.5fr)]">
-          <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <main className="flex min-h-0 flex-1 flex-col gap-4 2xl:grid 2xl:grid-cols-[minmax(0,1.5fr)_minmax(330px,0.5fr)]">
+          <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
             <div className="flex flex-col gap-2 border-b px-3 py-2 sm:flex-row sm:items-center sm:justify-between sm:px-4">
               <div className="min-w-0">
                 <div className="text-sm font-semibold">{showHistory ? 'Histórico de pendientes' : 'Listado de pendientes'}</div>
@@ -746,7 +746,7 @@ export default function MaintenancePendingPage() {
             </GridViewport>
             </div>
 
-            <GridViewport className="max-h-[calc(100vh-260px)] 2xl:hidden">
+            <GridViewport className="min-h-0 max-h-none flex-1 2xl:hidden" style={{ minHeight: 0, maxHeight: "none", flex: "1 1 0%" }}>
               <div className="divide-y divide-slate-200">
                 {filtered.map((item) => {
                   const roomLocation = item.location?.trim() ?? ''

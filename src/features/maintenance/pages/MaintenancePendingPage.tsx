@@ -67,7 +67,7 @@ export default function MaintenancePendingPage() {
   const [selectedId, setSelectedId] = useState('')
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('ALL')
-  const [priority, setPriority] = useState<'ALL' | PendingItem['priority']>('ALL')
+  const [priority, setPriority] = useState<'ALL' | 'HIGH_OR_CRITICAL' | PendingItem['priority']>('ALL')
   const [assigned, setAssigned] = useState('ALL')
   const [status, setStatus] = useState<'ALL' | PendingItem['status']>('PENDING')
   const [blockedFilter, setBlockedFilter] = useState<'ALL' | 'BLOCKED' | 'UNBLOCKED'>('ALL')
@@ -174,7 +174,8 @@ export default function MaintenancePendingPage() {
       if (item.active === showHistory) return false
       if (status !== 'ALL' && item.status !== status) return false
       if (category !== 'ALL' && item.category !== category) return false
-      if (priority !== 'ALL' && item.priority !== priority) return false
+      if (priority === 'HIGH_OR_CRITICAL' && item.priority !== 'HIGH' && item.priority !== 'CRITICAL') return false
+      if (priority !== 'ALL' && priority !== 'HIGH_OR_CRITICAL' && item.priority !== priority) return false
       if (assigned !== 'ALL' && (item.assigned_to ?? 'UNASSIGNED') !== assigned) return false
 
       const roomLocation = item.location?.trim() ?? ''
@@ -384,7 +385,7 @@ export default function MaintenancePendingPage() {
 
     if (kind === 'HIGH') {
       setStatus('PENDING')
-      setPriority('HIGH')
+      setPriority('HIGH_OR_CRITICAL')
       setBlockedFilter('ALL')
       return
     }
@@ -603,6 +604,7 @@ export default function MaintenancePendingPage() {
               <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-500 sm:text-xs">Prioridad</span>
               <select value={priority} onChange={(event) => setPriority(event.target.value as typeof priority)} className="w-full min-w-0 rounded-lg border border-slate-300 bg-white px-2 py-2 text-sm sm:rounded-xl sm:px-3">
                 <option value="ALL">Todas</option>
+                <option value="HIGH_OR_CRITICAL">Alta o crítica</option>
                 <option value="CRITICAL">Crítica</option>
                 <option value="HIGH">Alta</option>
                 <option value="NORMAL">Normal</option>

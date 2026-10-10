@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Archive, ChevronDown, ChevronUp, FilterX, Lock, Pencil, Plus, RefreshCw, RotateCcw, Trash2, Unlock } from 'lucide-react'
+import { Archive, ChevronDown, ChevronUp, CornerUpLeft, FilterX, House, Lock, Pencil, Plus, RefreshCw, RotateCcw, Trash2, Unlock } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import BrandLogo from '../../../shared/components/branding/BrandLogo'
 import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
@@ -454,24 +454,43 @@ export default function MaintenancePendingPage() {
                 <p className="text-xs text-slate-500 sm:text-sm">Backlog operativo de mantenimiento del hotel</p>
               </div>
             </div>
-            <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
+            <div className="hidden items-center gap-2 sm:flex sm:justify-end">
               {!showHistory && (
                 <ActionButton
                   icon={Plus}
                   label="Nuevo pendiente"
                   onClick={openNew}
-                  className="min-w-0 basis-[calc(50%-0.25rem)] flex-grow sm:basis-auto sm:flex-grow-0"
                 />
               )}
               <ActionButton
                 icon={showHistory ? RotateCcw : Archive}
                 label={showHistory ? 'Pendientes activos' : 'Histórico'}
                 onClick={() => setShowHistory((current) => !current)}
-                className="min-w-0 basis-[calc(50%-0.25rem)] flex-grow sm:basis-auto sm:flex-grow-0"
               />
-              <IconButton icon={RefreshCw} label="Actualizar" title="Actualizar" onClick={() => void loadItems()} disabled={loading} className="h-10 w-10 shrink-0" />
+              <IconButton icon={RefreshCw} label="Actualizar" title="Actualizar" onClick={() => void loadItems()} disabled={loading} />
               <BackButton onBack={() => navigate('/maintenance')} />
               <HomeButton onHome={() => navigate('/')} />
+            </div>
+            <div className="flex w-full items-center justify-between gap-1 sm:hidden">
+              {!showHistory && (
+                <IconButton
+                  icon={Plus}
+                  label="Nuevo pendiente"
+                  title="Nuevo pendiente"
+                  onClick={openNew}
+                  className="h-10 w-10"
+                />
+              )}
+              <IconButton
+                icon={showHistory ? RotateCcw : Archive}
+                label={showHistory ? 'Pendientes activos' : 'Histórico'}
+                title={showHistory ? 'Pendientes activos' : 'Histórico'}
+                onClick={() => setShowHistory((current) => !current)}
+                className="h-10 w-10"
+              />
+              <IconButton icon={RefreshCw} label="Actualizar" title="Actualizar" onClick={() => void loadItems()} disabled={loading} className="h-10 w-10" />
+              <IconButton icon={CornerUpLeft} label="Volver" title="Volver" onClick={() => navigate('/maintenance')} className="h-10 w-10" />
+              <IconButton icon={House} label="Inicio" title="Inicio" onClick={() => navigate('/')} className="h-10 w-10" />
             </div>
           </div>
         </header>
@@ -482,46 +501,42 @@ export default function MaintenancePendingPage() {
           </div>
         )}
 
-        <section className="mb-3 grid grid-cols-2 gap-2 sm:gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <section className="mb-2 grid grid-cols-2 gap-1.5 sm:mb-3 sm:gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <button
             type="button"
             onClick={() => applySummaryFilter('PENDING')}
             title="Ver pendientes"
             aria-label="Ver pendientes"
-            className="cursor-pointer rounded-xl border border-slate-200 bg-white p-2 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:rounded-2xl sm:p-3"
+            className="cursor-pointer rounded-lg border border-slate-200 bg-white px-2 py-2 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:rounded-2xl sm:p-3"
           >
-            <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 sm:text-xs">Pendientes</div>
-            <div className="mt-0.5 text-lg font-bold leading-tight text-slate-900 sm:text-xl">{counts.pending}</div>
+            <div className="flex items-center justify-between gap-1 sm:block"><div className="truncate text-[10px] font-semibold uppercase tracking-wide text-slate-500 sm:text-xs">Pendientes</div><div className="shrink-0 text-base font-bold leading-none text-slate-900 sm:mt-0.5 sm:text-xl">{counts.pending}</div></div>
           </button>
           <button
             type="button"
             onClick={() => applySummaryFilter('HIGH')}
             title="Ver pendientes de prioridad alta"
             aria-label="Ver pendientes de prioridad alta"
-            className="cursor-pointer rounded-xl border border-rose-200 bg-white p-2 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:rounded-2xl sm:p-3"
+            className="cursor-pointer rounded-lg border border-rose-200 bg-white px-2 py-2 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:rounded-2xl sm:p-3"
           >
-            <div className="text-[10px] font-semibold uppercase tracking-wide text-rose-600 sm:text-xs">Prioridad alta</div>
-            <div className="mt-0.5 text-lg font-bold leading-tight text-slate-900 sm:text-xl">{counts.high}</div>
+            <div className="flex items-center justify-between gap-1 sm:block"><div className="truncate text-[10px] font-semibold uppercase tracking-wide text-rose-600 sm:text-xs">Prioridad alta</div><div className="shrink-0 text-base font-bold leading-none text-slate-900 sm:mt-0.5 sm:text-xl">{counts.high}</div></div>
           </button>
           <button
             type="button"
             onClick={() => applySummaryFilter('COMPLETED')}
             title="Ver terminados"
             aria-label="Ver terminados"
-            className="cursor-pointer rounded-xl border border-emerald-200 bg-white p-2 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:rounded-2xl sm:p-3"
+            className="cursor-pointer rounded-lg border border-emerald-200 bg-white px-2 py-2 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:rounded-2xl sm:p-3"
           >
-            <div className="text-[10px] font-semibold uppercase tracking-wide text-emerald-600 sm:text-xs">Terminados</div>
-            <div className="mt-0.5 text-lg font-bold leading-tight text-slate-900 sm:text-xl">{counts.completed}</div>
+            <div className="flex items-center justify-between gap-1 sm:block"><div className="truncate text-[10px] font-semibold uppercase tracking-wide text-emerald-600 sm:text-xs">Terminados</div><div className="shrink-0 text-base font-bold leading-none text-slate-900 sm:mt-0.5 sm:text-xl">{counts.completed}</div></div>
           </button>
           <button
             type="button"
             onClick={() => applySummaryFilter('BLOCKED')}
             title="Ver pendientes de habitaciones bloqueadas"
             aria-label="Ver pendientes de habitaciones bloqueadas"
-            className="cursor-pointer rounded-xl border border-amber-200 bg-white p-2 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:rounded-2xl sm:p-3"
+            className="cursor-pointer rounded-lg border border-amber-200 bg-white px-2 py-2 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:rounded-2xl sm:p-3"
           >
-            <div className="text-[10px] font-semibold uppercase tracking-wide text-amber-700 sm:text-xs">Hab. bloqueadas</div>
-            <div className="mt-0.5 text-lg font-bold leading-tight text-slate-900 sm:text-xl">{counts.blockedRooms}</div>
+            <div className="flex items-center justify-between gap-1 sm:block"><div className="truncate text-[10px] font-semibold uppercase tracking-wide text-amber-700 sm:text-xs">Bloqueadas</div><div className="shrink-0 text-base font-bold leading-none text-slate-900 sm:mt-0.5 sm:text-xl">{counts.blockedRooms}</div></div>
           </button>
         </section>
 
@@ -689,101 +704,94 @@ export default function MaintenancePendingPage() {
             </GridViewport>
             </div>
 
-            <GridViewport className="max-h-[calc(100vh-280px)] 2xl:hidden">
-              <div className="space-y-2 p-2">
+            <GridViewport className="max-h-[calc(100vh-260px)] 2xl:hidden">
+              <div className="divide-y divide-slate-200">
                 {filtered.map((item) => {
                   const roomLocation = item.location?.trim() ?? ''
                   const roomIsBlocked = isRoomLocation(roomLocation) && blockedRooms.has(roomLocation)
+                  const statusShort = item.status === 'COMPLETED' ? 'Fin.' : 'Pend.'
+                  const priorityShort = item.priority === 'NORMAL' ? 'Norm.' : priorityLabels[item.priority]
+                  const accessibleSummary = [
+                    item.location ?? 'Sin ubicación',
+                    item.category ?? 'Sin categoría',
+                    item.pending,
+                    statusLabels[item.status],
+                    priorityLabels[item.priority],
+                    item.assigned_to ?? 'Sin asignar',
+                    formatDate(item.source_date),
+                    item.observation ?? '',
+                  ].filter(Boolean).join(' · ')
                   return (
-                    <article
+                    <div
                       key={item.id}
+                      role="group"
+                      aria-label={accessibleSummary}
                       onClick={() => setSelectedId(item.id)}
-                      className={`rounded-lg border px-2.5 py-2 shadow-sm ${item.id === selectedId ? 'border-blue-300 bg-blue-50' : 'border-slate-200 bg-white'}`}
+                      title={accessibleSummary}
+                      className={`flex min-w-0 items-center gap-1 px-1.5 py-1.5 ${item.id === selectedId ? 'bg-blue-50' : 'bg-white'}`}
                     >
-                      <div className="flex min-w-0 items-start justify-between gap-2">
-                        <div className="min-w-0 flex-1">
-                          <div className="text-[11px] font-semibold leading-tight text-slate-500">
-                            {item.location ?? 'Sin ubicación'} · {item.category ?? 'Sin categoría'}
-                          </div>
-                          <h3 className="mt-0.5 break-words text-sm font-semibold leading-snug text-slate-900">{item.pending}</h3>
+                      <div className="w-8 shrink-0 truncate text-[11px] font-bold text-slate-700" title={item.location ?? 'Sin ubicación'}>
+                        {item.location ?? '—'}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-xs font-semibold leading-tight text-slate-900" title={item.pending}>
+                          {item.pending}
                         </div>
-                        <div className="flex shrink-0 flex-col items-end gap-1">
-                          <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-tight ${statusClass(item.status)}`}>
-                            {statusLabels[item.status]}
-                          </span>
-                          <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-tight ${priorityClass(item.priority)}`}>
-                            {priorityLabels[item.priority]}
-                          </span>
+                        <div className="truncate text-[10px] leading-tight text-slate-500">
+                          {(item.category ?? 'Sin categoría')} · {(item.assigned_to ?? 'Sin asignar')} · {formatDate(item.source_date)}
                         </div>
                       </div>
-
-                      <div className="mt-2 grid grid-cols-2 gap-x-2 border-t border-slate-100 pt-1.5 text-xs">
-                        <div className="min-w-0">
-                          <span className="text-slate-500">Asignado: </span>
-                          <span className="break-words font-semibold text-slate-800">{item.assigned_to ?? 'Sin asignar'}</span>
-                        </div>
-                        <div className="min-w-0 text-right">
-                          <span className="text-slate-500">Fecha: </span>
-                          <span className="font-medium text-slate-800">{formatDate(item.source_date)}</span>
-                        </div>
+                      <div className="flex shrink-0 items-center gap-0.5">
+                        <span className={`rounded px-1 py-0.5 text-[9px] font-semibold leading-tight ${statusClass(item.status)}`} title={statusLabels[item.status]}>
+                          {statusShort}
+                        </span>
+                        <span className={`rounded px-1 py-0.5 text-[9px] font-semibold leading-tight ${priorityClass(item.priority)}`} title={priorityLabels[item.priority]}>
+                          {priorityShort}
+                        </span>
                       </div>
-
-                      {item.observation && (
-                        <div className="mt-1 break-words text-xs leading-snug text-slate-600">
-                          <span className="font-semibold">Observación: </span>{item.observation}
-                        </div>
-                      )}
-
-                      <div className="mt-2 flex min-h-8 flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-1.5">
-                        {isRoomLocation(item.location) ? (
-                          <div className="flex min-w-0 items-center gap-1.5">
+                      <div className="flex shrink-0 items-center gap-0">
+                        {isRoomLocation(item.location) && (
+                          <IconButton
+                            icon={roomIsBlocked ? Lock : Unlock}
+                            label={roomIsBlocked ? 'Desbloquear habitación' : 'Bloquear habitación'}
+                            title={roomIsBlocked ? 'Desbloquear habitación' : 'Bloquear habitación'}
+                            onClick={() => void toggleRoomBlocked(item.location!)}
+                            disabled={updatingRoom === roomLocation}
+                            className={`h-8 w-8 ${roomIsBlocked ? 'border-amber-200 bg-amber-50 text-amber-700' : ''}`}
+                          />
+                        )}
+                        {showHistory ? (
+                          <IconButton
+                            icon={RotateCcw}
+                            label="Restaurar pendiente"
+                            title="Restaurar"
+                            onClick={() => void restoreItem(item)}
+                            className="h-8 w-8"
+                          />
+                        ) : (
+                          <>
                             <IconButton
-                              icon={roomIsBlocked ? Lock : Unlock}
-                              label={roomIsBlocked ? 'Desbloquear habitación' : 'Bloquear habitación'}
-                              title={roomIsBlocked ? 'Desbloquear habitación' : 'Bloquear habitación'}
-                              onClick={() => void toggleRoomBlocked(item.location!)}
-                              disabled={updatingRoom === roomLocation}
-                              className={`h-9 w-9 shrink-0 ${roomIsBlocked ? 'border-amber-200 bg-amber-50 text-amber-700' : ''}`}
+                              icon={Pencil}
+                              label="Modificar pendiente"
+                              title="Modificar"
+                              onClick={() => openEdit(item)}
+                              className="h-8 w-8"
                             />
-                            <span className={`text-[10px] font-semibold leading-tight ${roomIsBlocked ? 'text-amber-700' : 'text-slate-500'}`}>
-                              {roomIsBlocked ? 'Bloqueada' : 'Disponible'}
-                            </span>
-                          </div>
-                        ) : <span />}
-                        <div className="flex items-center gap-1">
-                          {showHistory ? (
                             <IconButton
-                              icon={RotateCcw}
-                              label="Restaurar pendiente"
-                              title="Restaurar"
-                              onClick={() => void restoreItem(item)}
-                              className="h-9 w-9"
+                              icon={Trash2}
+                              label="Eliminar pendiente"
+                              title="Eliminar (desactivar)"
+                              onClick={() => void deactivateItem(item)}
+                              className="h-8 w-8"
                             />
-                          ) : (
-                            <>
-                              <IconButton
-                                icon={Pencil}
-                                label="Modificar pendiente"
-                                title="Modificar"
-                                onClick={() => openEdit(item)}
-                                className="h-9 w-9"
-                              />
-                              <IconButton
-                                icon={Trash2}
-                                label="Eliminar pendiente"
-                                title="Eliminar (desactivar)"
-                                onClick={() => void deactivateItem(item)}
-                                className="h-9 w-9"
-                              />
-                            </>
-                          )}
-                        </div>
+                          </>
+                        )}
                       </div>
-                    </article>
+                    </div>
                   )
                 })}
                 {!loading && filtered.length === 0 && (
-                  <div className="rounded-lg border border-dashed border-slate-300 p-5 text-center text-sm text-slate-500">
+                  <div className="p-4 text-center text-xs text-slate-500">
                     No hay pendientes para estos filtros.
                   </div>
                 )}

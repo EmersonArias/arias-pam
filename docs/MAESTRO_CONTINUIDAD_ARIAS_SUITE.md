@@ -1803,3 +1803,46 @@ La auditoría inicial de código confirma que los campos de ubicación existente
 
 Las migraciones 046–064 permanecen congeladas. No se ha ejecutado ninguna migración ni se ha cambiado código de producción como consecuencia de esta auditoría.
 
+## 46. RESULTADOS DEL ESQUEMA VIVO — RELACIONES Y RLS (2026-10-11)
+
+### 46.1 Procedencia y alcance
+
+El usuario ejecutó consultas de solo lectura en Supabase y compartió resultados de claves foráneas y políticas RLS. Estos hallazgos describen el esquema del proyecto consultado por el usuario en esa fecha; se deben conservar como evidencia operativa y volver a comprobar tras cualquier corrección.
+
+### 46.2 Relaciones relevantes confirmadas
+
+- `apparatus_registry` tiene clave foránea a `hotels` por `hotel_id`.
+- `assets` tiene clave foránea a `hotels` por `hotel_id`.
+- `maintenance_pending_items` y `maintenance_blocked_rooms` referencian `hotels` por `hotel_id`; no aparece una relación de estas tablas a un catálogo de ubicaciones/habitaciones.
+- `maintenance_plans` referencia `apparatus_registry` por `apparatus_registry_id`.
+- `maintenance_work_orders` referencia `apparatus_registry` y mantiene sus relaciones con planes, trabajos programados y órdenes padre.
+- En las claves foráneas proporcionadas no aparece una jerarquía canónica de ubicaciones con padre-hijo, plantas o habitaciones. La consulta de columnas del inventario completo todavía debe verificarse para descartar objetos sin claves foráneas.
+
+### 46.3 Hallazgo de seguridad prioritario: políticas RLS permisivas
+
+El resultado RLS del usuario muestra RLS activo en `apparatus_registry` y `assets`, pero también políticas permisivas amplias:
+
+- `apparatus_registry_select_public`: roles `anon, authenticated`, condición `true`.
+- `apparatus_registry_insert_public`: roles `anon, authenticated`, condición de escritura `true`.
+- `apparatus_registry_update_public`: roles `anon, authenticated`, condiciones `true`.
+- `apparatus_registry_delete_public`: roles `anon, authenticated`, condición `true`.
+- `public read assets`, `public insert assets` y `public update assets`: rol `PUBLIC`, condiciones `true`.
+
+PostgreSQL combina las políticas permisivas aplicables a una misma operación mediante `OR`. Por ello, si los roles tienen los privilegios SQL correspondientes, estas políticas `true` permiten acceder/modificar filas sin que la política paralela de `has_hotel_permission(...)` pueda restringirlas. El RLS activo no neutraliza esas políticas públicas; forma parte de su evaluación.
+
+**Estado:** riesgo potencial alto, pendiente de confirmar los privilegios SQL efectivos de `anon` y `authenticated`. Las políticas RLS no conceden por sí solas privilegios de tabla; el riesgo explotable depende también de `GRANT`/privilegios efectivos. Antes de quitar políticas, confirmar la matriz de privilegios y si la aplicación tiene algún flujo legado que dependa de acceso anónimo. No ejecutar todavía cambios destructivos ni modificar migraciones históricas.
+
+### 46.4 Siguiente acción de seguridad
+
+Ejecutar una consulta de solo lectura con `has_table_privilege` para confirmar SELECT/INSERT/UPDATE/DELETE efectivos para `anon` y `authenticated` sobre `apparatus_registry` y `assets`. Si se confirma acceso no autenticado o escritura fuera de los permisos por hotel, priorizar una migración nueva correctiva, revisada contra los flujos reales de la app y probada después de aplicarse.
+
+### 46.5 Implicación en el diseño de ubicaciones
+
+Se refuerza la decisión de no implementar todavía la migración 065 del catálogo de ubicaciones. Antes:
+1. confirmar los privilegios SQL reales y definir la corrección de RLS que corresponda;
+2. recibir y revisar el resultado completo de columnas de las tablas candidatas;
+3. contrastar el diseño propuesto con el esquema real;
+4. después, crear el catálogo jerárquico mínimo, las relaciones opcionales y la pantalla de Configuración.
+
+Las migraciones 001–064 continúan congeladas. Esta actualización solo documenta resultados aportados por el usuario; no altera el esquema de Supabase.
+

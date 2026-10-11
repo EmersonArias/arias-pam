@@ -1883,3 +1883,31 @@ La verificación estática de los privilegios y políticas de la migración 065 
 
 Las migraciones 001–064 permanecen congeladas. La migración 065 está aplicada según la confirmación del usuario y sus resultados de privilegios/políticas se han verificado; la prueba funcional de aislamiento sigue pendiente.
 
+## 47. RESULTADO DEL INVENTARIO DE COLUMNAS EN SUPABASE (2026-10-11)
+
+### 47.1 Evidencia aportada por el usuario
+
+El usuario ejecutó la consulta de columnas sobre tablas centrales y compartió los resultados. En los objetos devueltos:
+
+- `apparatus_registry` tiene los campos de texto `plant`, `location`, `system_name` y los datos maestros del equipo, además de `hotel_id`.
+- `assets` tiene `location` como texto y `hotel_id`.
+- `maintenance_pending_items` tiene `location` como texto y `hotel_id`.
+- `maintenance_blocked_rooms` tiene `room_number` como texto y `hotel_id`.
+- `maintenance_plans` incluye `apparatus_registry_id`; las OTs pueden incluir `apparatus_registry_id` y/o `maintenance_plan_id`.
+- `maintenance_actions` y `maintenance_work_orders` tienen `hotel_id`.
+- `hotels` sigue dependiendo de `tenants`, manteniendo el ámbito multiempresa.
+
+La salida de esta consulta no muestra una tabla con nombre de catálogo jerárquico de ubicaciones ni columnas de relación como `location_id`, `parent_location_id`, `floor_id` o `room_id` en las tablas devueltas.
+
+### 47.2 Conclusión provisional
+
+Los datos aportados confirman que los campos físicos actuales principales (`plant`, `location`, `room_number`) son texto libre en los objetos relevantes. No se debe convertir texto de ubicación en relación estructurada automáticamente: los valores existentes pueden ser ambiguos o no estar normalizados.
+
+**La auditoría aún no cubre todos los módulos físicos de Arias Suite.** La consulta anterior enumeraba tablas centrales por nombre e incluyó las tablas con nombres relacionados con location/room/floor/area/space/system, pero no devuelve necesariamente todas las tablas de módulos que guardan datos de ubicación con otros nombres (por ejemplo, módulos técnicos independientes). Antes de decidir qué registros recibirán `location_id`, hace falta un último inventario transversal de columnas en todas las tablas de `public` que tengan `hotel_id` y/o columnas de ubicación.
+
+### 47.3 Siguiente paso
+
+Ejecutar una consulta de solo lectura que liste, para cada tabla de `public`, la presencia de `hotel_id` y las columnas de identidad/ubicación/relación relevantes (`id`, `name`, `code`, `location`, `plant`, `room_number`, `floor`, `building`, `area`, `system_name`, `asset_id`, `apparatus_registry_id`, `location_id`, `room_id`, `floor_id`). Utilizar este inventario para establecer la integración mínima por módulo.
+
+No se ha creado todavía la migración de ubicaciones. La migración 065 de seguridad permanece aplicada y sus privilegios/políticas se han verificado; la prueba funcional de aislamiento por usuario sigue pendiente.
+

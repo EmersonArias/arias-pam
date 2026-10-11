@@ -434,8 +434,9 @@ export default function MaintenanceWorkOrderDetailPage(){
             <div className="mb-3 text-sm font-semibold">Equipo y ubicación</div>
             <div className="grid gap-2 rounded-xl border bg-slate-50 p-3 text-sm text-slate-700">
               <div className="flex items-center gap-2"><Wrench size={16}/><span><strong>Equipo:</strong> {order.apparatus_code??'—'} · {order.apparatus_name??'—'}</span></div>
-              <div><strong>Ubicación comunicada:</strong> {order.reported_location_snapshot||[order.plant,order.location].filter(Boolean).join(' · ')||'No registrada'}</div>
-              {order.status==='COMPLETED' && <div><strong>Ubicación de intervención:</strong> {order.execution_location_snapshot||'Sin registro histórico previo'}</div>}
+              <div><strong>Ubicación comunicada:</strong> {order.reported_location_snapshot || 'Sin instantánea histórica'}</div>
+              {(order.plant || order.location) && <div><strong>Referencia textual de la ficha del equipo (no histórica):</strong> {[order.plant,order.location].filter(Boolean).join(' · ')}</div>}
+              {order.status==='COMPLETED' && <div><strong>Ubicación de intervención:</strong> {order.execution_location_snapshot || 'Sin instantánea histórica'}</div>}
               <div className="flex items-center gap-2"><UserRound size={16}/><span><strong>Asignado:</strong> {order.assigned_user_name??'Sin asignar'}</span></div>
               <div><strong>Origen:</strong> {order.maintenance_plan_name??'Ticket operativo'}</div>
             </div>

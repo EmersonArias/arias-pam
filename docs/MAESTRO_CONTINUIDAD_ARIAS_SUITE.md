@@ -1832,17 +1832,43 @@ PostgreSQL combina las políticas permisivas aplicables a una misma operación m
 
 **Estado:** riesgo potencial alto, pendiente de confirmar los privilegios SQL efectivos de `anon` y `authenticated`. Las políticas RLS no conceden por sí solas privilegios de tabla; el riesgo explotable depende también de `GRANT`/privilegios efectivos. Antes de quitar políticas, confirmar la matriz de privilegios y si la aplicación tiene algún flujo legado que dependa de acceso anónimo. No ejecutar todavía cambios destructivos ni modificar migraciones históricas.
 
-### 46.4 Siguiente acción de seguridad
+### 46.4 Verificación de privilegios y corrección preparada
 
-Ejecutar una consulta de solo lectura con `has_table_privilege` para confirmar SELECT/INSERT/UPDATE/DELETE efectivos para `anon` y `authenticated` sobre `apparatus_registry` y `assets`. Si se confirma acceso no autenticado o escritura fuera de los permisos por hotel, priorizar una migración nueva correctiva, revisada contra los flujos reales de la app y probada después de aplicarse.
+El usuario ejecutó la consulta `has_table_privilege` y confirmó que ambos roles `anon` y `authenticated` tienen SELECT, INSERT, UPDATE y DELETE efectivos sobre `apparatus_registry` y `assets`.
 
-### 46.5 Implicación en el diseño de ubicaciones
+En consecuencia, el riesgo potencial de las políticas permisivas queda confirmado a nivel de privilegios SQL. La aplicación enruta las pantallas de estos módulos bajo `ProtectedRoute`, y las migraciones 009 contienen políticas específicas `*_authorized` para usuarios autenticados.
 
-Se refuerza la decisión de no implementar todavía la migración 065 del catálogo de ubicaciones. Antes:
-1. confirmar los privilegios SQL reales y definir la corrección de RLS que corresponda;
+Se creó en GitHub la migración correctiva nueva:
+
+`supabase/migrations/065_secure_apparatus_registry_and_assets_rls.sql`
+
+Commit: `14ce305e84e306bd87b37b37d28e8a574badc942`.
+
+La migración:
+- elimina las cuatro políticas `apparatus_registry_*_public`;
+- elimina las políticas `public read assets`, `public insert assets` y `public update assets`;
+- revoca privilegios de tabla heredados por `PUBLIC` y los privilegios de `anon` sobre ambas tablas;
+- concede explícitamente CRUD a `authenticated`, dejando que las políticas `*_authorized` existentes apliquen los permisos por hotel.
+
+**La migración está preparada en el repositorio pero NO está ejecutada en Supabase.** Hasta aplicarla y verificar sus resultados, el riesgo permanece. Antes de aplicarla, confirmar en el SQL Editor que la aplicación no depende de acceso anónimo a estas dos tablas. Las rutas de la aplicación para el inventario se encuentran dentro de `ProtectedRoute`, por lo que el código revisado no muestra un flujo de acceso anónimo intencional.
+
+### 46.5 Verificación posterior obligatoria
+
+Después de aplicar la migración, volver a ejecutar la consulta de privilegios y el listado de políticas RLS. Resultado esperado:
+- `anon`: SELECT/INSERT/UPDATE/DELETE = false en ambas tablas;
+- `authenticated`: privilegios SQL CRUD = true en ambas tablas;
+- no quedan políticas públicas permisivas sobre las dos tablas;
+- se conservan las políticas `*_authorized` para authenticated.
+
+Realizar además una prueba funcional con un usuario autenticado autorizado y una prueba de aislamiento con un usuario sin permisos/hotel seleccionado. No considerar cerrada la corrección hasta comprobar ambas.
+
+### 46.6 Implicación en el diseño de ubicaciones
+
+La corrección de seguridad tiene prioridad sobre el catálogo de ubicaciones. Antes de diseñar la migración de ubicaciones:
+1. aplicar y validar la migración 065 en el entorno Supabase correcto;
 2. recibir y revisar el resultado completo de columnas de las tablas candidatas;
 3. contrastar el diseño propuesto con el esquema real;
 4. después, crear el catálogo jerárquico mínimo, las relaciones opcionales y la pantalla de Configuración.
 
-Las migraciones 001–064 continúan congeladas. Esta actualización solo documenta resultados aportados por el usuario; no altera el esquema de Supabase.
+Las migraciones 001–064 permanecen congeladas. La migración 065 es nueva y está pendiente de ejecución y comprobación por el usuario.
 

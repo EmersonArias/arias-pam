@@ -3,6 +3,7 @@ import {
   Building2,
   ChevronDown,
   ChevronRight,
+  Copy,
   FolderTree,
   MapPin,
   Pencil,
@@ -205,6 +206,11 @@ export default function HotelStructurePage() {
   const [formOpen, setFormOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<LocationForm>(EMPTY_FORM)
+  const [copyOpen, setCopyOpen] = useState(false)
+  const [copySourceId, setCopySourceId] = useState<string | null>(null)
+  const [copyRootName, setCopyRootName] = useState('')
+  const [copyTargetParentId, setCopyTargetParentId] = useState('')
+  const [copying, setCopying] = useState(false)
 
   const loadLocations = useCallback(async (targetHotelId: string, preferredId?: string) => {
     if (!targetHotelId) {
@@ -273,6 +279,10 @@ export default function HotelStructurePage() {
     () => editingId ? descendantIds(locations, editingId) : new Set<string>(),
     [locations, editingId],
   )
+  const descendantsOfCopy = useMemo(
+    () => copySourceId ? descendantIds(locations, copySourceId) : new Set<string>(),
+    [locations, copySourceId],
+  )
 
   function startCreate(parentId: string | null = null) {
     setEditingId(null)
@@ -306,9 +316,59 @@ export default function HotelStructurePage() {
     setActionError('')
   }
 
+  function startCopy(item: HotelLocation) {
+    if (!item.active) return
+    setFormOpen(false)
+    setEditingId(null)
+    setCopySourceId(item.id)
+    setCopyRootName(`${item.name} (copia)`)
+    setCopyTargetParentId(item.parent_location_id ?? '')
+    setCopyOpen(true)
+    setActionError('')
+  }
+
   function changeForm<K extends keyof LocationForm>(key: K, value: LocationForm[K]) {
     setForm((current) => ({ ...current, [key]: value }))
     setActionError('')
+  }
+
+  async function copySubtree(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!hotelId || !copySourceId || !copyRootName.trim()) {
+      setActionError('Indica el nombre de la copia.')
+      return
+    }
+    if (copyTargetParentId && descendantsOfCopy.has(copyTargetParentId)) {
+      setActionError('El destino no puede estar dentro de la estructura que se copia.')
+      return
+    }
+    setCopying(true)
+    setActionError('')
+    try {
+      const { data, error } = await supabase.rpc('copy_hotel_location_subtree', {
+        target_hotel_id: hotelId,
+        source_location_id: copySourceId,
+        target_parent_location_id: copyTargetParentId || null,
+        target_root_name: copyRootName.trim(),
+      })
+      if (error) {
+        setActionError(`No se pudo copiar la estructura: ${error.message}`)
+        return
+      }
+      const value = Array.isArray(data) ? data[0] : data
+      const copiedId = typeof value === 'string'
+        ? value
+        : value && typeof value === 'object'
+          ? Object.values(value as Record<string, unknown>).find((part): part is string => typeof part === 'string') ?? ''
+          : ''
+      setCopyOpen(false)
+      setCopySourceId(null)
+      await loadLocations(hotelId, copiedId || undefined)
+    } catch (error) {
+      setActionError(error instanceof Error ? `No se pudo copiar la estructura: ${error.message}` : 'No se pudo copiar la estructura.')
+    } finally {
+      setCopying(false)
+    }
   }
 
   async function saveLocation(event: FormEvent<HTMLFormElement>) {
@@ -506,6 +566,7 @@ export default function HotelStructurePage() {
               <ActionButton icon={RefreshCw} label={loading ? 'Cargando…' : 'Actualizar'} onClick={() => void loadLocations(hotelId, selectedId)} disabled={loading || !hotelId} />
               <ActionButton icon={Plus} label="Nueva ubicación" tone="primary" onClick={() => startCreate()} disabled={!hotelId || loading} />
               <ActionButton icon={Plus} label="Añadir hija" onClick={() => selected && startCreate(selected.id)} disabled={!selected || !selected.active || loading} />
+              <ActionButton icon={Copy} label="Copiar estructura" onClick={() => selected && startCopy(selected)} disabled={!selected || !selected.active || loading || copying} />
               <ActionButton icon={Pencil} label="Modificar" onClick={() => selected && startEdit(selected)} disabled={!selected || loading} />
               <ActionButton icon={Power} label={selected?.active ? 'Desactivar' : 'Activar'} onClick={() => selected && void toggleActive(selected)} disabled={!selected || loading} />
             </div>
@@ -573,6 +634,44 @@ export default function HotelStructurePage() {
               <div className="mt-4 flex flex-wrap justify-end gap-2">
                 <ActionButton icon={X} label="Cancelar" onClick={() => { setFormOpen(false); setEditingId(null); setActionError('') }} />
                 <ActionButton icon={Save} label={saving ? 'Guardando…' : 'Guardar ubicación'} type="submit" tone="primary" disabled={saving} />
+              </div>
+            </form>
+          </section>
+        )}
+
+
+        {copyOpen && copySourceId && (
+          <section className="mb-3 rounded-2xl border border-indigo-200 bg-indigo-50/50 p-4 shadow-sm sm:p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-base font-bold text-slate-900">Copiar estructura</h2>
+                <p className="mt-1 text-xs leading-5 text-slate-600">
+                  Se copiarán únicamente las ubicaciones de esta rama. No se copian equipos, números de serie, fotos, documentos, PAM, OTs ni históricos. Los códigos de ubicación se dejan vacíos para evitar duplicados.
+                </p>
+              </div>
+              <button type="button" onClick={() => { setCopyOpen(false); setCopySourceId(null); setActionError('') }} className="rounded-lg border border-slate-200 bg-white p-2 text-slate-500 hover:bg-slate-50" aria-label="Cerrar copia"><X size={16} /></button>
+            </div>
+            <form className="mt-4" onSubmit={(event) => void copySubtree(event)}>
+              <div className="grid gap-3 md:grid-cols-2">
+                <label className="block">
+                  <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Nombre de la nueva raíz *</span>
+                  <input value={copyRootName} onChange={(event) => { setCopyRootName(event.target.value); setActionError('') }} maxLength={160} required className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500" />
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Copiar debajo de</span>
+                  <select value={copyTargetParentId} onChange={(event) => { setCopyTargetParentId(event.target.value); setActionError('') }} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm">
+                    <option value="">Sin ubicación superior (raíz del hotel)</option>
+                    {sortLocations(locations)
+                      .filter((item) => item.active && item.id !== copySourceId && !descendantsOfCopy.has(item.id))
+                      .map((item) => (
+                        <option key={item.id} value={item.id}>{item.name} · {typeLabel(item.location_type)}</option>
+                      ))}
+                  </select>
+                </label>
+              </div>
+              <div className="mt-4 flex flex-wrap justify-end gap-2">
+                <ActionButton icon={X} label="Cancelar" onClick={() => { setCopyOpen(false); setCopySourceId(null); setActionError('') }} disabled={copying} />
+                <ActionButton icon={Copy} label={copying ? 'Copiando…' : 'Copiar estructura'} type="submit" tone="primary" disabled={copying || !copyRootName.trim()} />
               </div>
             </form>
           </section>

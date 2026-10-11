@@ -2315,3 +2315,45 @@ Opciones a estudiar:
 - **C. Historial temporal de ubicaciones del activo:** permite reconstruir movimientos por fecha, pero exige registrar y validar cada traslado correctamente y tiene mayor complejidad.
 
 La revisión deberá considerar también que las OTs pueden ser por espacio y no por equipo, así como las relaciones diferentes de `apparatus_registry` y `assets`. No ejecutar aún cambios de esquema ni precargar el catálogo. Presentar recomendación con ventajas, limitaciones e impacto en informes para aprobación del usuario.
+
+## 55. ENTREGA PARA EMPEZAR PRUEBAS INTEGRALES DE UBICACIONES Y OT (2026-10-11)
+
+### 55.1 Alcance de esta entrega
+
+Se prepara una entrega para probar el recorrido de ubicaciones en la operación, sin precargar ubicaciones de SB Diagonal Zero ni modificar registros existentes por inferencia.
+
+1. **Catálogo:** la pantalla `/maintenance/structure` añade copia de subárbol dentro del hotel activo. Se copian solo nodos de `hotel_locations`, con UUID nuevos y códigos vacíos; no se copian equipos/activos, números de serie, fotos, documentos, PAM, OTs ni históricos.
+2. **Ficha de equipo:** selector de ubicación estructurada asociado al hotel activo. Los campos anteriores `plant` y `location` se conservan como referencia histórica y no se convierten automáticamente en nodos.
+3. **Alta de OT operativa:** permite indicar ubicación comunicada al abrir la OT, incluso cuando no hay equipo concreto. Si no se indica, el backend intenta capturar la ubicación estructurada del equipo y conserva como instantánea la referencia textual antigua si no hay catálogo vinculado.
+4. **Ubicación de ejecución:** la ficha de OT permite indicar dónde se ejecutó el trabajo. Al pasar la OT a cerrada queda guardada la ruta como instantánea histórica. Si no se selecciona otra ubicación, se captura la comunicada originalmente.
+5. **Vista de OT:** corrige la asociación del equipo directo de una OT correctiva/actuación sin plan PAM y expone los campos de ubicación comunicada y real.
+6. **Histórico existente:** no se rellena retrospectivamente la instantánea de OTs antiguas a partir de la ubicación actual del equipo. El histórico previo sin instantánea se identifica como tal.
+
+### 55.2 Migración 068 — pendiente de aplicar en Supabase
+
+Archivo: `supabase/migrations/068_operational_location_snapshots_and_copy.sql`.
+
+- Migración aditiva nueva. No altera las migraciones 001–067 ni elimina tablas o datos.
+- Añade IDs de ubicación comunicada/ejecución e instantáneas de texto a `maintenance_work_orders`, con FK al hotel correcto.
+- Añade trigger para capturar y preservar contexto histórico al crear y cerrar OT.
+- Añade RPC protegida para crear OT operativa con ubicación explícita y RPC transaccional para copiar solo el árbol lógico de ubicaciones del mismo hotel.
+- Corrige `maintenance_work_orders_resolved` para resolver el equipo desde la OT directa o desde el PAM.
+- **No se ha ejecutado** esta migración desde esta conexión. Aplicarla una sola vez en SQL Editor del proyecto Supabase correcto después de 067. No reejecutar 066 ni 067.
+
+### 55.3 Plan de prueba
+
+1. Esperar estado Vercel satisfactorio de la entrega y aplicar 068 una sola vez.
+2. En `/maintenance/structure`, crear nodos temporales identificables como `ZZ_TEST_PLANTA_A` y `ZZ_TEST_SALA_A`; probar añadir hija, modificar, buscar, desactivar/reactivar por orden hoja → raíz.
+3. Copiar la estructura de prueba como `ZZ_TEST_PLANTA_A_COPIA`; comprobar los IDs nuevos, códigos vacíos y ausencia de copia de equipos/OTs/PAM/fotos/documentos/histórico.
+4. Asignar a un equipo de prueba la ubicación hija; guardar y reabrir para validar persistencia.
+5. Crear una OT sin equipo indicando ubicación comunicada, y otra con equipo asociado sin indicar ubicación. Confirmar selección explícita o captura desde equipo/texto anterior.
+6. En la ficha de OT, seleccionar una ubicación real de intervención distinta, guardar y cerrar. Comprobar que aparecen ambas instantáneas.
+7. Renombrar después el nodo temporal y comprobar que la instantánea cerrada no cambia.
+8. Validar aislamiento de hotel con una cuenta que tenga acceso real a dos hoteles distintos.
+9. Desactivar los nodos `ZZ_TEST_*` de hoja a raíz una vez cerradas las pruebas. No hay borrado físico en el configurador por diseño.
+
+### 55.4 Límites conocidos
+
+- Esta entrega prioriza equipo maestro y OT para iniciar el ciclo de prueba.
+- Los selectores de ubicación en `assets`, `electrical_panels`, `maintenance_pending_items` y `maintenance_blocked_rooms` siguen pendientes, al igual que copiar estructuras entre hoteles distintos.
+- Estado de Vercel y funcionalidad en navegador deben verificarse tras el commit; escribir código no equivale a demostrar que el recorrido funcione en producción.

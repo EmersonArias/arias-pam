@@ -20,7 +20,26 @@ type WorkOrder = {
   completed_by: string | null; observations: string | null
   priority: 'LOW' | 'NORMAL' | 'HIGH' | 'CRITICAL'
   maintenance_plan_name: string | null; apparatus_code: string | null; apparatus_name: string | null
-  plant: string | null; location: string | null; created_at: string; updated_at: string
+  plant: string | null; location: string | null
+  reported_location_id: string | null; reported_location_snapshot: string | null
+  execution_location_id: string | null; execution_location_snapshot: string | null
+  created_at: string; updated_at: string
+}
+type TicketLocation = {
+  id: string; parent_location_id: string | null; location_type: string
+  name: string; active: boolean; sort_order: number
+}
+function ticketLocationPath(locationId: string, locations: TicketLocation[]) {
+  const byId = new Map(locations.map((item) => [item.id, item]))
+  const path: string[] = []
+  const visited = new Set<string>()
+  let current = byId.get(locationId)
+  while (current && !visited.has(current.id)) {
+    visited.add(current.id)
+    path.unshift(current.name)
+    current = current.parent_location_id ? byId.get(current.parent_location_id) : undefined
+  }
+  return path.join(' / ')
 }
 type Evidence = { id:string; storage_path:string; file_name:string; mime_type:string; file_size:number; uploaded_by:string|null; uploaded_at:string; url:string }
 
@@ -60,6 +79,8 @@ export default function MaintenanceWorkOrderDetailPage(){
   const { confirm } = useSystemDialog()
   const [order,setOrder]=useState<WorkOrder|null>(null)
   const [baseline,setBaseline]=useState<WorkOrder|null>(null)
+  const [locationOptions,setLocationOptions]=useState<TicketLocation[]>([])
+  const [executionLocationId,setExecutionLocationId]=useState('')
   const [loading,setLoading]=useState(true)
   const [saving,setSaving]=useState(false)
   const [working,setWorking]=useState(false)
@@ -86,6 +107,7 @@ export default function MaintenanceWorkOrderDetailPage(){
     if(q.error||!q.data){setError(q.error?.message??'No se ha encontrado el ticket.');setLoading(false);return}
     const item=q.data as WorkOrder
     setOrder(item); setBaseline(item)
+    setExecutionLocationId(item.execution_location_id ?? '')
 
     const assignmentsResult = session?.user.id && hotel?.id
       ? await supabase
@@ -167,15 +189,42 @@ export default function MaintenanceWorkOrderDetailPage(){
   }
   useEffect(()=>{void load();void loadEvidence()},[workOrderId])
 
-  const dirty=!!order&&!!baseline&&(order.title!==baseline.title||order.description!==baseline.description||order.scheduled_date!==baseline.scheduled_date||order.priority!==baseline.priority||order.observations!==baseline.observations)
+  const locationHotelId = order?.hotel_id || hotel?.id
+  useEffect(() => {
+    let alive = true
+    async function loadLocations() {
+      if (!locationHotelId) {
+        setLocationOptions([])
+        return
+      }
+      const { data, error } = await supabase
+        .from('hotel_locations')
+        .select('id, parent_location_id, location_type, name, active, sort_order')
+        .eq('hotel_id', locationHotelId)
+        .order('sort_order', { ascending: true })
+        .order('name', { ascending: true })
+      if (!alive) return
+      if (error) {
+        setError(`No se pudieron cargar las ubicaciones: ${error.message}`)
+        setLocationOptions([])
+        return
+      }
+      setLocationOptions((data ?? []) as TicketLocation[])
+    }
+    void loadLocations()
+    return () => { alive = false }
+  }, [locationHotelId])
+
+  const dirty=!!order&&!!baseline&&(order.title!==baseline.title||order.description!==baseline.description||order.scheduled_date!==baseline.scheduled_date||order.priority!==baseline.priority||order.observations!==baseline.observations||executionLocationId!==(baseline.execution_location_id??''))
 
   async function saveChanges(){
     if(!order || !canEdit)return
     setSaving(true);setError('');setMessage('')
     const q=await supabase.from('maintenance_work_orders').update({
       title:order.title.trim(),description:order.description?.trim()||null,scheduled_date:order.scheduled_date||null,
-      priority:order.priority,observations:order.observations?.trim()||null,updated_at:new Date().toISOString()
-    }).eq('id',order.id)
+      priority:order.priority,observations:order.observations?.trim()||null,
+      execution_location_id:executionLocationId||null,updated_at:new Date().toISOString()
+    }).eq('id',order.id).eq('hotel_id',order.hotel_id)
     setSaving(false)
     if(q.error){setError(q.error.message);return}
     setMessage('Ticket actualizado correctamente.');await load()
@@ -248,6 +297,18 @@ export default function MaintenanceWorkOrderDetailPage(){
   async function completeOrder(){
     if(!order)return
     setWorking(true);setError('');setMessage('')
+    if ((order.execution_location_id ?? '') !== executionLocationId) {
+      const locationSave = await supabase
+        .from('maintenance_work_orders')
+        .update({ execution_location_id: executionLocationId || null })
+        .eq('id', order.id)
+        .eq('hotel_id', order.hotel_id)
+      if (locationSave.error) {
+        setWorking(false)
+        setError(locationSave.error.message)
+        return
+      }
+    }
     const q=await supabase.rpc('complete_maintenance_work_order',{
       target_work_order_id:order.id,target_result:result,target_observations:order.observations?.trim()||null
     })
@@ -292,8 +353,9 @@ export default function MaintenanceWorkOrderDetailPage(){
   async function createCorrective(){
     if(!hotel?.id||!order||!correctiveTitle.trim()){setError('Indica la avería detectada.');return}
     setWorking(true);setError('');setMessage('')
-    const q=await supabase.rpc('create_operational_work_order',{
+    const q=await supabase.rpc('create_operational_work_order_at_location',{
       target_hotel_id:hotel.id,target_work_type:'CORRECTIVE',target_title:correctiveTitle.trim(),
+      target_reported_location_id:executionLocationId||order.execution_location_id||order.reported_location_id||null,
       target_description:correctiveDescription.trim()||null,
       target_apparatus_registry_id:order.resolved_apparatus_registry_id||order.apparatus_registry_id||null,
       target_parent_work_order_id:order.id,target_priority:correctivePriority,
@@ -372,10 +434,32 @@ export default function MaintenanceWorkOrderDetailPage(){
             <div className="mb-3 text-sm font-semibold">Equipo y ubicación</div>
             <div className="grid gap-2 rounded-xl border bg-slate-50 p-3 text-sm text-slate-700">
               <div className="flex items-center gap-2"><Wrench size={16}/><span><strong>Equipo:</strong> {order.apparatus_code??'—'} · {order.apparatus_name??'—'}</span></div>
-              <div><strong>Ubicación:</strong> {[order.plant,order.location].filter(Boolean).join(' · ')||'—'}</div>
+              <div><strong>Ubicación comunicada:</strong> {order.reported_location_snapshot||[order.plant,order.location].filter(Boolean).join(' · ')||'No registrada'}</div>
+              {order.status==='COMPLETED' && <div><strong>Ubicación de intervención:</strong> {order.execution_location_snapshot||'Sin registro histórico previo'}</div>}
               <div className="flex items-center gap-2"><UserRound size={16}/><span><strong>Asignado:</strong> {order.assigned_user_name??'Sin asignar'}</span></div>
               <div><strong>Origen:</strong> {order.maintenance_plan_name??'Ticket operativo'}</div>
             </div>
+            {canEdit && (
+              <label className="mt-3 block">
+                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Ubicación real de intervención</span>
+                <select
+                  value={executionLocationId}
+                  onChange={(event) => setExecutionLocationId(event.target.value)}
+                  disabled={working || saving}
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm disabled:bg-slate-100"
+                >
+                  <option value="">Usar la ubicación comunicada al cerrar</option>
+                  {locationOptions
+                    .filter((location) => location.active || location.id === executionLocationId)
+                    .map((location) => (
+                      <option key={location.id} value={location.id} disabled={!location.active}>
+                        {ticketLocationPath(location.id, locationOptions)} · {location.location_type}{location.active ? '' : ' · Inactiva (referencia existente)'}
+                      </option>
+                    ))}
+                </select>
+                <span className="mt-1 block text-[11px] text-slate-500">Se guarda como ubicación de ejecución al cerrar la OT. Déjalo vacío para conservar la ubicación comunicada si coincide.</span>
+              </label>
+            )}
             {canAssign && order.status !== 'COMPLETED' && (
               <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
                 <label className="block">

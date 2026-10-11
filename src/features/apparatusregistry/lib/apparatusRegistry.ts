@@ -31,6 +31,7 @@ export type ApparatusRegistry = {
   name: string
   plant: string
   location: string
+  locationId: string
   maintenance: string
   equipmentType: string
   systemName: string
@@ -57,6 +58,8 @@ export type DatabaseApparatusRegistry = {
   name: string
   plant: string | null
   location: string | null
+  location_id?: string | null
+  hotel_id?: string | null
   maintenance: string | null
   equipment_type: string | null
   system_name: string | null
@@ -179,6 +182,7 @@ export function fromDatabase(
     name: row.name,
     plant: row.plant ?? '',
     location: row.location ?? '',
+    locationId: row.location_id ?? '',
     maintenance: row.maintenance ?? '',
     equipmentType: row.equipment_type ?? '',
     systemName: row.system_name ?? '',
@@ -207,6 +211,7 @@ export function toDatabase(
     name: item.name.trim(),
     plant: item.plant.trim() || null,
     location: item.location.trim() || null,
+    location_id: item.locationId || null,
     maintenance: item.maintenance.trim() || null,
     equipment_type: item.equipmentType.trim() || null,
     system_name: item.systemName.trim() || null,
@@ -233,6 +238,7 @@ export function createEmptyApparatus(): ApparatusRegistry {
     name: '',
     plant: '',
     location: '',
+    locationId: '',
     maintenance: '',
     equipmentType: '',
     systemName: '',

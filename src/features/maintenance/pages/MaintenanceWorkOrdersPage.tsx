@@ -16,6 +16,29 @@ type TicketAsset = {
   id: string
   code: string | null
   name: string | null
+  location_id: string | null
+}
+
+type TicketLocation = {
+  id: string
+  parent_location_id: string | null
+  location_type: string
+  name: string
+  active: boolean
+  sort_order: number
+}
+
+function ticketLocationPath(locationId: string, locations: TicketLocation[]) {
+  const byId = new Map(locations.map((item) => [item.id, item]))
+  const path: string[] = []
+  const visited = new Set<string>()
+  let current = byId.get(locationId)
+  while (current && !visited.has(current.id)) {
+    visited.add(current.id)
+    path.unshift(current.name)
+    current = current.parent_location_id ? byId.get(current.parent_location_id) : undefined
+  }
+  return path.join(' / ')
 }
 
 type TicketAssignee = {
@@ -38,7 +61,7 @@ type WorkOrderEvidence = {
 type WorkOrder = {
   id: string
   hotel_id: string
-  scheduled_job_id: string
+  scheduled_job_id: string | null
   maintenance_plan_id: string | null
   ot_number: string
   title: string
@@ -61,6 +84,10 @@ type WorkOrder = {
   apparatus_name: string | null
   plant: string | null
   location: string | null
+  reported_location_id: string | null
+  reported_location_snapshot: string | null
+  execution_location_id: string | null
+  execution_location_snapshot: string | null
   plan_year: number
   month_number: number
   week_slot: number
@@ -163,6 +190,7 @@ export default function MaintenanceWorkOrdersPage() {
   const [evidence, setEvidence] = useState<WorkOrderEvidence[]>([])
   const [evidenceLoading, setEvidenceLoading] = useState(false)
   const [assets, setAssets] = useState<TicketAsset[]>([])
+  const [locations, setLocations] = useState<TicketLocation[]>([])
   const [assignees, setAssignees] = useState<TicketAssignee[]>([])
   const [canAssign, setCanAssign] = useState(false)
   const [ticketOpen, setTicketOpen] = useState(false)
@@ -171,7 +199,8 @@ export default function MaintenanceWorkOrdersPage() {
   const [ticketDescription, setTicketDescription] = useState('')
   const [ticketType, setTicketType] = useState<'CORRECTIVE' | 'ACTUATION'>('CORRECTIVE')
   const [ticketAssetId, setTicketAssetId] = useState('')
-  const [ticketScheduledDate, setTicketScheduledDate] = useState(new Date().toISOString().slice(0, 10))
+  const [ticketLocationId, setTicketLocationId] = useState('')
+  const [ticketScheduledDate, setTicketScheduledDate = useState(new Date().toISOString().slice(0, 10))
   const [ticketPriority, setTicketPriority] = useState<'LOW' | 'NORMAL' | 'HIGH' | 'CRITICAL'>('NORMAL')
   const [ticketAssigneeId, setTicketAssigneeId] = useState('')
 
@@ -205,7 +234,7 @@ export default function MaintenanceWorkOrdersPage() {
 
     const assetsResult = await supabase
       .from('apparatus_registry')
-      .select('id, code, name')
+      .select('id, code, name, location_id')
       .eq('hotel_id', hotel.id)
       .eq('active', true)
       .order('code', { ascending: true })
@@ -214,6 +243,20 @@ export default function MaintenanceWorkOrdersPage() {
       setAssets((assetsResult.data ?? []) as TicketAsset[])
     } else {
       setAssets([])
+    }
+
+    const locationsResult = await supabase
+      .from('hotel_locations')
+      .select('id, parent_location_id, location_type, name, active, sort_order')
+      .eq('hotel_id', hotel.id)
+      .eq('active', true)
+      .order('sort_order', { ascending: true })
+      .order('name', { ascending: true })
+    if (!locationsResult.error) {
+      setLocations((locationsResult.data ?? []) as TicketLocation[])
+    } else {
+      setLocations([])
+      setError(`No se pudieron cargar las ubicaciones del hotel: ${locationsResult.error.message}`)
     }
 
     const assignmentResult = session?.user.id
@@ -311,6 +354,7 @@ export default function MaintenanceWorkOrdersPage() {
     setTicketDescription('')
     setTicketType('CORRECTIVE')
     setTicketAssetId('')
+    setTicketLocationId('')
     setTicketScheduledDate(new Date().toISOString().slice(0, 10))
     setTicketPriority('NORMAL')
     setTicketAssigneeId('')
@@ -383,6 +427,7 @@ export default function MaintenanceWorkOrdersPage() {
         item.assigned_user_name,
         item.plant,
         item.location,
+        item.reported_location_snapshot,
       ]
         .filter(Boolean)
         .join(' ')
@@ -510,6 +555,7 @@ export default function MaintenanceWorkOrdersPage() {
                 setTicketDescription('')
                 setTicketType('CORRECTIVE')
                 setTicketAssetId('')
+                setTicketLocationId('')
                 setTicketScheduledDate(new Date().toISOString().slice(0, 10))
                 setTicketPriority('NORMAL')
                 setTicketAssigneeId('')
@@ -656,7 +702,7 @@ export default function MaintenanceWorkOrdersPage() {
                       {item.apparatus_code ?? '—'} · {item.apparatus_name ?? 'Equipo no disponible'}
                     </div>
                     <div className="mt-1 text-[10px] text-slate-400">
-                      {[item.plant, item.location].filter(Boolean).join(' · ') || 'Sin ubicación'}
+                      {item.reported_location_snapshot || [item.plant, item.location].filter(Boolean).join(' · ') || 'Sin ubicación'}
                     </div>
                     <div className="mt-1 text-[10px] text-slate-400">
                       Prevista: {item.scheduled_date ? new Date(item.scheduled_date + 'T12:00:00').toLocaleDateString('es-ES') : '—'}
@@ -706,7 +752,7 @@ export default function MaintenanceWorkOrdersPage() {
                         <div className="text-[10px] text-slate-400">{item.apparatus_name ?? '—'}</div>
                       </td>
                       <td className="px-3 py-3 text-slate-600">
-                        {[item.plant, item.location].filter(Boolean).join(' · ') || '—'}
+                        {item.reported_location_snapshot || [item.plant, item.location].filter(Boolean).join(' · ') || '—'}
                       </td>
                       <td className="whitespace-nowrap px-3 py-3 text-slate-600">
                         {item.scheduled_date ? new Date(item.scheduled_date + 'T12:00:00').toLocaleDateString('es-ES') : '—'}
@@ -793,7 +839,7 @@ export default function MaintenanceWorkOrdersPage() {
 
                 {selected.plant || selected.location ? (
                   <div className="text-sm text-slate-600">
-                    <strong>Ubicación:</strong> {[selected.plant, selected.location].filter(Boolean).join(' · ')}
+                    <strong>Ubicación:</strong> {selected.reported_location_snapshot || [selected.plant, selected.location].filter(Boolean).join(' · ')}
                   </div>
                 ) : null}
 
@@ -952,6 +998,23 @@ export default function MaintenanceWorkOrdersPage() {
                   </select>
                 </label>
 
+                <label className="block sm:col-span-2">
+                  <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Ubicación comunicada</span>
+                  <select
+                    value={ticketLocationId}
+                    onChange={(event) => setTicketLocationId(event.target.value)}
+                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm"
+                  >
+                    <option value="">Usar ubicación del equipo si existe</option>
+                    {locations.map((location) => (
+                      <option key={location.id} value={location.id}>
+                        {ticketLocationPath(location.id, locations)} · {location.location_type}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="mt-1 block text-[11px] text-slate-500">Se conserva como ubicación inicial de la OT. Al cerrarla podrás indicar dónde se ejecutó realmente.</span>
+                </label>
+
                 <label className="block">
                   <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Fecha prevista</span>
                   <input
@@ -1016,10 +1079,11 @@ export default function MaintenanceWorkOrdersPage() {
                     setError('')
 
                     try {
-                      const createdResult = await supabase.rpc('create_operational_work_order', {
+                      const createdResult = await supabase.rpc('create_operational_work_order_at_location', {
                         target_hotel_id: hotel.id,
                         target_work_type: ticketType,
                         target_title: ticketTitle.trim(),
+                        target_reported_location_id: ticketLocationId || null,
                         target_description: ticketDescription.trim() || null,
                         target_apparatus_registry_id: ticketAssetId || null,
                         target_parent_work_order_id: null,
@@ -1049,6 +1113,7 @@ export default function MaintenanceWorkOrdersPage() {
                       setTicketTitle('')
                       setTicketDescription('')
                       setTicketAssetId('')
+                      setTicketLocationId('')
                       setTicketAssigneeId('')
                       await loadData()
                       setSelectedId(created.id)

@@ -2357,3 +2357,14 @@ Archivo: `supabase/migrations/068_operational_location_snapshots_and_copy.sql`.
 - Esta entrega prioriza equipo maestro y OT para iniciar el ciclo de prueba.
 - Los selectores de ubicación en `assets`, `electrical_panels`, `maintenance_pending_items` y `maintenance_blocked_rooms` siguen pendientes, al igual que copiar estructuras entre hoteles distintos.
 - Estado de Vercel y funcionalidad en navegador deben verificarse tras el commit; escribir código no equivale a demostrar que el recorrido funcione en producción.
+
+
+### 55.5 Estado observado tras el commit 414f13e (2026-10-11)
+
+- Rama: `feature/arias-suite-common-ui-v1`.
+- Commit de código y migración 068: `414f13e70ce07760595064cc34485604770212b6`.
+- El comentario de Vercel en el PR informa un preview `Ready` para el proyecto `arias-pam`: https://arias-pam-git-feature-arias-suite-common-ui-v1-arias9.vercel.app.
+- El estado para el proyecto `arias-suite` aparece como `Error`; el endpoint de estado no entrega la causa técnica detallada. Un comentario previo de Vercel (8 de octubre) mencionó el límite gratuito de más de 100 despliegues diarios, pero no se ha confirmado que ese sea el motivo específico del fallo del 11 de octubre. No afirmar que la compilación del proyecto `arias-suite` haya pasado hasta verificar sus logs.
+- El preview `arias-pam` no debe confundirse con el alias/despliegue habitual de `arias-suite`. Confirmar variables de entorno y proyecto Supabase antes de probar operaciones con datos.
+- La migración 068 permanece sin ejecutar. Sin ella, el selector del catálogo 066 puede cargarse, pero las nuevas RPC/columnas de ubicación de OT no estarán disponibles y el flujo completo de creación/cierre de OT no está listo.
+- Para cerrar la validación se requiere acceso autorizado a los logs de Vercel y al proyecto Supabase correcto, o que el usuario ejecute 068 desde SQL Editor y comparta el resultado. No repetir 066 ni 067.

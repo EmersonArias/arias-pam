@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { AlertTriangle, ArrowDownUp, Bell, CalendarClock, CheckCircle2, PlayCircle, Plus, Save, Settings2, Trash2, UserRound } from 'lucide-react'
+import { AlertTriangle, ArrowDownUp, Bell, CalendarClock, CheckCircle2, MapPin, PlayCircle, Plus, Save, Settings2, Trash2, UserRound } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useHotelScope } from '../../../shared/context/HotelScopeContext'
 import { supabase } from '../../../lib/supabase'
@@ -411,8 +411,9 @@ export default function MaintenanceConfigurationPage() {
             <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Hotel actual</div>
             <div className="mt-1 truncate text-base font-bold text-slate-900">{currentHotel?.name ?? '—'}</div>
           </div>
-          <div className="flex gap-2 text-xs text-slate-500">
+          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
             <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1"><CheckCircle2 size={14} />Configuración por hotel</span>
+            <ActionButton icon={MapPin} label="Estructura del hotel" onClick={() => navigate('/maintenance/structure')} />
             <button type="button" onClick={() => void simulate()} className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 font-semibold hover:bg-slate-200"><PlayCircle size={14} />Simular</button>
           </div>
         </div>

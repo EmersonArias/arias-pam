@@ -2221,3 +2221,21 @@ El usuario ejecutó la consulta de privilegios después de la corrección. Resul
 4. Si aparece un error, enviar captura o texto exacto y detener ahí para diagnosticarlo. Si funciona, confirmar qué operaciones se probaron y entonces planificar la prueba de aislamiento entre hoteles.
 
 No se deben volver a ejecutar las migraciones 065, 066 ni el bloque de privilegios 067 de forma rutinaria. Registrar los siguientes resultados solo cuando el usuario los confirme.
+
+
+## 51. PRIMERA VALIDACIÓN VISUAL DE ESTRUCTURA DEL HOTEL (2026-10-11)
+
+El usuario abrió la ruta desplegada `/maintenance/structure` en `arias-suite.vercel.app` y compartió una captura de pantalla.
+
+### Resultado observado
+- La página carga y muestra el encabezado **Estructura del hotel**.
+- El contexto indica que el hotel activo seleccionado es **Hotel SB Diagonal Zero**.
+- La página muestra cero ubicaciones activas, cero principales y cero inactivas; el estado vacío dice que todavía no hay ubicaciones configuradas.
+- En la captura no aparece ningún error de carga ni mensaje de fallo de Supabase.
+- Por tanto, la pantalla y la consulta de lectura presentan un estado vacío normal; no hay evidencia visual de un fallo de conexión. Aún no se ha probado inserción, modificación, desactivación ni aislamiento entre hoteles.
+- No se debe crear una ubicación inventada ni precargar la estructura física real del hotel sin validación explícita.
+
+### Siguiente decisión necesaria
+Antes de escribir el primer registro real, confirmar el criterio del primer nivel de la jerarquía para SB Diagonal Zero: por ejemplo, si plantas/sótanos serán ubicaciones raíz o si habrá una ubicación raíz superior (como un edificio o bloque) con plantas debajo. Estos son ejemplos de modelado, no datos confirmados del hotel. La jerarquía es flexible por diseño, así que no imponer una estructura universal.
+
+Una vez validado por el usuario el primer nivel, crear una ubicación real y probar alta/lectura; después probar una ubicación hija, edición, búsqueda y desactivación/reactivación. Evitar datos de prueba persistentes porque la pantalla no ofrece eliminación física.

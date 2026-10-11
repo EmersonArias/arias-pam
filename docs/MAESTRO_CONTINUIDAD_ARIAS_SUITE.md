@@ -1978,7 +1978,7 @@ No incluye todavía la copia de plantas/habitaciones, plantillas de composición
 6. Implementar copia con vista previa, renumeración explícita, política de conflictos y una transacción; no copiar activos físicos ni historiales.
 7. Solo cuando el catálogo esté estable, diseñar plantillas de composición prevista para habitaciones/equipamiento.
 
-El estado Vercel del commit de aplicación `65abc7d1fb99181e4dcddf8b39819a3fa1c9ca27` fue `success` (preview: https://vercel.com/arias9/arias-suite/5gHwkW4AAcuTUzQQkskttLpzQfTS), por lo que el build asociado a los cambios de pantalla/ruta/enlace pasó. No se ejecutó una compilación local ni pruebas de navegador; la pantalla aún debe probarse contra Supabase después de aplicar la migración 066. Los commits posteriores al de aplicación actualizan documentación.
+El estado Vercel del commit de aplicación `65abc7d1fb99181e4dcddf8b39819a3fa1c9ca27` fue `success` (preview: https://vercel.com/arias9/arias-suite/5gHwkW4AAcuTUzQQkskttLpzQfTS), por lo que el build asociado a los cambios de pantalla/ruta/enlace pasó. No se ejecutó una compilación local ni pruebas de navegador; la pantalla aún debe probarse contra Supabase tras la confirmación de ejecución de la migración 066. Los commits posteriores al de aplicación actualizan documentación.
 
 
 

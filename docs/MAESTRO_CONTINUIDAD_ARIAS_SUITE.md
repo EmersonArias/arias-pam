@@ -1517,3 +1517,135 @@ Siguiente comprobación:
 4. Verificar en móvil que las acciones y la navegación mantienen su comportamiento.
 5. No crear 065 hasta que aparezca una necesidad de esquema nueva.
 
+
+
+---
+
+# 43. BASE DE INVESTIGACIÓN UX PARA LA PRESENTACIÓN DE ARIAS SUITE (2026-10-11)
+
+## 43.1 Objetivo
+
+Conservar fuentes externas verificables que fundamentan criterios de diseño de Arias Suite, especialmente formularios operativos, selección de ubicaciones, jerarquía de espacios y activos, reducción de pasos y facilidad de uso móvil.
+
+Este apartado servirá como base documental para la futura presentación comercial/técnica de Arias Suite. La presentación debe distinguir entre:
+
+1. **Fuente externa:** lo que la publicación o investigación consultada afirma.
+2. **Decisión de diseño de Arias Suite:** cómo se aplica ese principio al producto.
+3. **Funcionalidad implementada:** lo que realmente existe en la aplicación y se ha comprobado.
+4. **Funcionalidad propuesta o pendiente:** decisiones todavía no implementadas o validadas.
+
+No presentar una recomendación futura como si ya estuviera implementada. Tampoco afirmar que todas las decisiones históricas de desarrollo se tomaron originalmente a partir de estas fuentes: esta revisión deja documentada la base de investigación que se utilizará para justificar y orientar el diseño, y que podrá incorporarse a la evolución del producto.
+
+## 43.2 Fuentes principales
+
+### A. Nielsen Norman Group (NN/G) — simplificación de formularios
+
+**Artículo:** “Less Effort, More Completion: The EAS Framework for Simplifying Forms”  
+**Fecha:** 7 de marzo de 2025  
+**URL:** https://www.nngroup.com/articles/eas-framework-simplify-forms/
+
+El artículo presenta el marco EAS:
+- **Eliminate:** eliminar preguntas no esenciales, no urgentes o irrelevantes.
+- **Automate:** reutilizar datos existentes y automatizar aquello que no debería volver a introducir manualmente el usuario.
+- **Simplify:** simplificar los campos restantes mediante valores iniciales útiles, alternativas de entrada y formatos que reduzcan el esfuerzo.
+
+También recomienda posponer información no urgente y usar lógica condicional para no pedir datos que no se aplican a todos los casos.
+
+**Aplicación propuesta a Arias Suite:**
+- No exigir todos los campos posibles al registrar un pendiente.
+- Reutilizar ubicaciones, activos, proveedores y demás datos maestros cuando existan y sean fiables.
+- Automatizar valores que puedan recuperarse de datos ya registrados, manteniendo la posibilidad de corregirlos cuando proceda.
+- Mostrar opciones adicionales solo cuando sean relevantes para el caso.
+- Mantener un camino rápido para registrar un problema cuando aún no se conoce toda la información.
+
+### B. IBM Maximo — definición y jerarquía de ubicaciones
+
+**Artículo/documentación:** “Defining locations”  
+**URL:** https://www.ibm.com/docs/en/masv-and-l/maximo-manage/cd?topic=locations-defining
+
+IBM explica que las ubicaciones deben diseñarse según cómo las entienden las personas y equipos que las utilizan. Una ubicación puede representar, según las necesidades del negocio, un edificio, planta, habitación o una parte concreta de un espacio. La documentación destaca la importancia de distinguir las ubicaciones de otras entidades y de planificar la jerarquía de forma deliberada.
+
+**Aplicación propuesta a Arias Suite:**
+- Definir una estructura física que refleje cómo se recorre y se identifica realmente un hotel.
+- Admitir espacios de habitaciones y también zonas comunes, salas técnicas, cubiertas y otras ubicaciones que no sean habitaciones.
+- Evitar crear jerarquías rígidas que no correspondan a la realidad del establecimiento.
+- Diseñar la estructura de datos pensando en su reutilización para órdenes de trabajo, activos, histórico y análisis.
+
+### C. IBM Maximo — sistemas como jerarquías lógicas de ubicaciones
+
+**Artículo/documentación:** “Systems”  
+**URL:** https://www.ibm.com/docs/en/masv-and-l/maximo-manage/cd?topic=locations-systems
+
+IBM describe un sistema como un grupo de ubicaciones organizado en una jerarquía lógica de ubicaciones padre e hijas, útil para seguir activos y gestionar trabajos. Los sistemas pueden representar agrupaciones funcionales o físicas.
+
+**Aplicación propuesta a Arias Suite:**
+- Mantener conceptualmente separados el lugar físico, el sistema funcional y el activo.
+- No confundir la familia de un equipo con el lugar donde está instalado.
+- Permitir que el análisis futuro cruce ubicación, activo, sistema y tipo de trabajo sin convertirlo todo en un único campo de texto.
+
+### D. Baymard Institute — evitar dividir innecesariamente una entrada en varios campos móviles
+
+**Artículo:** “Mobile Form Usability: Avoid Splitting Single Input Entities”  
+**Autor:** Jamie Holst  
+**Fecha:** 12 de febrero de 2013  
+**URL:** https://baymard.com/research-articles/mobile-form-usability-single-input-fields
+
+Baymard describe observaciones de sus estudios de usabilidad móvil en las que dividir una misma entidad percibida por el usuario en varios campos puede dificultar la interacción, generar dudas sobre qué campos son obligatorios y no coincidir con la forma en que las personas entienden la información. El artículo también aclara que sus observaciones se refieren a los tipos de campos que estudiaron; no constituyen prueba directa para todos los tipos de datos.
+
+**Aplicación propuesta a Arias Suite:**
+- No imponer por defecto una secuencia obligatoria de planta → habitación → sitio para cada registro.
+- Valorar un selector inteligente de ubicación que permita buscar por nombre, planta o habitación y muestre la ruta completa del resultado.
+- Cuando sea útil, permitir una selección progresiva, pero sin obligar a completar niveles que no sean aplicables.
+- Validar el diseño con tareas reales de mantenimiento en móvil antes de dar por demostrado que reduce tiempos o errores.
+
+## 43.3 Principios de diseño derivados para Arias Suite
+
+A partir de las fuentes anteriores, se documentan como criterios de diseño que deben orientar las decisiones futuras:
+
+1. **Primero la tarea del trabajador:** el formulario debe facilitar el registro del problema, no obligar al usuario a navegar toda la estructura interna del sistema.
+2. **Datos estructurados sin complejidad innecesaria:** la base de datos puede mantener relaciones y jerarquías aunque la interfaz ofrezca un acceso directo y sencillo.
+3. **Ubicación no equivale a activo:** el lugar físico, el sistema funcional, la familia/subfamilia, el activo y la categoría del trabajo representan conceptos diferentes.
+4. **Campos condicionales y opcionales cuando corresponda:** no pedir al usuario datos que no aplican o que pueden completarse después, salvo que exista una necesidad operativa clara.
+5. **Reutilización de datos maestros:** preferir catálogos fiables y autocompletado frente a texto libre repetido, sin inventar ni duplicar información.
+6. **Diseño móvil prioritario para tareas frecuentes:** minimizar escritura, desplazamientos entre campos y selecciones innecesarias.
+7. **Prueba con tareas reales:** comprobar el flujo con casos representativos antes de afirmar que una solución es más rápida o que reduce errores.
+8. **Trazabilidad de las afirmaciones:** en presentaciones, separar lo respaldado por fuentes externas, las decisiones de producto, lo implementado y lo que sigue pendiente.
+
+## 43.4 Caso actual: formulario de Nuevo pendiente
+
+Archivo revisado:
+`src/features/maintenance/pages/MaintenancePendingPage.tsx`
+
+Estado observado durante la revisión del 11/10/2026:
+- El campo Pendiente tiene `autoFocus`, por lo que recibe el foco al abrir el formulario.
+- Ubicación permite sugerencias procedentes de valores presentes en los pendientes existentes.
+- La ubicación se guarda como texto en el registro de Pendientes.
+- En el módulo de mantenimiento se usan también los campos `plant` y `location` asociados al registro de equipos.
+- En esta revisión no se ha confirmado que el formulario de Pendientes ya consuma un catálogo jerárquico completo de ubicaciones.
+
+Propuesta de evolución, **todavía no implementada por esta decisión documental**:
+- Cambiar el foco inicial del formulario de Nuevo a Ubicación.
+- Investigar y reutilizar primero la estructura existente de ubicaciones y activos.
+- Evaluar un selector inteligente que busque ubicaciones por nombre, planta o habitación y muestre la ruta.
+- Permitir identificar un activo cuando se conozca y sea relevante, sin convertirlo en obligatorio para todos los pendientes.
+- Evitar crear tablas o migraciones nuevas hasta comprobar que el modelo actual no cubre la necesidad.
+
+## 43.5 Texto base para la futura presentación
+
+Redacción propuesta, que deberá actualizarse según las funcionalidades realmente implementadas y verificadas en la fecha de presentación:
+
+> **Diseño fundamentado en investigación y buenas prácticas.** En Arias Suite, las decisiones de experiencia de usuario para formularios operativos y organización de ubicaciones se documentan tomando como referencia publicaciones de Nielsen Norman Group sobre simplificación de formularios, documentación de IBM Maximo sobre jerarquías de ubicaciones y sistemas, y estudios de usabilidad móvil de Baymard Institute. Estas fuentes orientan criterios como reducir campos innecesarios, reutilizar datos existentes, separar ubicación y activo, y evitar pasos que no aporten valor al trabajador. Las decisiones se contrastan con la estructura técnica del producto y deben validarse con tareas reales de mantenimiento.
+
+Versión corta para una diapositiva:
+
+> **Arias Suite: diseño basado en investigación UX y buenas prácticas de gestión de activos.** Referencias: Nielsen Norman Group (simplificación de formularios), IBM Maximo (jerarquías de ubicaciones y sistemas) y Baymard Institute (usabilidad de formularios móviles).
+
+Importante: utilizar expresiones como “tomamos como referencia”, “fundamentamos estas decisiones” o “criterios de diseño orientados por estas fuentes”. No afirmar que Arias Suite está certificado por estas organizaciones, que las fuentes han auditado el producto, ni que se ha demostrado una mejora cuantitativa de tiempos o errores sin pruebas propias.
+
+## 43.6 Referencias breves para bibliografía o notas de presentación
+
+- Nielsen Norman Group. Huei-Hsin Wang. “Less Effort, More Completion: The EAS Framework for Simplifying Forms.” 7 marzo 2025. https://www.nngroup.com/articles/eas-framework-simplify-forms/
+- IBM. “Defining locations.” IBM Maximo Manage documentation. https://www.ibm.com/docs/en/masv-and-l/maximo-manage/cd?topic=locations-defining
+- IBM. “Systems.” IBM Maximo Manage documentation. https://www.ibm.com/docs/en/masv-and-l/maximo-manage/cd?topic=locations-systems
+- Baymard Institute. Jamie Holst. “Mobile Form Usability: Avoid Splitting Single Input Entities.” 12 febrero 2013. https://baymard.com/research-articles/mobile-form-usability-single-input-fields
+

@@ -1852,7 +1852,18 @@ La migración:
 
 **El usuario ha confirmado “065 ok” el 2026-10-11**, interpretado como que la migración se ha aplicado sin error. Todavía falta verificar los privilegios y políticas resultantes en Supabase; hasta esa comprobación no se considera cerrado el riesgo. Las rutas de la aplicación para el inventario se encuentran dentro de `ProtectedRoute`, por lo que el código revisado no muestra un flujo de acceso anónimo intencional.
 
-### 46.5 Verificación posterior obligatoria — pendiente
+### 46.5 Verificación posterior — privilegios y políticas confirmados (2026-10-11)
+
+El usuario volvió a ejecutar ambas consultas tras aplicar la migración 065. Los resultados confirman:
+
+- En `apparatus_registry` y `assets`, el rol `anon` tiene SELECT, INSERT, UPDATE y DELETE = false.
+- En ambas tablas, `authenticated` mantiene los cuatro privilegios SQL = true.
+- Ya no aparecen las políticas RLS públicas permisivas.
+- Se mantienen únicamente las políticas `*_authorized` para `authenticated` en cada operación, que comprueban `has_hotel_permission(hotel_id, ...)` para ver, crear, modificar y eliminar.
+
+**Resultado:** la configuración de privilegios SQL y las políticas listadas queda corregida y verificada en el esquema consultado por el usuario. La seguridad funcional debe terminar de probarse con dos cuentas/casos: un usuario con permisos por hotel debe poder operar normalmente, y un usuario autenticado sin permisos para ese hotel no debe poder leer ni modificar registros de esas tablas. No afirmar que esta prueba funcional se ha realizado hasta recibir su resultado.
+
+### 46.6 Siguiente acción
 
 Tras la confirmación de que la migración 065 se ejecutó, el usuario debe volver a ejecutar la consulta de privilegios y el listado de políticas RLS para confirmar los resultados. Resultado esperado:
 - `anon`: SELECT/INSERT/UPDATE/DELETE = false en ambas tablas;
@@ -1862,7 +1873,7 @@ Tras la confirmación de que la migración 065 se ejecutó, el usuario debe volv
 
 Realizar además una prueba funcional con un usuario autenticado autorizado y una prueba de aislamiento con un usuario sin permisos/hotel seleccionado. No considerar cerrada la corrección hasta comprobar ambas.
 
-### 46.6 Implicación en el diseño de ubicaciones
+### 46.7 Implicación en el diseño de ubicaciones
 
 La corrección de seguridad tiene prioridad sobre el catálogo de ubicaciones. Antes de diseñar la migración de ubicaciones:
 1. aplicar y validar la migración 065 en el entorno Supabase correcto;

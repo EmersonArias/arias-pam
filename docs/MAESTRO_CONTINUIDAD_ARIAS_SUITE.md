@@ -2401,3 +2401,32 @@ La primera integración de la instantánea de ubicación en las OTs ya estaba en
 
 ### 56.5 Estado de entrega
 Estos cambios de interfaz y documentación requieren revisión de compilación y navegador tras el commit. La migración 068 no se ha ejecutado desde esta conexión y ninguna prueba real se declara superada todavía.
+
+
+## 57. ESTADO REAL TRAS APLICAR LA MIGRACIÓN 068 (2026-10-11)
+
+Esta sección **actualiza y prevalece sobre los puntos de estado de las secciones anteriores que indicaban que 068 seguía pendiente**.
+
+#### 57.1 Supabase confirmado
+- Proyecto verificado: `eqxcuwrfestwqelnucmv` (proyecto de Arias PAM).
+- Se aplicó desde la conexión Supabase la migración oficial `068_operational_location_snapshots_and_copy`, usando el contenido del archivo versionado `supabase/migrations/068_operational_location_snapshots_and_copy.sql` de `feature/arias-suite-common-ui-v1`.
+- El registro de migraciones de Supabase devuelve la versión `20261011203329` con el nombre `068_operational_location_snapshots_and_copy`.
+- La consulta posterior confirma que existen las cuatro columnas de ubicación en `maintenance_work_orders`: `reported_location_id`, `reported_location_snapshot`, `execution_location_id` y `execution_location_snapshot`.
+- La vista `maintenance_work_orders_resolved` expone las cuatro columnas; el trigger `trg_snapshot_maintenance_work_order_locations` está habilitado.
+- Las funciones de copia de estructura y creación de OT operativa están disponibles para `authenticated` y no para `anon`. La función interna de instantáneas no se expone para llamada directa.
+- El estado de datos comprobado inmediatamente después de la migración: 1 hotel, 309 equipos, 203 órdenes de trabajo, 0 ubicaciones en `hotel_locations` y 0 OTs con nuevas referencias/instantáneas. No se modificaron órdenes históricas ni se crearon ubicaciones de prueba.
+
+#### 57.2 Lo que aún no está validado
+- La comprobación del commit `8c6ec909f2e73be9d18f909671e41b8601b3f82b` devuelve el estado de Vercel **failure** para el proyecto `arias-suite`. La causa concreta no se pudo leer desde la conexión disponible.
+- No se ha confirmado un despliegue Preview accesible que incluya exactamente el commit actual, ni se ha podido realizar prueba de navegador autenticada.
+- La aplicación de 068 **sí está completada**; quedan pendientes las pruebas de interfaz, permisos RLS reales por usuario, copia de estructura, creación/cierre de OT y persistencia de las dos instantáneas.
+- No afirmar que Arias Suite está listo para producción. La fase está en estado **migración aplicada / pruebas funcionales pendientes**.
+
+#### 57.3 Próximos pasos
+1. Resolver el fallo de despliegue de Vercel y confirmar qué commit y variables de entorno utiliza el Preview.
+2. Abrir el Preview con un usuario autenticado y el hotel de prueba correcto.
+3. Crear nodos temporales identificables con prefijo `ZZ_TEST_`; probar edición, jerarquía, copia, desactivación y reactivación. No crear ni alterar ubicaciones reales por suposición.
+4. Probar una OT operativa con ubicación comunicada y sin equipo; después seleccionar una ubicación de ejecución distinta, cerrar y comprobar ambas instantáneas en el histórico.
+5. Verificar el aislamiento de hoteles y permisos con sesiones reales. Desactivar los datos temporales al terminar; no borrar físicamente registros ni modificar OTs reales.
+6. No volver a ejecutar 068 ni modificar migraciones ya ejecutadas. Cualquier cambio posterior al esquema debe ser una nueva migración aditiva y revisada.
+

@@ -1695,3 +1695,111 @@ Esta sección fija el criterio funcional y arquitectónico; **no confirma que la
 
 El catálogo específico del SB Diagonal Zero aún debe construirse a partir de información real y verificable. La decisión no autoriza a inventar el plano, el número de habitaciones, las salas técnicas por planta ni la ubicación exacta de los activos.
 
+## 45. AUDITORÍA TÉCNICA Y HOJA DE RUTA — UBICACIONES Y COPIA (2026-10-11)
+
+### 45.1 Estado de revisión
+
+Rama revisada: `feature/arias-suite-common-ui-v1`  
+HEAD observado al iniciar la revisión: `f89cb1a8079790557bcf623bd23ae97757c3c32f`  
+Objetivo: preparar el configurador de estructura física por hotel y la copia de plantas/zonas/habitaciones sin contaminar los activos reales ni el histórico.
+
+Esta sección registra una auditoría del código y de las migraciones disponibles en GitHub. **No equivale a una inspección directa del esquema vivo de Supabase**; ese contraste debe hacerse antes de ejecutar cualquier migración nueva.
+
+### 45.2 Hallazgos verificados en el repositorio
+
+- La migración `004_multitenant_core.sql` define `tenants`, `hotels`, perfiles, roles y permisos como base multiempresa/multihotel.
+- La migración `005_add_hotel_scope_to_operational_data.sql` añade `hotel_id` a entidades operativas existentes, entre ellas `apparatus_registry` y `assets`.
+- La migración `045_active_hotel_context.sql` define el contexto de hotel activo y funciones de acceso que aplican al usuario/hotel seleccionado.
+- La migración `018_maintenance_core_and_alerts.sql` relaciona los planes de mantenimiento con `apparatus_registry` mediante `apparatus_registry_id`.
+- Las migraciones `036_preventive_work_orders_v1.sql` y `055_operational_work_orders_and_detail.sql` muestran que las órdenes de trabajo se relacionan con los planes y/o con `apparatus_registry`. Una copia de ubicación no debe duplicar estos registros.
+- La migración `062_import_maintenance_pending_backlog.sql` crea `maintenance_pending_items` con `location` de tipo texto y trazabilidad de la fila de origen.
+- La migración `063_maintenance_blocked_rooms.sql` crea `maintenance_blocked_rooms` con `hotel_id` y `room_number` de texto; es un registro de bloqueo, no un catálogo canónico de habitaciones.
+- La pantalla `src/features/apparatusregistry/pages/ApparatusRegistryDetailPage.tsx` mantiene los campos `plant` y `location` en la ficha del equipo como texto.
+- La pantalla `src/features/maintenance/pages/MaintenancePendingPage.tsx` guarda `maintenance_pending_items.location` como texto. Además, reconoce actualmente una habitación mediante la expresión regular `^[0-9]{3,4}$`; ese criterio no debe convertirse en regla general del modelo de Arias Suite.
+
+En los objetos revisados no se ha identificado una jerarquía canónica completa de ubicaciones físicas. Antes de decidir la migración definitiva se debe terminar el inventario del esquema y contrastarlo con el esquema vivo de Supabase.
+
+### 45.3 Decisiones funcionales que sí quedan fijadas
+
+1. **Modelo genérico, no rígido:** la estructura física de cada hotel debe poder contener ubicaciones de distintos tipos y niveles. No imponer una secuencia obligatoria de planta → habitación.
+2. **Ubicación separada de activo:** un lugar físico no es un equipo. La misma ubicación puede contener varios activos; un activo físico conserva su propia identidad.
+3. **Sin falsa duplicación:** copiar una planta o habitación crea nuevos nodos de ubicación, no copias de los activos físicos reales.
+4. **Histórico protegido:** no duplicar órdenes de trabajo, ejecuciones PAM, planes preventivos, lecturas, fotografías, documentos ni eventos históricos al copiar una estructura.
+5. **Compatibilidad gradual:** los campos de texto existentes no se deben borrar ni sobrescribir automáticamente. Las relaciones nuevas serán opcionales durante la transición y solo se asociarán registros cuando la correspondencia esté confirmada.
+6. **Baja lógica:** desactivar una ubicación que ya tenga información asociada; no borrarla físicamente sin estudiar todas sus relaciones.
+7. **Aislamiento por hotel:** impedir por constraints y políticas de base de datos que una ubicación, un activo o una copia se relacione accidentalmente con otro hotel.
+8. **Copia controlada:** vista previa antes de confirmar; en la primera versión, ante conflictos se debe cancelar o saltar el elemento según una regla explícita. No sustituir ni eliminar automáticamente ubicaciones existentes.
+9. **Configuración real del SB Diagonal Zero:** cargar únicamente ubicaciones y relaciones confirmadas. No inventar plantas, habitaciones ni espacios para completar el ejemplo.
+
+### 45.4 Diseño técnico que se debe validar antes de implementarlo
+
+La opción preferente a estudiar es un catálogo jerárquico genérico de ubicaciones por hotel, basado en nodos con una relación padre-hijo. El nombre final de las tablas y sus constraints no queda congelado hasta completar la revisión del esquema.
+
+El diseño debe resolver como mínimo:
+
+- Identificador propio por ubicación y `hotel_id`.
+- Ubicación superior opcional y validación de que padre e hijo pertenecen al mismo hotel.
+- Tipo de ubicación que permita configuración por hotel sin limitarse a plantas y habitaciones.
+- Nombre/código visible, orden, estado activo/inactivo y trazabilidad.
+- Restricciones contra duplicados dentro del mismo ámbito y ciclos en la jerarquía.
+- RLS/funciones de permisos compatibles con el sistema actual.
+- Enlace opcional desde `apparatus_registry` a una ubicación estructurada, preservando de momento `plant` y `location`.
+- Decisión explícita sobre cómo vincular `maintenance_pending_items` y `maintenance_blocked_rooms` sin provocar asociaciones falsas ni romper la interfaz actual.
+
+No se debe añadir un campo `room_id` suponiendo que todas las ubicaciones sean habitaciones. Tampoco se debe crear una tabla de `floors` y otra de `rooms` como única representación universal sin demostrar que esa rigidez satisface el modelo acordado.
+
+### 45.5 Copia de estructuras: alcance correcto
+
+La primera función de copia deberá permitir seleccionar una ubicación origen (por ejemplo, una planta o una zona) y uno o varios destinos. La copia recorre sus descendientes y crea identificadores nuevos para los nodos nuevos.
+
+Antes de confirmar, mostrar:
+- ubicación de origen y destinos;
+- número y tipo de ubicaciones que se crearán;
+- regla para renombrar/numerar los elementos;
+- conflictos con elementos ya existentes;
+- resumen de qué datos se copiarán y qué datos quedarán excluidos.
+
+La operación debe ser atómica, protegida por permisos, segura frente a doble envío y registrada en auditoría. No se debe ofrecer una opción ambigua de “copiar activos” que duplique equipos físicos reales.
+
+### 45.6 Separación pendiente: composición prevista de habitaciones
+
+Copiar la estructura de una habitación no equivale a duplicar sus equipos reales. Para necesidades como TV, cama, minibar o fancoil, se deberá diseñar aparte una composición prevista/plantilla de equipamiento que permita indicar qué elementos debería tener una habitación de cierto tipo.
+
+Al aplicar una composición:
+- se copian conceptos o líneas de equipamiento previsto;
+- no se reutilizan IDs, números de serie, fotografías, planes preventivos, órdenes ni históricos de otro equipo;
+- el registro del activo físico real se crea o vincula solo cuando se haya verificado qué equipo existe en el destino.
+
+Esta separación se implementará después de tener estable el catálogo de ubicaciones.
+
+### 45.7 Secuencia de trabajo aprobada
+
+**Fase A — Cerrar auditoría técnica**
+1. Revisar de forma completa las migraciones y búsquedas de código relacionadas con ubicaciones, habitaciones, activos, OT, PAM y permisos.
+2. Contrastar el esquema real de Supabase, incluida la existencia de objetos creados fuera del historial de migraciones.
+3. Documentar las tablas y relaciones reutilizables y los cambios estrictamente necesarios.
+
+**Fase B — Cerrar el modelo**
+4. Definir catálogo jerárquico, tipos por hotel, constraints, índices, RLS y permisos.
+5. Definir relaciones opcionales con el inventario actual y reglas de transición de los campos de texto.
+6. Diseñar la copia de subárboles, la política de conflictos y el registro de auditoría.
+
+**Fase C — Implementar**
+7. Crear una migración nueva (065 o superior) solo después de las fases A y B; nunca modificar migraciones 001–064.
+8. Crear la pantalla `Configuración → Estructura del hotel` con alta, edición, desactivación y navegación jerárquica.
+9. Añadir copia de una ubicación y de rangos/destinos con vista previa, confirmación y resultado verificable.
+10. Asociar los equipos reales a su ubicación sin recrearlos.
+11. Diseñar la composición prevista de habitaciones como fase independiente.
+
+**Fase D — Validar y desplegar**
+12. Probar permisos y aislamiento entre dos hoteles con estructuras diferentes.
+13. Probar duplicados, destinos ocupados, copia repetida, ausencia de descendientes, desactivación, errores transaccionales y uso móvil.
+14. Verificar que PAM, OT, históricos, fotografías, documentos y lecturas no se duplican ni pierden asociaciones.
+15. Ejecutar build/lint y revisión de despliegue; aplicar cualquier migración solo con el esquema y el entorno confirmados.
+
+### 45.8 Punto exacto de continuación
+
+La auditoría inicial de código confirma que los campos de ubicación existentes son mayoritariamente texto y que el bloqueo de habitaciones usa un registro independiente por número. El siguiente paso no es escribir a ciegas la migración 065: es cerrar el inventario completo del esquema y confirmar el estado vivo de Supabase. Con esa evidencia se redactará el modelo definitivo y la migración mínima necesaria.
+
+Las migraciones 046–064 permanecen congeladas. No se ha ejecutado ninguna migración ni se ha cambiado código de producción como consecuencia de esta auditoría.
+

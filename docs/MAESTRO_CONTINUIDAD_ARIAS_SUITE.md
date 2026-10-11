@@ -1910,6 +1910,8 @@ La migración 066 y la primera pantalla del configurador se han preparado en Git
 
 ## 48. PRIMERA IMPLEMENTACIÓN DEL CATÁLOGO DE UBICACIONES (2026-10-11)
 
+> **Nota de vigencia:** las subsecciones siguientes describen la implementación inicial. El estado de aplicación se actualizó posteriormente en la sección 48.6; esa actualización más reciente prevalece sobre cualquier formulación histórica que haya quedado en apartados anteriores.
+
 ### 48.1 Artefactos creados en la rama
 
 - Migración nueva: `supabase/migrations/066_hotel_location_hierarchy.sql`.
@@ -1917,7 +1919,7 @@ La migración 066 y la primera pantalla del configurador se han preparado en Git
 - Ruta registrada: `/maintenance/structure`.
 - Enlace desde `Configuración de mantenimiento`: botón `Estructura del hotel`.
 - No se modificaron migraciones 001–065.
-- No se ejecutó la migración 066 en Supabase. La pantalla no podrá cargar los registros hasta que se aplique la migración en el proyecto correcto.
+- **Actualización posterior (2026-10-11): el usuario confirmó que la migración 066 ya se ejecutó en Supabase.** La presencia efectiva de todos los objetos, constraints, índices, privilegios y políticas debe comprobarse con las consultas de verificación indicadas abajo; tampoco se ha confirmado aún la prueba en navegador.
 
 ### 48.2 Modelo definido por la migración 066
 
@@ -1964,17 +1966,34 @@ La pantalla permite:
 - expandir/contraer ramas de la jerarquía;
 - filtrar por estado.
 
-No incluye todavía la copia de plantas/habitaciones, plantillas de composición de equipamiento ni selector estructurado dentro de las fichas de equipos, activos, pendientes o habitaciones bloqueadas. Esas funcionalidades deben implementarse después de aplicar y validar la migración y probar el catálogo inicial.
+No incluye todavía la copia de plantas/habitaciones, plantillas de composición de equipamiento ni selector estructurado dentro de las fichas de equipos, activos, pendientes o habitaciones bloqueadas. Esas funcionalidades deben implementarse después de verificar el esquema vivo y probar el catálogo inicial.
 
 ### 48.5 Validación y orden de continuación
 
-1. Revisar la migración 066 en GitHub y ejecutarla manualmente en el proyecto Supabase correcto; no se ha aplicado aún según el estado conocido al redactar esta sección.
-2. Verificar que `hotel_locations`, los cinco campos `location_id`, constraints e índices se crearon.
-3. Abrir `/maintenance/structure` y probar alta, edición, cambio de padre, duplicados, búsqueda, desactivación y reactivación; comprobar errores de RLS/permisos.
-4. Probar dos hoteles con estructuras distintas para comprobar aislamiento.
+1. **Confirmación recibida:** el usuario indica que la migración 066 ya se ha ejecutado en Supabase.
+2. Verificar con consultas de solo lectura que existen `hotel_locations`, los cinco campos `location_id`, constraints, índices y las políticas/privilegios esperados. La confirmación de ejecución no sustituye esta verificación del esquema vivo.
+3. Abrir `/maintenance/structure` y probar alta, edición, cambio de padre, duplicados, búsqueda, desactivación y reactivación; registrar cualquier error de RLS/permisos.
+4. Probar dos hoteles con estructuras distintas para comprobar aislamiento. Esta validación funcional todavía no consta como realizada.
 5. Integrar el selector en `apparatus_registry` primero, manteniendo los campos de texto existentes. Después valorar `assets`, cuadros eléctricos, pendientes y bloqueos.
 6. Implementar copia con vista previa, renumeración explícita, política de conflictos y una transacción; no copiar activos físicos ni historiales.
 7. Solo cuando el catálogo esté estable, diseñar plantillas de composición prevista para habitaciones/equipamiento.
 
 El estado Vercel del commit de aplicación `65abc7d1fb99181e4dcddf8b39819a3fa1c9ca27` fue `success` (preview: https://vercel.com/arias9/arias-suite/5gHwkW4AAcuTUzQQkskttLpzQfTS), por lo que el build asociado a los cambios de pantalla/ruta/enlace pasó. No se ejecutó una compilación local ni pruebas de navegador; la pantalla aún debe probarse contra Supabase después de aplicar la migración 066. Los commits posteriores al de aplicación actualizan documentación.
 
+
+
+### 48.6 ACTUALIZACIÓN DE CONTINUIDAD — MIGRACIÓN 066 CONFIRMADA POR EL USUARIO (2026-10-11)
+
+El usuario ha confirmado en conversación que la migración **066 está OK y ya se ha ejecutado**. Registrar esto como confirmación del usuario, no como una verificación independiente del esquema de Supabase.
+
+**Estado actual de cada parte:**
+- **Migración 066:** ejecución confirmada por el usuario; todavía falta verificar por consulta que todos los objetos, constraints, índices, privilegios y políticas esperados existan efectivamente en el proyecto correcto.
+- **Pantalla y ruta:** existen en la rama `feature/arias-suite-common-ui-v1`; ruta `/maintenance/structure`, accesible desde Configuración de mantenimiento mediante el botón “Estructura del hotel”.
+- **Build:** el commit de aplicación `65abc7d1fb99181e4dcddf8b39819a3fa1c9ca27` tenía estado Vercel `success`. Esto no equivale a una prueba funcional de navegador ni a la verificación del nuevo esquema tras ejecutar 066.
+- **Pruebas de pantalla:** no consta todavía confirmación de alta, edición, cambio de padre, búsqueda, desactivación/reactivación y aislamiento entre hoteles.
+- **Modelo de datos existente:** no se ha hecho backfill automático de `location_id`; el catálogo comienza vacío salvo que el usuario cree ubicaciones explícitamente. Los campos de texto antiguos se conservan.
+- **Seguridad:** sigue pendiente la prueba funcional del aislamiento de 065 por usuario/hotel, además de comprobar los permisos específicos del catálogo 066.
+
+**Siguiente paso exacto al retomar:** primero verificar el esquema vivo resultante de 066 con SQL de solo lectura; después abrir y probar `/maintenance/structure`. No crear todavía la función de copia ni los selectores de ubicación en otras fichas hasta comprobar esta base. No modificar las migraciones históricas ni volver a ejecutar 065/066 a ciegas.
+
+**Regla de continuidad para el siguiente chat:** leer este Documento Maestro completo y continuar desde esta sección 48.6. La rama activa sigue siendo `feature/arias-suite-common-ui-v1` y el repositorio `EmersonArias/arias-pam`. Mantener la distinción entre cambios presentes en GitHub, migraciones que el usuario confirma haber ejecutado, objetos verificados en Supabase y pruebas funcionales realmente realizadas.

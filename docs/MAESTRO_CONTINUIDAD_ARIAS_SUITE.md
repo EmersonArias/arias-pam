@@ -2239,3 +2239,17 @@ El usuario abrió la ruta desplegada `/maintenance/structure` en `arias-suite.ve
 Antes de escribir el primer registro real, confirmar el criterio del primer nivel de la jerarquía para SB Diagonal Zero: por ejemplo, si plantas/sótanos serán ubicaciones raíz o si habrá una ubicación raíz superior (como un edificio o bloque) con plantas debajo. Estos son ejemplos de modelado, no datos confirmados del hotel. La jerarquía es flexible por diseño, así que no imponer una estructura universal.
 
 Una vez validado por el usuario el primer nivel, crear una ubicación real y probar alta/lectura; después probar una ubicación hija, edición, búsqueda y desactivación/reactivación. Evitar datos de prueba persistentes porque la pantalla no ofrece eliminación física.
+
+
+## 52. CAMBIO DE HOTEL ACTIVO — COMPORTAMIENTO EXISTENTE (2026-10-11)
+
+La revisión del código de `src/shared/context/HotelScopeContext.tsx` confirma que Arias Suite ya dispone de un selector global de hotel activo:
+
+- Si el usuario tiene acceso a más de un hotel activo, aparece un selector fijo en la parte superior de la aplicación, con la etiqueta “Hotel activo” y opciones `código · nombre`.
+- Al elegir otro hotel, se ejecuta `set_active_hotel`, se actualiza el contexto global y se dispara el evento `arias:hotel-change`.
+- La pantalla `Estructura del hotel` consume ese contexto con `useHotelScope()` y vuelve a consultar `hotel_locations` usando el `hotel_id` seleccionado. La estructura del hotel anterior no se debe copiar automáticamente al nuevo.
+- Los usuarios normales solo reciben los hoteles activos que figuran en sus asignaciones activas de `user_hotel_roles`; la lógica de plataforma administradora carga todos los hoteles activos.
+- Si solo hay un hotel disponible para la cuenta, el selector no aparece. En la captura actual no se ve el selector; esto es coherente con que la cuenta tenga un único hotel disponible, aunque no demuestra por sí solo la causa.
+- Si otro hotel no aparece en el selector, primero hay que confirmar que está activo y que la cuenta tiene una asignación/rol activo para él (o que la cuenta es administradora de plataforma). No crear la ubicación desde el contexto del hotel equivocado.
+
+Este comportamiento ya existe en código: no requiere añadir otro selector específico en la pantalla Estructura del hotel. Se debe probar el cambio de hotel cuando una cuenta tenga acceso efectivo a más de uno.

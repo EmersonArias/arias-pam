@@ -2286,3 +2286,32 @@ No crear todavía plantas, habitaciones ni registros ficticios. Hacer una revisi
 4. **Cobertura de entidades:** revisar dónde deben seleccionarse ubicaciones en las fichas y cómo se mantiene la coherencia entre las entidades `apparatus_registry` y `assets`, sin suponer que son el mismo concepto.
 
 La revisión debe terminar presentando hechos comprobados, riesgos, alternativas y una recomendación concreta para aprobación del usuario. Después de la aprobación se decide si primero se prueba el CRUD con datos operativos confirmados o se implementa una parte de modelo necesaria para evitar rehacer datos más adelante. No introducir datos reales de SB Diagonal Zero por inferencia.
+
+
+## 54. AUDITORÍA INICIAL DE OT, EQUIPOS Y UBICACIÓN HISTÓRICA (2026-10-11)
+
+Revisión estática de las migraciones y páginas actuales de la rama `feature/arias-suite-common-ui-v1`. Estos son hallazgos del código fuente; no equivalen a una prueba funcional de datos vivos.
+
+### 54.1 Hallazgos comprobados en código
+1. `ApparatusRegistryDetailPage.tsx` continúa editando los campos de texto libre `plant` y `location`. La pantalla `HotelStructurePage.tsx` todavía no está integrada en la ficha de equipo.
+2. La migración 066 enlaza mediante `location_id` cinco entidades: `apparatus_registry`, `assets`, `electrical_panels`, `maintenance_pending_items` y `maintenance_blocked_rooms`. No añade una relación de ubicación directa a `maintenance_work_orders` ni a `maintenance_executions`.
+3. La migración 055 permite crear OTs correctivas/actuaciones sin `maintenance_plan_id` y permite guardar `apparatus_registry_id` directamente en la OT.
+4. En la definición de `maintenance_work_orders_resolved` de la migración 055, los campos `apparatus_code`, `apparatus_name`, `plant` y `location` se obtienen de `apparatus_registry` con una unión por `mp.apparatus_registry_id`. La vista expone también `COALESCE(wo.apparatus_registry_id, mp.apparatus_registry_id)` como `resolved_apparatus_registry_id`, pero esa expresión no se usa en la unión que proporciona dichos campos.
+5. `MaintenanceWorkOrdersPage.tsx` consume `maintenance_work_orders_resolved` y presenta `plant`/`location`. Por tanto, en OTs operativas con equipo guardado directamente en la OT y sin plan PAM, el código de vista actual puede dejar vacíos los campos de equipo/ubicación. Confirmar el caso real y corregir la resolución en una modificación futura separada; no atribuirle aún un fallo concreto en datos vivos.
+6. Las vistas consultadas leen `plant`/`location` de la ficha actual del equipo; en el modelo visible de estas vistas no hay una instantánea de ubicación ligada al momento de creación/ejecución de la OT. Esto crea un riesgo de atribución histórica si se usa únicamente la ubicación actual del equipo. No confirma que toda la aplicación carezca de cualquier otra solución de histórico, por lo que hace falta revisar el flujo completo antes de decidir.
+7. `maintenance_executions` está relacionado con `maintenance_plans` y opcionalmente con `maintenance_work_orders`; la ubicación no se captura en la migración 018 ni en la 066.
+
+### 54.2 Implicación arquitectónica
+Antes de integrar el selector de ubicación en formularios, hay que definir si una OT puede señalar:
+- un activo/equipo;
+- una ubicación física sin activo asociado;
+- equipo y ubicación de intervención a la vez.
+
+También hay que definir qué debe guardar el histórico: ubicación actual del equipo, ubicación al abrir la OT, ubicación al ejecutar el trabajo, o historial temporal de movimientos del activo. Estas situaciones no son equivalentes; no elegir por inferencia.
+
+Opciones a estudiar:
+- **A. Solo ubicación actual del activo:** sencilla, pero los informes antiguos podrían mostrar la ubicación actual en lugar de la que tenía el activo cuando ocurrió el trabajo.
+- **B. Instantánea en la OT/ejecución:** preserva el contexto del evento; debe definirse la diferencia entre ubicación reportada al abrir y ubicación real de intervención al cerrar, si puede cambiar.
+- **C. Historial temporal de ubicaciones del activo:** permite reconstruir movimientos por fecha, pero exige registrar y validar cada traslado correctamente y tiene mayor complejidad.
+
+La revisión deberá considerar también que las OTs pueden ser por espacio y no por equipo, así como las relaciones diferentes de `apparatus_registry` y `assets`. No ejecutar aún cambios de esquema ni precargar el catálogo. Presentar recomendación con ventajas, limitaciones e impacto en informes para aprobación del usuario.

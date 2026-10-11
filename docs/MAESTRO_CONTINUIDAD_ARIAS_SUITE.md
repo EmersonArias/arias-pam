@@ -2430,3 +2430,58 @@ Esta sección **actualiza y prevalece sobre los puntos de estado de las seccione
 5. Verificar el aislamiento de hoteles y permisos con sesiones reales. Desactivar los datos temporales al terminar; no borrar físicamente registros ni modificar OTs reales.
 6. No volver a ejecutar 068 ni modificar migraciones ya ejecutadas. Cualquier cambio posterior al esquema debe ser una nueva migración aditiva y revisada.
 
+
+
+## 58. CAMBIO DE NOMBRE DEL PROYECTO Y CONSERVACIÓN DEL ARIAS SUITE ORIGINAL (2026-10-11)
+
+### 58.1 Decisión de producto confirmada por el usuario
+- El proyecto activo es **Arias PAM** (\`arias-pam\`), el proyecto avanzado en el que se está trabajando.
+- El nombre deseado para ese proyecto activo es **Arias Suite** (\`arias-suite\`).
+- Existe un **Arias Suite original**, actualmente apartado/parado, que debe conservarse para consulta futura y no confundirse con el proyecto activo.
+- **Arias Home** es un proyecto separado; no incorporarlo a este cambio.
+- El objetivo es cambiar el nombre del proyecto activo sin perder el Arias Suite original. No borrar, sobrescribir, fusionar ni reutilizar el código del proyecto original como parte del cambio de nombre.
+
+### 58.2 Estado de GitHub comprobado el 2026-10-11
+- Repositorio visible: https://github.com/EmersonArias/arias-pam
+- Identificador del repositorio: \`1382563934\`.
+- Nombre actual del repositorio: \`arias-pam\`.
+- Rama predeterminada: \`main\`.
+- Ramas visibles:
+  - \`main\`, HEAD \`6a7fd586d480836763ea78e28ef39126780268f9\`, mensaje \`Sincronizar estado local de Arias Suite\` (2026-09-26).
+  - \`feature/arias-suite-common-ui-v1\`, HEAD \`28f8eb4682bcae527899494812b122bdbb8f9862\`, mensaje \`docs: record migration 068 applied and test status\`.
+- El archivo maestro que se está actualizando vive en \`docs/MAESTRO_CONTINUIDAD_ARIAS_SUITE.md\` de la rama \`feature/arias-suite-common-ui-v1\`.
+- No se ha renombrado el repositorio de GitHub todavía.
+- En la lista de repositorios visible no aparece un segundo repositorio llamado \`arias-suite\`. Por tanto, el código del proyecto original no está identificado como repositorio separado en esta conexión; no afirmar que ya está archivado ni que su copia de seguridad se haya realizado.
+- No se ha realizado una copia de seguridad externa del repositorio original durante esta tarea.
+
+### 58.3 Estado de Vercel comprobado el 2026-10-11
+- El proyecto visible en Vercel se llama \`arias-suite\`, ID \`prj_nBFkOpHpajvYL9srjO5Mds2qjWNf\`, cuenta/equipo ID \`team_rcSR4IhA8hPNeQkEUU2ZulC1\`, ámbito/slug observado \`arias9\`.
+- Sus metadatos de despliegue enlazan al repositorio \`EmersonArias/arias-pam\` y a la rama \`feature/arias-suite-common-ui-v1\`. Por ello, el nombre actual de Vercel no demuestra que sea el Arias Suite original: parece estar conectado al repositorio activo que el usuario quiere renombrar.
+- El último despliegue observado: \`dpl_76QdPKeSNvzsg4pwoKdaafLv2NYz\`, URL \`https://arias-suite-ftl4776f5-arias9.vercel.app\`, estado \`ERROR\`, commit \`28f8eb4682bcae527899494812b122bdbb8f9862\`.
+- También se observan varios despliegues recientes con estado \`ERROR\`; hay despliegues previos \`READY\`. No se ha obtenido el log técnico que explica el fallo actual.
+- La conexión de Vercel devuelve 403 para operaciones bajo el ámbito \`arias9\`: no está autorizada para consultar detalles/logs completos ni para hacer cambios allí. No reintentar la misma operación sin resolver la autorización.
+- No se ha cambiado ningún proyecto, dominio, alias, variable de entorno ni configuración de Vercel. No se ha creado un despliegue nuevo.
+- El cambio del nombre de GitHub y el cambio del proyecto/dominio en Vercel son operaciones diferentes. Antes de tocar Vercel hay que recuperar acceso autorizado al ámbito correcto y confirmar el proyecto enlazado, variables de entorno y Supabase objetivo.
+
+### 58.4 Plan seguro de renombrado y archivo — pendiente
+**No se ha ejecutado aún ninguno de los cambios siguientes.**
+
+1. **Identificar y preservar el Arias Suite original.** Encontrar su repositorio real, carpeta local o exportación. La documentación histórica menciona un proyecto local \`C:\\proyectos\\arias-suite\` y un proyecto Supabase con referencia \`hqxmycldqltovfkazoub\` en notas anteriores, pero no se ha comprobado que sigan accesibles ni que sean la fuente correcta del original. No confundir esa referencia histórica con el Supabase activo \`eqxcuwrfestwqelnucmv\` del proyecto \`arias-pam\`.
+2. **Crear una copia de seguridad verificable del original** antes de renombrar nada. Preferencia: duplicado de repositorio que conserve historial y ramas, o archivo completo con Git/historial y documentos. Comprobar que la copia existe y se puede abrir. No declarar completada la copia hasta verificarla.
+3. **Conservarlo con un nombre inequívoco**, por ejemplo \`arias-suite-original-archivo\` o \`arias-suite-legacy\`. Elegir el nombre tras identificar dónde está la fuente original. No borrar el original; si se decide archivarlo en GitHub, hacerlo solo después de verificar la copia y sus permisos.
+4. **Renombrar el repositorio activo** \`EmersonArias/arias-pam\` a \`EmersonArias/arias-suite\` solo después de preservar el original y confirmar que el nuevo nombre no colisiona con un repositorio existente. Antes del cambio, revisar referencias al nombre antiguo en README, documentación, workflows, badges, scripts, enlaces y configuración.
+5. **Actualizar el proyecto Vercel del activo** para que quede asociado al repositorio/branch correctos y revisar el dominio deseado. No asumir que renombrar GitHub renombra automáticamente el proyecto Vercel ni sus dominios. No desplegar a producción hasta que compile y se comprueben las variables.
+6. **Validar Supabase y secretos**: el proyecto activo documentado es \`eqxcuwrfestwqelnucmv\`; el proyecto histórico citado en notas antiguas es \`hqxmycldqltovfkazoub\`. Verificar con la configuración real cuál usa cada aplicación antes de tocar variables o ejecutar SQL. No mover ni fusionar bases de datos como parte del simple renombrado.
+7. **Probar el activo** en Preview, comprobar login, hotel seleccionado, módulos principales y operaciones de lectura/escritura seguras. No realizar pruebas destructivas con datos reales.
+8. **Actualizar este Documento Maestro** con los nombres, URLs, IDs, rama/HEAD, dominio, configuración y comprobaciones reales una vez completados los pasos.
+
+### 58.5 Cómo actuar en un chat nuevo
+- Este documento es una fuente de continuidad, pero los datos vivos de GitHub, Vercel y Supabase deben volver a verificarse antes de ejecutar cambios.
+- Trabajar directamente sobre GitHub mediante la conexión disponible cuando esté autorizada; no obligar al usuario a copiar código manualmente como flujo principal.
+- Antes de escribir, leer la rama y el HEAD actuales. No confiar en los SHA históricos si el repositorio ha avanzado.
+- **Regla crítica: no modificar el Arias Suite original ni tocar Vercel mientras no estén identificados con certeza el original, el proyecto activo y el alcance autorizado.**
+- No modificar ni volver a ejecutar migraciones ya aplicadas. La migración \`068_operational_location_snapshots_and_copy\` está confirmada como aplicada en \`eqxcuwrfestwqelnucmv\`; no volver a ejecutarla.
+- No inventar que se ha creado una copia de seguridad, que el repositorio se ha renombrado o que Vercel está corregido. Registrar únicamente acciones comprobadas.
+
+### 58.6 Siguiente acción concreta
+Resolver la localización del **Arias Suite original** (repositorio, carpeta local o exportación) y asegurar su copia. Después, renombrar el repositorio activo \`arias-pam\` a \`arias-suite\`, y finalmente corregir la conexión de Vercel con permisos autorizados. Hasta entonces, el renombrado queda **pendiente** y no se ha realizado ninguna modificación de código o despliegue en esta tarea.

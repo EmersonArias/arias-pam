@@ -1905,9 +1905,79 @@ Los datos aportados confirman que los campos físicos actuales principales (`pla
 
 **La auditoría aún no cubre todos los módulos físicos de Arias Suite.** La consulta anterior enumeraba tablas centrales por nombre e incluyó las tablas con nombres relacionados con location/room/floor/area/space/system, pero no devuelve necesariamente todas las tablas de módulos que guardan datos de ubicación con otros nombres (por ejemplo, módulos técnicos independientes). Antes de decidir qué registros recibirán `location_id`, hace falta un último inventario transversal de columnas en todas las tablas de `public` que tengan `hotel_id` y/o columnas de ubicación.
 
-### 47.3 Siguiente paso
+### 47.3 Cierre de auditoría y siguiente fase
 
-Ejecutar una consulta de solo lectura que liste, para cada tabla de `public`, la presencia de `hotel_id` y las columnas de identidad/ubicación/relación relevantes (`id`, `name`, `code`, `location`, `plant`, `room_number`, `floor`, `building`, `area`, `system_name`, `asset_id`, `apparatus_registry_id`, `location_id`, `room_id`, `floor_id`). Utilizar este inventario para establecer la integración mínima por módulo.
+El usuario ejecutó el inventario transversal y compartió las tablas que ya exponen ubicación o relaciones con hotel/activos. No se encontró un catálogo jerárquico existente. Se confirma la necesidad de una entidad nueva de ubicación y de relaciones opcionales para las entidades que actualmente mantienen ubicación en texto.
 
-No se ha creado todavía la migración de ubicaciones. La migración 065 de seguridad permanece aplicada y sus privilegios/políticas se han verificado; la prueba funcional de aislamiento por usuario sigue pendiente.
+La migración 066 y la primera pantalla del configurador se han preparado en GitHub. Su estado de aplicación y validación se documenta en la sección 48. La migración 065 de seguridad está aplicada y las consultas de privilegios/políticas dieron el resultado esperado; la prueba funcional de aislamiento por usuario sigue pendiente.
+
+## 48. PRIMERA IMPLEMENTACIÓN DEL CATÁLOGO DE UBICACIONES (2026-10-11)
+
+### 48.1 Artefactos creados en la rama
+
+- Migración nueva: `supabase/migrations/066_hotel_location_hierarchy.sql`.
+- Primera pantalla: `src/features/maintenance/pages/HotelStructurePage.tsx`.
+- Ruta registrada: `/maintenance/structure`.
+- Enlace desde `Configuración de mantenimiento`: botón `Estructura del hotel`.
+- No se modificaron migraciones 001–065.
+- No se ejecutó la migración 066 en Supabase. La pantalla no podrá cargar los registros hasta que se aplique la migración en el proyecto correcto.
+
+### 48.2 Modelo definido por la migración 066
+
+La nueva tabla `public.hotel_locations` incluye:
+- `id` y `hotel_id`;
+- relación opcional `parent_location_id`;
+- `location_type` de texto flexible;
+- `code`, `name`, `description`, `sort_order`;
+- `active`;
+- `created_by`, `updated_by`, marcas de tiempo.
+
+Las reglas del esquema buscan impedir:
+- una ubicación superior perteneciente a otro hotel;
+- auto-referencias y ciclos jerárquicos;
+- nombres duplicados dentro del mismo nivel del mismo hotel;
+- códigos duplicados dentro del hotel;
+- traslado de una ubicación entre hoteles;
+- desactivación de un padre mientras conserve ubicaciones activas debajo.
+
+La tabla habilita RLS. La lectura requiere acceso al hotel; crear requiere `maintenance.create`; modificar y desactivar requiere `maintenance.update`. No se concede borrado físico desde esta fase: las ubicaciones se desactivan para conservar referencias e histórico.
+
+### 48.3 Integración de esquema, sin asignación automática
+
+La migración añade `location_id` nullable y una clave foránea compuesta que exige que la ubicación pertenezca al mismo hotel en:
+- `apparatus_registry`;
+- `assets`;
+- `electrical_panels`;
+- `maintenance_pending_items`;
+- `maintenance_blocked_rooms`.
+
+No rellena estas columnas para registros existentes. Los campos de texto `plant`, `location` y `room_number` se conservan. No se supone que números de habitación o textos históricos sean inequívocos.
+
+Los planes PAM, trabajos programados, ejecuciones y OTs conservan sus relaciones existentes con los equipos/planes. No se les crea un enlace de ubicación redundante en esta fase.
+
+### 48.4 Alcance funcional de la primera pantalla
+
+La pantalla permite:
+- consultar y buscar ubicaciones del hotel activo;
+- crear una ubicación raíz o una ubicación hija;
+- definir tipo preestablecido o personalizado, nombre, código opcional, orden y descripción;
+- cambiar ubicación superior, sujeto a validación;
+- modificar registros;
+- activar o desactivar sin eliminación física;
+- expandir/contraer ramas de la jerarquía;
+- filtrar por estado.
+
+No incluye todavía la copia de plantas/habitaciones, plantillas de composición de equipamiento ni selector estructurado dentro de las fichas de equipos, activos, pendientes o habitaciones bloqueadas. Esas funcionalidades deben implementarse después de aplicar y validar la migración y probar el catálogo inicial.
+
+### 48.5 Validación y orden de continuación
+
+1. Revisar la migración 066 en GitHub y ejecutarla manualmente en el proyecto Supabase correcto; no se ha aplicado aún según el estado conocido al redactar esta sección.
+2. Verificar que `hotel_locations`, los cinco campos `location_id`, constraints e índices se crearon.
+3. Abrir `/maintenance/structure` y probar alta, edición, cambio de padre, duplicados, búsqueda, desactivación y reactivación; comprobar errores de RLS/permisos.
+4. Probar dos hoteles con estructuras distintas para comprobar aislamiento.
+5. Integrar el selector en `apparatus_registry` primero, manteniendo los campos de texto existentes. Después valorar `assets`, cuadros eléctricos, pendientes y bloqueos.
+6. Implementar copia con vista previa, renumeración explícita, política de conflictos y una transacción; no copiar activos físicos ni historiales.
+7. Solo cuando el catálogo esté estable, diseñar plantillas de composición prevista para habitaciones/equipamiento.
+
+No afirmar que la compilación o las pruebas de navegador se han superado desde esta sesión: los cambios se realizaron directamente en GitHub y no se ejecutó una compilación local. Revisar el resultado del despliegue/CI antes de dar por validada la pantalla.
 

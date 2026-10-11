@@ -20,8 +20,7 @@ type TicketReportRow = {
   maintenance_plan_name: string | null
   apparatus_code: string | null
   apparatus_name: string | null
-  plant: string | null
-  location: string | null
+  reported_location_snapshot: string | null
 }
 
 const statusLabels: Record<TicketReportRow['status'], string> = {
@@ -68,7 +67,7 @@ export default function MaintenanceTicketsReportPage() {
 
       const result = await supabase
         .from('maintenance_work_orders_resolved')
-        .select('id, ot_number, title, work_type, status, scheduled_date, assigned_user_name, maintenance_plan_name, apparatus_code, apparatus_name, plant, location')
+        .select('id, ot_number, title, work_type, status, scheduled_date, assigned_user_name, maintenance_plan_name, apparatus_code, apparatus_name, reported_location_snapshot')
         .eq('hotel_id', hotel.id)
       .neq('work_type', 'PREVENTIVE')
         .not('status', 'in', '(COMPLETED,REJECTED)')
@@ -103,8 +102,7 @@ export default function MaintenanceTicketsReportPage() {
         item.apparatus_code,
         item.apparatus_name,
         item.assigned_user_name,
-        item.plant,
-        item.location,
+        item.reported_location_snapshot,
       ]
         .filter(Boolean)
         .join(' ')
@@ -185,7 +183,7 @@ export default function MaintenanceTicketsReportPage() {
                         <div className="font-medium">{item.apparatus_code ?? '—'}</div>
                         <div className="text-[10px] text-slate-400">{item.apparatus_name ?? '—'}</div>
                       </td>
-                      <td className="px-2 py-2">{[item.plant, item.location].filter(Boolean).join(' · ') || '—'}</td>
+                      <td className="px-2 py-2">{item.reported_location_snapshot || 'Sin instantánea histórica'}</td>
                       <td className="whitespace-nowrap px-2 py-2">{item.scheduled_date ? new Date(item.scheduled_date + 'T12:00:00').toLocaleDateString('es-ES') : '—'}</td>
                       <td className="px-2 py-2">{item.assigned_user_name ?? 'Sin asignar'}</td>
                       <td className="whitespace-nowrap px-2 py-2">{typeLabels[item.work_type]}</td>

@@ -1850,11 +1850,11 @@ La migración:
 - revoca privilegios de tabla heredados por `PUBLIC` y los privilegios de `anon` sobre ambas tablas;
 - concede explícitamente CRUD a `authenticated`, dejando que las políticas `*_authorized` existentes apliquen los permisos por hotel.
 
-**La migración está preparada en el repositorio pero NO está ejecutada en Supabase.** Hasta aplicarla y verificar sus resultados, el riesgo permanece. Antes de aplicarla, confirmar en el SQL Editor que la aplicación no depende de acceso anónimo a estas dos tablas. Las rutas de la aplicación para el inventario se encuentran dentro de `ProtectedRoute`, por lo que el código revisado no muestra un flujo de acceso anónimo intencional.
+**El usuario ha confirmado “065 ok” el 2026-10-11**, interpretado como que la migración se ha aplicado sin error. Todavía falta verificar los privilegios y políticas resultantes en Supabase; hasta esa comprobación no se considera cerrado el riesgo. Las rutas de la aplicación para el inventario se encuentran dentro de `ProtectedRoute`, por lo que el código revisado no muestra un flujo de acceso anónimo intencional.
 
-### 46.5 Verificación posterior obligatoria
+### 46.5 Verificación posterior obligatoria — pendiente
 
-Después de aplicar la migración, volver a ejecutar la consulta de privilegios y el listado de políticas RLS. Resultado esperado:
+Tras la confirmación de que la migración 065 se ejecutó, el usuario debe volver a ejecutar la consulta de privilegios y el listado de políticas RLS para confirmar los resultados. Resultado esperado:
 - `anon`: SELECT/INSERT/UPDATE/DELETE = false en ambas tablas;
 - `authenticated`: privilegios SQL CRUD = true en ambas tablas;
 - no quedan políticas públicas permisivas sobre las dos tablas;
@@ -1870,5 +1870,5 @@ La corrección de seguridad tiene prioridad sobre el catálogo de ubicaciones. A
 3. contrastar el diseño propuesto con el esquema real;
 4. después, crear el catálogo jerárquico mínimo, las relaciones opcionales y la pantalla de Configuración.
 
-Las migraciones 001–064 permanecen congeladas. La migración 065 es nueva y está pendiente de ejecución y comprobación por el usuario.
+Las migraciones 001–064 permanecen congeladas. La migración 065 se ha confirmado como ejecutada por el usuario; la verificación posterior de privilegios, políticas y aislamiento funcional sigue pendiente.
 

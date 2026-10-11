@@ -1997,3 +1997,175 @@ El usuario ha confirmado en conversación que la migración **066 está OK y ya 
 **Siguiente paso exacto al retomar:** primero verificar el esquema vivo resultante de 066 con SQL de solo lectura; después abrir y probar `/maintenance/structure`. No crear todavía la función de copia ni los selectores de ubicación en otras fichas hasta comprobar esta base. No modificar las migraciones históricas ni volver a ejecutar 065/066 a ciegas.
 
 **Regla de continuidad para el siguiente chat:** leer este Documento Maestro completo y continuar desde esta sección 48.6. La rama activa sigue siendo `feature/arias-suite-common-ui-v1` y el repositorio `EmersonArias/arias-pam`. Mantener la distinción entre cambios presentes en GitHub, migraciones que el usuario confirma haber ejecutado, objetos verificados en Supabase y pruebas funcionales realmente realizadas.
+
+
+## 49. PASO OPERATIVO INMEDIATO — VERIFICAR LA MIGRACIÓN 066
+
+### 49.1 Instrucción
+El usuario ha confirmado la ejecución de 066. No volver a ejecutar la migración. En Supabase, dentro del proyecto Arias Suite correcto (`eqxcuwrfestwqelnucmv`), abrir SQL Editor y ejecutar las consultas siguientes, una por una. Son exclusivamente de lectura. Compartir los resultados con el asistente antes de tocar otra parte del código.
+
+### 49.2 Columnas de catálogo y relaciones nuevas
+
+```sql
+SELECT
+  table_name,
+  column_name,
+  data_type,
+  is_nullable
+FROM information_schema.columns
+WHERE table_schema = 'public'
+  AND (
+    table_name = 'hotel_locations'
+    OR (
+      table_name IN (
+        'apparatus_registry',
+        'assets',
+        'electrical_panels',
+        'maintenance_pending_items',
+        'maintenance_blocked_rooms'
+      )
+      AND column_name = 'location_id'
+    )
+  )
+ORDER BY table_name, ordinal_position;
+```
+
+Resultado esperado: tabla `hotel_locations` con sus columnas definidas en 48.2 y columna `location_id` en las cinco tablas previstas.
+
+### 49.3 Constraints y claves foráneas
+
+```sql
+SELECT
+  tc.table_name,
+  tc.constraint_name,
+  tc.constraint_type,
+  kcu.column_name,
+  ccu.table_name AS referenced_table,
+  ccu.column_name AS referenced_column,
+  rc.delete_rule
+FROM information_schema.table_constraints AS tc
+LEFT JOIN information_schema.key_column_usage AS kcu
+  ON kcu.constraint_catalog = tc.constraint_catalog
+ AND kcu.constraint_schema = tc.constraint_schema
+ AND kcu.constraint_name = tc.constraint_name
+ AND kcu.table_name = tc.table_name
+LEFT JOIN information_schema.constraint_column_usage AS ccu
+  ON ccu.constraint_catalog = tc.constraint_catalog
+ AND ccu.constraint_schema = tc.constraint_schema
+ AND ccu.constraint_name = tc.constraint_name
+ AND ccu.table_name = tc.table_name
+LEFT JOIN information_schema.referential_constraints AS rc
+  ON rc.constraint_catalog = tc.constraint_catalog
+ AND rc.constraint_schema = tc.constraint_schema
+ AND rc.constraint_name = tc.constraint_name
+WHERE tc.constraint_schema = 'public'
+  AND tc.table_name IN (
+    'hotel_locations',
+    'apparatus_registry',
+    'assets',
+    'electrical_panels',
+    'maintenance_pending_items',
+    'maintenance_blocked_rooms'
+  )
+ORDER BY tc.table_name, tc.constraint_type, tc.constraint_name, kcu.ordinal_position;
+```
+
+Resultado esperado: PK, reglas únicas/check y claves foráneas previstas. Confirmar especialmente la relación jerárquica de `hotel_locations` y las claves que hacen coincidir hotel y ubicación; no asumir que la migración quedó completa solo porque existe la tabla.
+
+### 49.4 Índices y estado RLS
+
+```sql
+SELECT tablename, indexname, indexdef
+FROM pg_indexes
+WHERE schemaname = 'public'
+  AND tablename IN (
+    'hotel_locations',
+    'apparatus_registry',
+    'assets',
+    'electrical_panels',
+    'maintenance_pending_items',
+    'maintenance_blocked_rooms'
+  )
+ORDER BY tablename, indexname;
+```
+
+```sql
+SELECT
+  n.nspname AS schema_name,
+  c.relname AS table_name,
+  c.relrowsecurity AS rls_enabled,
+  c.relforcerowsecurity AS rls_forced
+FROM pg_class AS c
+JOIN pg_namespace AS n ON n.oid = c.relnamespace
+WHERE n.nspname = 'public'
+  AND c.relname IN (
+    'hotel_locations',
+    'apparatus_registry',
+    'assets',
+    'electrical_panels',
+    'maintenance_pending_items',
+    'maintenance_blocked_rooms'
+  )
+  AND c.relkind IN ('r', 'p')
+ORDER BY c.relname;
+```
+
+### 49.5 Políticas y privilegios efectivos
+
+```sql
+SELECT
+  schemaname,
+  tablename,
+  policyname,
+  permissive,
+  roles,
+  cmd,
+  qual,
+  with_check
+FROM pg_policies
+WHERE schemaname = 'public'
+  AND tablename IN (
+    'hotel_locations',
+    'apparatus_registry',
+    'assets',
+    'electrical_panels',
+    'maintenance_pending_items',
+    'maintenance_blocked_rooms'
+  )
+ORDER BY tablename, policyname;
+```
+
+```sql
+SELECT
+  roles.role_name,
+  target.table_name,
+  privileges.privilege_type,
+  has_table_privilege(
+    roles.role_name,
+    format('public.%I', target.table_name),
+    privileges.privilege_type
+  ) AS has_privilege
+FROM (
+  VALUES ('anon'), ('authenticated')
+) AS roles(role_name)
+CROSS JOIN (
+  VALUES
+    ('hotel_locations'),
+    ('apparatus_registry'),
+    ('assets'),
+    ('electrical_panels'),
+    ('maintenance_pending_items'),
+    ('maintenance_blocked_rooms')
+) AS target(table_name)
+CROSS JOIN (
+  VALUES ('SELECT'), ('INSERT'), ('UPDATE'), ('DELETE')
+) AS privileges(privilege_type)
+ORDER BY target.table_name, roles.role_name, privileges.privilege_type;
+```
+
+No comparar todos los privilegios de todas las tablas con un patrón genérico sin leer las políticas y el modelo de permisos de cada módulo. En `hotel_locations`, comprobar en particular que `anon` no tenga acceso y que `authenticated` disponga solo de los privilegios esperados para poder actuar a través de RLS. Las consultas describen privilegios SQL y políticas; por sí solas no demuestran aislamiento funcional entre hoteles.
+
+### 49.6 Después de revisar las consultas
+Si las consultas muestran el esquema esperado, abrir la aplicación desplegada y entrar en **Configuración de mantenimiento → Estructura del hotel**. Probar primero una ubicación raíz y una hija de prueba, modificar sus datos, comprobar búsqueda y filtros, y probar desactivación/reactivación. No crear datos reales de SB Diagonal Zero sin que el usuario proporcione o valide esa estructura. Después probar que una ubicación de un hotel no puede usarse desde otro hotel.
+
+Si una consulta da error o faltan objetos, detenerse y revisar el resultado; no volver a ejecutar 066 ni modificar migraciones aplicadas de forma improvisada. Registrar en este Maestro qué consultas se completaron y qué resultados se observaron.

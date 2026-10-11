@@ -702,7 +702,7 @@ export default function MaintenanceWorkOrdersPage() {
                       {item.apparatus_code ?? '—'} · {item.apparatus_name ?? 'Equipo no disponible'}
                     </div>
                     <div className="mt-1 text-[10px] text-slate-400">
-                      {item.reported_location_snapshot || [item.plant, item.location].filter(Boolean).join(' · ') || 'Sin ubicación'}
+                      {item.reported_location_snapshot || 'Sin instantánea histórica'}
                     </div>
                     <div className="mt-1 text-[10px] text-slate-400">
                       Prevista: {item.scheduled_date ? new Date(item.scheduled_date + 'T12:00:00').toLocaleDateString('es-ES') : '—'}
@@ -752,7 +752,7 @@ export default function MaintenanceWorkOrdersPage() {
                         <div className="text-[10px] text-slate-400">{item.apparatus_name ?? '—'}</div>
                       </td>
                       <td className="px-3 py-3 text-slate-600">
-                        {item.reported_location_snapshot || [item.plant, item.location].filter(Boolean).join(' · ') || '—'}
+                        {item.reported_location_snapshot || 'Sin instantánea histórica'}
                       </td>
                       <td className="whitespace-nowrap px-3 py-3 text-slate-600">
                         {item.scheduled_date ? new Date(item.scheduled_date + 'T12:00:00').toLocaleDateString('es-ES') : '—'}
@@ -837,11 +837,18 @@ export default function MaintenanceWorkOrdersPage() {
                   <div className="flex items-center gap-2"><FileText size={16} /><span><strong>Tipo:</strong> {typeLabels[selected.work_type]}</span></div>
                 </div>
 
-                {selected.plant || selected.location ? (
+                {selected.reported_location_snapshot || selected.plant || selected.location ? (
                   <div className="text-sm text-slate-600">
-                    <strong>Ubicación:</strong> {selected.reported_location_snapshot || [selected.plant, selected.location].filter(Boolean).join(' · ')}
+                    <strong>Ubicación comunicada:</strong> {selected.reported_location_snapshot || 'Sin instantánea histórica'}
                   </div>
-                ) : null}
+                ) : (
+                  <div className="text-sm text-slate-500"><strong>Ubicación comunicada:</strong> Sin instantánea histórica</div>
+                )}
+                {(selected.plant || selected.location) && (
+                  <div className="text-xs text-slate-500">
+                    <strong>Referencia textual de la ficha del equipo (no histórica):</strong> {[selected.plant, selected.location].filter(Boolean).join(' · ')}
+                  </div>
+                )}
 
                 {getWorkDescription(selected) && (
                   <div>

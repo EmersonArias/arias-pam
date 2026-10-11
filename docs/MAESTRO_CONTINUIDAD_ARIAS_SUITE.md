@@ -2196,24 +2196,28 @@ Se ha creado una migración nueva, sin modificar 066 ni ninguna migración anter
 
 Commit: `1a3163e1751914fb4c7c167b46af86ed9674bee4`.
 
-La migración revoca todos los privilegios de tabla de `PUBLIC`, `anon` y `authenticated` sobre `hotel_locations`, y vuelve a conceder únicamente SELECT, INSERT y UPDATE a `authenticated`. No concede DELETE, no cambia datos y no modifica políticas RLS. Está creada en la rama; **todavía no consta ejecutada en Supabase**.
+La migración revoca todos los privilegios de tabla de `PUBLIC`, `anon` y `authenticated` sobre `hotel_locations`, y vuelve a conceder únicamente SELECT, INSERT y UPDATE a `authenticated`. No concede DELETE, no cambia datos y no modifica políticas RLS. El usuario ejecutó directamente en SQL Editor el mismo bloque correctivo. La consulta posterior confirmó el estado esperado de privilegios; no volver a ejecutar ese bloque ni la migración 067 sin una razón concreta. El archivo de migración 067 permanece en GitHub para mantener la corrección documentada en el repositorio.
 
-### 50.3 Siguiente acción
-1. Aplicar una única vez la migración 067 en el proyecto Supabase correcto.
-2. Volver a ejecutar solamente esta comprobación de privilegios de `hotel_locations`:
+### 50.3 Resultado posterior confirmado por el usuario
+El usuario ejecutó la consulta de privilegios después de la corrección. Resultado:
 
-```sql
-SELECT
-  has_table_privilege('anon', 'public.hotel_locations', 'SELECT') AS anon_select,
-  has_table_privilege('anon', 'public.hotel_locations', 'INSERT') AS anon_insert,
-  has_table_privilege('anon', 'public.hotel_locations', 'UPDATE') AS anon_update,
-  has_table_privilege('anon', 'public.hotel_locations', 'DELETE') AS anon_delete,
-  has_table_privilege('authenticated', 'public.hotel_locations', 'SELECT') AS authenticated_select,
-  has_table_privilege('authenticated', 'public.hotel_locations', 'INSERT') AS authenticated_insert,
-  has_table_privilege('authenticated', 'public.hotel_locations', 'UPDATE') AS authenticated_update,
-  has_table_privilege('authenticated', 'public.hotel_locations', 'DELETE') AS authenticated_delete;
-```
+| Privilegio | Resultado |
+|---|---|
+| `anon_select` | `false` |
+| `anon_insert` | `false` |
+| `anon_update` | `false` |
+| `anon_delete` | `false` |
+| `authenticated_select` | `true` |
+| `authenticated_insert` | `true` |
+| `authenticated_update` | `true` |
+| `authenticated_delete` | `false` |
 
-Esperado: las cuatro columnas `anon_*` en false; `authenticated_select`, `authenticated_insert`, `authenticated_update` en true; `authenticated_delete` en false.
+**Conclusión:** privilegios SQL efectivos para `hotel_locations` confirmados como esperados. Esto valida privilegios de tabla; no demuestra por sí solo el aislamiento funcional por hotel ni el correcto funcionamiento de la pantalla.
 
-3. Solo con ese resultado, abrir y probar la pantalla `/maintenance/structure`. No volver a ejecutar 066 ni repetir la comprobación consolidada completa.
+### 50.4 Siguiente acción: prueba de pantalla, sin más consultas SQL por ahora
+1. En la aplicación web desplegada, entrar en **Configuración de mantenimiento → Estructura del hotel**. También se puede abrir directamente la ruta `/maintenance/structure` dentro del dominio habitual de la aplicación.
+2. Confirmar que la pantalla carga sin error y que muestra correctamente el contexto del hotel seleccionado.
+3. Crear una ubicación de prueba, crear una ubicación hija, editar un campo, buscarla y probar la desactivación/reactivación. Usar nombres de prueba identificables; no inventar ni cargar la estructura física real de SB Diagonal Zero sin validación del usuario.
+4. Si aparece un error, enviar captura o texto exacto y detener ahí para diagnosticarlo. Si funciona, confirmar qué operaciones se probaron y entonces planificar la prueba de aislamiento entre hoteles.
+
+No se deben volver a ejecutar las migraciones 065, 066 ni el bloque de privilegios 067 de forma rutinaria. Registrar los siguientes resultados solo cuando el usuario los confirme.

@@ -2168,3 +2168,52 @@ No comparar todos los privilegios de todas las tablas con un patrón genérico s
 Si las consultas muestran el esquema esperado, abrir la aplicación desplegada y entrar en **Configuración de mantenimiento → Estructura del hotel**. Probar primero una ubicación raíz y una hija de prueba, modificar sus datos, comprobar búsqueda y filtros, y probar desactivación/reactivación. No crear datos reales de SB Diagonal Zero sin que el usuario proporcione o valide esa estructura. Después probar que una ubicación de un hotel no puede usarse desde otro hotel.
 
 Si una consulta da error o faltan objetos, detenerse y revisar el resultado; no volver a ejecutar 066 ni modificar migraciones aplicadas de forma improvisada. Registrar en este Maestro qué consultas se completaron y qué resultados se observaron.
+
+
+## 50. RESULTADO DE VERIFICACIÓN 066 Y CORRECCIÓN DE PRIVILEGIOS (2026-10-11)
+
+### 50.1 Resultado recibido del usuario
+El usuario ejecutó la consulta consolidada de verificación después de aplicar 066. Resultados:
+
+- OK: tabla `hotel_locations` presente.
+- OK: columnas esperadas de `hotel_locations` presentes.
+- OK: `location_id` presente en las cinco tablas objetivo.
+- OK: clave única `hotel_id + id`.
+- OK: las seis claves foráneas esperadas.
+- OK: los diez índices esperados.
+- OK: RLS activo en `hotel_locations`.
+- OK: trigger/función de validación de jerarquía presentes y habilitados.
+- OK: políticas esperadas de lectura, inserción y actualización presentes; no hay política DELETE/ALL en el resultado consultado.
+- OK: `anon` no tiene privilegios sobre `hotel_locations`.
+- **REVISAR:** comprobación agregada de que `authenticated` tiene SELECT, INSERT y UPDATE, pero no DELETE.
+
+Conclusión: el catálogo y las relaciones esenciales de 066 aparecen presentes. No dar por cerrada la configuración de privilegios de `authenticated` hasta corregir y volver a comprobar el último punto. Esta consulta consolidada no muestra cuál subcondición exacta falló; el SQL de 066 no revocaba explícitamente los privilegios previos de `authenticated` antes de conceder SELECT/INSERT/UPDATE, de modo que un DELETE concedido por privilegios por defecto es una explicación probable, no una medición desglosada del resultado.
+
+### 50.2 Corrección preparada en GitHub
+Se ha creado una migración nueva, sin modificar 066 ni ninguna migración anterior:
+
+`supabase/migrations/067_fix_hotel_locations_table_privileges.sql`
+
+Commit: `1a3163e1751914fb4c7c167b46af86ed9674bee4`.
+
+La migración revoca todos los privilegios de tabla de `PUBLIC`, `anon` y `authenticated` sobre `hotel_locations`, y vuelve a conceder únicamente SELECT, INSERT y UPDATE a `authenticated`. No concede DELETE, no cambia datos y no modifica políticas RLS. Está creada en la rama; **todavía no consta ejecutada en Supabase**.
+
+### 50.3 Siguiente acción
+1. Aplicar una única vez la migración 067 en el proyecto Supabase correcto.
+2. Volver a ejecutar solamente esta comprobación de privilegios de `hotel_locations`:
+
+```sql
+SELECT
+  has_table_privilege('anon', 'public.hotel_locations', 'SELECT') AS anon_select,
+  has_table_privilege('anon', 'public.hotel_locations', 'INSERT') AS anon_insert,
+  has_table_privilege('anon', 'public.hotel_locations', 'UPDATE') AS anon_update,
+  has_table_privilege('anon', 'public.hotel_locations', 'DELETE') AS anon_delete,
+  has_table_privilege('authenticated', 'public.hotel_locations', 'SELECT') AS authenticated_select,
+  has_table_privilege('authenticated', 'public.hotel_locations', 'INSERT') AS authenticated_insert,
+  has_table_privilege('authenticated', 'public.hotel_locations', 'UPDATE') AS authenticated_update,
+  has_table_privilege('authenticated', 'public.hotel_locations', 'DELETE') AS authenticated_delete;
+```
+
+Esperado: las cuatro columnas `anon_*` en false; `authenticated_select`, `authenticated_insert`, `authenticated_update` en true; `authenticated_delete` en false.
+
+3. Solo con ese resultado, abrir y probar la pantalla `/maintenance/structure`. No volver a ejecutar 066 ni repetir la comprobación consolidada completa.

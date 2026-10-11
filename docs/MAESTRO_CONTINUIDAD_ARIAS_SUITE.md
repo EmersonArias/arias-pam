@@ -1850,7 +1850,7 @@ La migración:
 - revoca privilegios de tabla heredados por `PUBLIC` y los privilegios de `anon` sobre ambas tablas;
 - concede explícitamente CRUD a `authenticated`, dejando que las políticas `*_authorized` existentes apliquen los permisos por hotel.
 
-**El usuario ha confirmado “065 ok” el 2026-10-11**, interpretado como que la migración se ha aplicado sin error. Todavía falta verificar los privilegios y políticas resultantes en Supabase; hasta esa comprobación no se considera cerrado el riesgo. Las rutas de la aplicación para el inventario se encuentran dentro de `ProtectedRoute`, por lo que el código revisado no muestra un flujo de acceso anónimo intencional.
+**El usuario confirmó que la migración 065 se aplicó el 2026-10-11.** La verificación posterior de privilegios SQL y políticas RLS se documenta en 46.5 y dio el resultado esperado; queda pendiente la prueba funcional de aislamiento por usuario/hotel. Las rutas de la aplicación para el inventario se encuentran dentro de `ProtectedRoute`, por lo que el código revisado no muestra un flujo de acceso anónimo intencional.
 
 ### 46.5 Verificación posterior — privilegios y políticas confirmados (2026-10-11)
 

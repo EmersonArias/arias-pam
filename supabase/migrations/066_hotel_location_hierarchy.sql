@@ -100,9 +100,29 @@ BEGIN
       RAISE EXCEPTION 'La ubicación superior crearía un ciclo en la jerarquía.';
     END IF;
 
-    IF NOT NEW.active THEN
-      -- Las ubicaciones inactivas no pueden adquirir nuevas ubicaciones hijas.
-      RAISE EXCEPTION 'Activa la ubicación antes de asignarle una ubicación superior.';
+    -- Al crear una ubicación o cambiar su ubicación superior, el padre debe
+    -- estar activo. No bloquear la edición/desactivación de un hijo existente
+    -- solo porque su padre se haya desactivado tras desactivar el subárbol.
+    IF TG_OP = 'INSERT' THEN
+      IF NOT EXISTS (
+        SELECT 1
+        FROM public.hotel_locations parent
+        WHERE parent.id = NEW.parent_location_id
+          AND parent.hotel_id = NEW.hotel_id
+          AND parent.active = true
+      ) THEN
+        RAISE EXCEPTION 'La ubicación superior debe existir y estar activa en este hotel.';
+      END IF;
+    ELSIF NEW.parent_location_id IS DISTINCT FROM OLD.parent_location_id THEN
+      IF NOT EXISTS (
+        SELECT 1
+        FROM public.hotel_locations parent
+        WHERE parent.id = NEW.parent_location_id
+          AND parent.hotel_id = NEW.hotel_id
+          AND parent.active = true
+      ) THEN
+        RAISE EXCEPTION 'La ubicación superior debe existir y estar activa en este hotel.';
+      END IF;
     END IF;
   END IF;
 

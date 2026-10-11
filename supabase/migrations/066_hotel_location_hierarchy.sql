@@ -126,6 +126,21 @@ BEGIN
     END IF;
   END IF;
 
+  IF TG_OP = 'UPDATE'
+     AND OLD.active = false
+     AND NEW.active = true
+     AND NEW.parent_location_id IS NOT NULL THEN
+    IF NOT EXISTS (
+      SELECT 1
+      FROM public.hotel_locations parent
+      WHERE parent.id = NEW.parent_location_id
+        AND parent.hotel_id = NEW.hotel_id
+        AND parent.active = true
+    ) THEN
+      RAISE EXCEPTION 'No se puede activar una ubicación cuyo padre está inactivo.';
+    END IF;
+  END IF;
+
   IF TG_OP = 'UPDATE' AND OLD.active = true AND NEW.active = false THEN
     WITH RECURSIVE descendants(id, parent_location_id, active) AS (
       SELECT l.id, l.parent_location_id, l.active

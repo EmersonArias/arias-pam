@@ -1876,12 +1876,9 @@ No considerar cerrado el ciclo completo de seguridad hasta obtener estos resulta
 
 ### 46.7 Implicación en el diseño de ubicaciones
 
-La verificación estática de los privilegios y políticas de la migración 065 es correcta. Queda pendiente la prueba funcional de aislamiento indicada en 46.6. Para avanzar en paralelo con el diseño de ubicaciones:
-1. recibir y revisar el resultado completo de columnas de las tablas candidatas;
-2. contrastar el diseño propuesto con el esquema real;
-3. después, crear el catálogo jerárquico mínimo, las relaciones opcionales y la pantalla de Configuración.
+La verificación estática de los privilegios y políticas de la migración 065 es correcta; su prueba funcional de aislamiento sigue pendiente. La auditoría del esquema y de las columnas de ubicación se registró en la sección 47. La primera implementación del catálogo se documenta en la sección 48, con la migración 066 y su pantalla inicial pendientes de aplicación y validación.
 
-Las migraciones 001–064 permanecen congeladas. La migración 065 está aplicada según la confirmación del usuario y sus resultados de privilegios/políticas se han verificado; la prueba funcional de aislamiento sigue pendiente.
+Las migraciones 001–065 permanecen sin cambios. No se ejecutó la migración 066 en Supabase al redactar esta actualización.
 
 ## 47. RESULTADO DEL INVENTARIO DE COLUMNAS EN SUPABASE (2026-10-11)
 

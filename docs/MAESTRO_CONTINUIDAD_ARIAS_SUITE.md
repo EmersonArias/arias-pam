@@ -2053,7 +2053,6 @@ LEFT JOIN information_schema.constraint_column_usage AS ccu
   ON ccu.constraint_catalog = tc.constraint_catalog
  AND ccu.constraint_schema = tc.constraint_schema
  AND ccu.constraint_name = tc.constraint_name
- AND ccu.table_name = tc.table_name
 LEFT JOIN information_schema.referential_constraints AS rc
   ON rc.constraint_catalog = tc.constraint_catalog
  AND rc.constraint_schema = tc.constraint_schema

@@ -2253,3 +2253,36 @@ La revisión del código de `src/shared/context/HotelScopeContext.tsx` confirma 
 - Si otro hotel no aparece en el selector, primero hay que confirmar que está activo y que la cuenta tiene una asignación/rol activo para él (o que la cuenta es administradora de plataforma). No crear la ubicación desde el contexto del hotel equivocado.
 
 Este comportamiento ya existe en código: no requiere añadir otro selector específico en la pantalla Estructura del hotel. Se debe probar el cambio de hotel cuando una cuenta tenga acceso efectivo a más de uno.
+
+
+## 53. REGLA DE DECISIÓN Y SIGUIENTE REVISIÓN ARQUITECTÓNICA (2026-10-11)
+
+### 53.1 Instrucción permanente del usuario
+No dar decisiones, comportamientos observados, disponibilidad ni causas por supuestos. Antes de proponer cambios:
+1. distinguir hechos comprobados de inferencias y cuestiones desconocidas;
+2. explicar por qué el diseño/código actual funciona como funciona y qué objetivo parece satisfacer;
+3. identificar consecuencias y riesgos, incluidas alternativas razonables;
+4. recomendar una opción con motivos;
+5. esperar aprobación del usuario antes de cerrar una decisión importante de producto o introducir datos físicos no confirmados.
+No ejecutar pasos que no aporten evidencia o valor concreto. Cuando el usuario pueda ver los cambios relevantes en este Documento Maestro, actualizarlos aquí.
+
+### 53.2 Corrección de precisión sobre el selector de hotel
+El código de `HotelScopeContext.tsx` muestra que el selector global se renderiza cuando la cuenta tiene acceso a más de un hotel activo. La captura de `/maintenance/structure` muestra que no se ve un selector, pero **no demuestra por qué** no se ve. No está confirmado si la cuenta solo tiene un hotel asignado, si no hay un segundo hotel activo o si existe otra condición. No presentar la causa como conocida sin comprobarla.
+
+### 53.3 Estado real antes de continuar
+- La migración 066 y los privilegios de la tabla `hotel_locations` están verificados según los resultados que proporcionó el usuario.
+- La pantalla `/maintenance/structure` carga con el hotel seleccionado y estado vacío, sin error visible en la captura.
+- No consta todavía prueba funcional de crear, editar, crear hija, buscar, desactivar/reactivar ni aislamiento por hotel.
+- No hay datos de ubicaciones creados como parte de las pruebas.
+- Los selectores de ubicación no están integrados aún en las fichas de las cinco tablas enlazadas.
+- No se ha implementado la copia de estructuras entre ubicaciones/hoteles.
+- El esquema actual vincula `location_id` a `apparatus_registry`, `assets`, `electrical_panels`, `maintenance_pending_items` y `maintenance_blocked_rooms`, pero no añade relación directa de ubicación a cada OT o ejecución en esta migración.
+
+### 53.4 Siguiente acción propuesta: revisión de diseño antes de poblar el catálogo
+No crear todavía plantas, habitaciones ni registros ficticios. Hacer una revisión puntual con el código/esquema existente para decidir lo siguiente antes de ligar datos reales:
+1. **Ubicación histórica de OT/ejecuciones:** si un activo cambia de ubicación, ¿los informes históricos deben mostrar la ubicación actual del activo o la ubicación que tenía cuando ocurrió la OT/ejecución? La respuesta puede cambiar el modelo: asociación a ubicación actual, registro de movimientos o instantánea de ubicación en el evento. No asumir una respuesta.
+2. **Copia y alta de nuevos hoteles:** determinar si se necesita copiar un subárbol dentro del mismo hotel, una estructura de un hotel a otro o plantillas reutilizables. La copia debe afectar solo a la estructura lógica, nunca duplicar activos físicos, OTs, PAM, fotos ni históricos.
+3. **Jerarquía y tipos:** confirmar qué grados de libertad necesita el producto: tipos de ubicación configurables y combinación libre de padres/hijos, o reglas opcionales por tipo. La implementación actual admite tipos personalizados y jerarquía flexible, sin validar combinaciones entre tipos.
+4. **Cobertura de entidades:** revisar dónde deben seleccionarse ubicaciones en las fichas y cómo se mantiene la coherencia entre las entidades `apparatus_registry` y `assets`, sin suponer que son el mismo concepto.
+
+La revisión debe terminar presentando hechos comprobados, riesgos, alternativas y una recomendación concreta para aprobación del usuario. Después de la aprobación se decide si primero se prueba el CRUD con datos operativos confirmados o se implementa una parte de modelo necesaria para evitar rehacer datos más adelante. No introducir datos reales de SB Diagonal Zero por inferencia.

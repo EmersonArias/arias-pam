@@ -1649,3 +1649,49 @@ Importante: utilizar expresiones como “tomamos como referencia”, “fundamen
 - IBM. “Systems.” IBM Maximo Manage documentation. https://www.ibm.com/docs/en/masv-and-l/maximo-manage/cd?topic=locations-systems
 - Baymard Institute. Jamie Holst. “Mobile Form Usability: Avoid Splitting Single Input Entities.” 12 febrero 2013. https://baymard.com/research-articles/mobile-form-usability-single-input-fields
 
+## 44. MODELO DE UBICACIONES CONFIGURABLES POR HOTEL — CRITERIO DE PRODUCTO (2026-10-11)
+
+### 44.1 Objetivo del caso actual
+
+El catálogo de ubicaciones que se prepare en esta fase corresponde específicamente al **SB Diagonal Zero**, como caso real de demostración de Arias Suite para Ramón, jefe del usuario. No debe interpretarse como una distribución universal aplicable a todos los hoteles.
+
+El catálogo del SB Diagonal Zero tiene que representar la distribución y las necesidades reales de ese hotel, una vez verificadas. No se deben inventar habitaciones, plantas, salas técnicas, zonas ni relaciones físicas para completar una plantilla.
+
+### 44.2 Regla general de arquitectura
+
+**Arias Suite permite que cada hotel configure su propia estructura de ubicaciones.** El modelo de producto no debe imponer una distribución física común a todos los hoteles ni asumir que todos tienen las mismas plantas, habitaciones, salas técnicas, zonas, nombres o niveles jerárquicos.
+
+- Cada hotel mantiene su propio catálogo y su propia organización de ubicaciones.
+- La jerarquía puede variar entre hoteles y no debe codificarse como una secuencia fija obligatoria de tipo planta → habitación.
+- Una ubicación puede representar, según la realidad del hotel, una planta, habitación, sala técnica, cubierta, sótano, zona común, almacén, área de servicio u otro espacio que el hotel necesite identificar.
+- Los niveles y tipos anteriores son ejemplos orientativos, no una lista cerrada ni una estructura que deba repetirse en todos los hoteles.
+- Debe ser posible crear ubicaciones, asignarles un nombre útil para la operación y organizarlas bajo una ubicación superior cuando esa relación tenga sentido. No debe exigirse que todos los registros tengan los mismos niveles.
+- La estructura de un hotel no debe copiarse automáticamente a otro ni suponerse idéntica. Cualquier función futura de plantillas deberá ser explícita y opcional, nunca una restricción del modelo.
+- Los activos existentes deben poder asociarse a la ubicación real donde están instalados, sin duplicarlos por el hecho de completar el catálogo.
+- Ubicación, sistema, activo y tipo de trabajo siguen siendo conceptos diferentes. El catálogo de ubicaciones no sustituye al inventario de activos ni al catálogo de sistemas.
+- Si una ubicación deja de utilizarse, debe valorarse su desactivación conservando el histórico y las relaciones operativas, en lugar de borrar registros que puedan estar referenciados.
+
+### 44.3 Separación entre datos de demostración y capacidad del producto
+
+Se deben mantener claramente separadas estas dos cosas:
+
+1. **Datos específicos del caso de demostración:** catálogo real de ubicaciones y activos del SB Diagonal Zero, introducidos y verificados para enseñar cómo podría funcionar la aplicación en ese hotel.
+2. **Capacidad general de Arias Suite:** permitir crear otros hoteles y configurar para cada uno las ubicaciones y los activos según su propia realidad.
+
+Los nombres, plantas, habitaciones y espacios del SB Diagonal Zero son datos de ese hotel; no deben convertirse en constantes de código, valores universales ni supuestos para los demás clientes.
+
+### 44.4 Flujo de trabajo recomendado
+
+1. Auditar primero el modelo, los registros y las relaciones que ya existen en el repositorio y la base de datos. No asumir que hay un catálogo completo ni crear una estructura nueva antes de verificarlo.
+2. Inventariar las ubicaciones reales del SB Diagonal Zero con información confirmada.
+3. Identificar los activos ya registrados y asociarlos a sus ubicaciones correctas cuando exista información suficiente.
+4. Completar las ubicaciones que falten sin duplicar las existentes y sin inventar datos.
+5. Integrar el catálogo en el formulario de Pendientes con búsqueda rápida. La interfaz debe poder encontrar ubicaciones de distintas formas y mostrar suficiente contexto para seleccionar la correcta, sin obligar a recorrer una secuencia fija de campos.
+6. Comprobar que el diseño permite crear un segundo hotel con una estructura distinta, sin reutilizar por obligación la estructura del SB Diagonal Zero.
+
+### 44.5 Límites de esta decisión
+
+Esta sección fija el criterio funcional y arquitectónico; **no confirma que la aplicación ya tenga implementadas todas estas capacidades**. Antes de modificar código, tablas o relaciones se debe inspeccionar la implementación vigente y reutilizarla en la medida posible. No modificar migraciones ya ejecutadas. No crear nuevas migraciones ni nuevas tablas sin demostrar que el modelo actual es insuficiente.
+
+El catálogo específico del SB Diagonal Zero aún debe construirse a partir de información real y verificable. La decisión no autoriza a inventar el plano, el número de habitaciones, las salas técnicas por planta ni la ubicación exacta de los activos.
+

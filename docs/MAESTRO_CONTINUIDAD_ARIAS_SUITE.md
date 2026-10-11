@@ -2368,3 +2368,36 @@ Archivo: `supabase/migrations/068_operational_location_snapshots_and_copy.sql`.
 - El preview `arias-pam` no debe confundirse con el alias/despliegue habitual de `arias-suite`. Confirmar variables de entorno y proyecto Supabase antes de probar operaciones con datos.
 - La migración 068 permanece sin ejecutar. Sin ella, el selector del catálogo 066 puede cargarse, pero las nuevas RPC/columnas de ubicación de OT no estarán disponibles y el flujo completo de creación/cierre de OT no está listo.
 - Para cerrar la validación se requiere acceso autorizado a los logs de Vercel y al proyecto Supabase correcto, o que el usuario ejecute 068 desde SQL Editor y comparta el resultado. No repetir 066 ni 067.
+
+
+## 56. CORRECCIÓN DE PRESENTACIÓN DEL HISTÓRICO Y PREPARACIÓN FINAL DE PRUEBAS (2026-10-11)
+
+### 56.1 Hallazgo
+La primera integración de la instantánea de ubicación en las OTs ya estaba en código, pero algunas vistas seguían mostrando `plant`/`location` de la ficha vigente cuando no había instantánea histórica. En una OT antigua, eso podía confundirse con el lugar original de la intervención.
+
+### 56.2 Cambios de código
+- La lista de OTs abiertas deja de presentar la ubicación textual actual del equipo como si fuese la instantánea histórica.
+- La ficha de OT separa la ubicación comunicada almacenada de la referencia textual heredada de la ficha del equipo, que se etiqueta explícitamente como no histórica.
+- El histórico carga y permite buscar por `reported_location_snapshot` y `execution_location_snapshot`, y muestra ambas en móvil y escritorio.
+- El informe imprimible de tickets abiertos usa la instantánea comunicada y deja de usar `plant`/`location` como sustituto histórico.
+- Los registros anteriores a 068 sin instantánea se mostrarán como **“Sin instantánea histórica”**; no se les atribuye retroactivamente la ubicación actual del equipo.
+- No se cambia ninguna migración ni se escriben datos operativos desde esta tarea.
+
+### 56.3 Bloqueos antes de la prueba integrada
+1. La migración `068_operational_location_snapshots_and_copy.sql` sigue pendiente de aplicar una sola vez en el SQL Editor del proyecto Supabase correcto (`eqxcuwrfestwqelnucmv`). No volver a ejecutar 066 ni 067.
+2. La compilación local/lint no se han ejecutado desde esta conexión; hay que verificar el despliegue Preview después de los cambios. El Preview conocido corresponde al proyecto Vercel `arias-pam`, no al alias `arias-suite`.
+3. No se ha realizado prueba funcional en navegador ni prueba de aislamiento entre hoteles. No dar por terminada la fase hasta validar en la aplicación real.
+
+### 56.4 Secuencia mínima de aceptación
+- Confirmar que el despliegue Preview contiene el nuevo commit y que apunta al proyecto Supabase esperado.
+- Aplicar 068 una sola vez y comprobar la salida completa sin errores; después refrescar la aplicación.
+- Crear ubicaciones temporales `ZZ_TEST_PLANTA_A` y `ZZ_TEST_SALA_A`; probar alta, edición, relación padre/hija, búsqueda, copia, desactivación y reactivación.
+- Asignar solo un equipo de prueba a la ubicación hija y comprobar guardado/reapertura.
+- Crear una OT operativa sin equipo con ubicación comunicada y otra con un equipo de prueba.
+- Antes de cerrar la OT, elegir una ubicación de ejecución distinta, guardar y cerrar; confirmar que las instantáneas comunicada y de ejecución son distintas y legibles.
+- Renombrar luego el nodo de prueba y verificar que la instantánea ya guardada no cambia.
+- Verificar con dos hoteles que ningún ID de ubicación de un hotel se acepte en el otro.
+- Desactivar los datos `ZZ_TEST_*` hoja por hoja y al final su raíz. No borrar físicamente ni modificar registros reales.
+
+### 56.5 Estado de entrega
+Estos cambios de interfaz y documentación requieren revisión de compilación y navegador tras el commit. La migración 068 no se ha ejecutado desde esta conexión y ninguna prueba real se declara superada todavía.

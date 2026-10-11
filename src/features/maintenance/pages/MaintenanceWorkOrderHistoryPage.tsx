@@ -20,6 +20,8 @@ type HistoryOrder = {
   maintenance_plan_name: string | null
   apparatus_code: string | null
   apparatus_name: string | null
+  reported_location_snapshot: string | null
+  execution_location_snapshot: string | null
   scheduled_date: string | null
   completed_at: string | null
   assigned_user_name: string | null
@@ -68,7 +70,7 @@ export default function MaintenanceWorkOrderHistoryPage() {
 
     const result = await supabase
       .from('maintenance_work_orders_resolved')
-      .select('id, hotel_id, ot_number, title, work_type, status, completion_timing, maintenance_plan_name, apparatus_code, apparatus_name, scheduled_date, completed_at, assigned_user_name')
+      .select('id, hotel_id, ot_number, title, work_type, status, completion_timing, maintenance_plan_name, apparatus_code, apparatus_name, reported_location_snapshot, execution_location_snapshot, scheduled_date, completed_at, assigned_user_name')
       .eq('hotel_id', hotel.id)
         .neq('work_type', 'PREVENTIVE')
       .in('status', ['COMPLETED', 'REJECTED'])
@@ -104,6 +106,8 @@ export default function MaintenanceWorkOrderHistoryPage() {
         item.maintenance_plan_name,
         item.apparatus_code,
         item.apparatus_name,
+        item.reported_location_snapshot,
+        item.execution_location_snapshot,
         item.assigned_user_name,
       ]
         .filter(Boolean)
@@ -182,6 +186,8 @@ export default function MaintenanceWorkOrderHistoryPage() {
                     <span className={'shrink-0 rounded-full px-2 py-1 text-[10px] font-semibold ' + statusClass(item)}>{statusLabel(item)}</span>
                   </div>
                   <div className="mt-2 text-[10px] text-slate-500">{item.apparatus_code ?? '—'} · {item.apparatus_name ?? 'Equipo no disponible'}</div>
+                  <div className="mt-1 text-[10px] text-slate-500">Comunicada: {item.reported_location_snapshot || 'Sin instantánea histórica'}</div>
+                  <div className="mt-1 text-[10px] text-slate-500">Intervención: {item.execution_location_snapshot || 'Sin instantánea histórica'}</div>
                   <div className="mt-1 text-[10px] text-slate-400">Finalizada: {item.completed_at ? new Date(item.completed_at).toLocaleString('es-ES') : '—'}</div>
                 </button>
               ))}
@@ -192,12 +198,13 @@ export default function MaintenanceWorkOrderHistoryPage() {
           <div className="hidden md:block">
             <div {...getGridProps()} className="outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-200">
               <GridViewport className="max-h-[calc(100vh-250px)]">
-                <table className="w-full min-w-[850px] border-collapse text-xs">
+                <table className="w-full min-w-[1100px] border-collapse text-xs">
                   <thead>
                     <tr className="sticky top-0 z-10 border-b bg-slate-50 text-left text-[10px] uppercase tracking-wide text-slate-500">
                       <th className="px-3 py-2.5 font-semibold">Ticket</th>
                       <th className="px-3 py-2.5 font-semibold">Mantenimiento</th>
                       <th className="px-3 py-2.5 font-semibold">Equipo</th>
+                      <th className="px-3 py-2.5 font-semibold">Ubicación histórica</th>
                       <th className="px-3 py-2.5 font-semibold">Fecha prevista</th>
                       <th className="px-3 py-2.5 font-semibold">Finalizada</th>
                       <th className="px-3 py-2.5 font-semibold">Estado</th>
@@ -223,12 +230,16 @@ export default function MaintenanceWorkOrderHistoryPage() {
                           <div className="font-medium text-slate-700">{item.apparatus_code ?? '—'}</div>
                           <div className="text-[10px] text-slate-400">{item.apparatus_name ?? '—'}</div>
                         </td>
+                        <td className="px-3 py-3 text-slate-600">
+                          <div><strong>Comunicada:</strong> {item.reported_location_snapshot || 'Sin instantánea histórica'}</div>
+                          <div className="mt-1 text-[10px]"><strong>Intervención:</strong> {item.execution_location_snapshot || 'Sin instantánea histórica'}</div>
+                        </td>
                         <td className="whitespace-nowrap px-3 py-3 text-slate-600">{item.scheduled_date ? new Date(item.scheduled_date + 'T12:00:00').toLocaleDateString('es-ES') : '—'}</td>
                         <td className="whitespace-nowrap px-3 py-3 text-slate-600">{item.completed_at ? new Date(item.completed_at).toLocaleString('es-ES') : '—'}</td>
                         <td className="whitespace-nowrap px-3 py-3"><span className={'inline-flex rounded-full px-2 py-1 text-[10px] font-semibold ' + statusClass(item)}>{statusLabel(item)}</span></td>
                       </tr>
                     ))}
-                    {!loading && filteredRecords.length === 0 && <tr><td colSpan={6} className="px-3 py-10 text-center text-sm text-slate-500">No hay tickets finalizados.</td></tr>}
+                    {!loading && filteredRecords.length === 0 && <tr><td colSpan={7} className="px-3 py-10 text-center text-sm text-slate-500">No hay tickets finalizados.</td></tr>}
                   </tbody>
                 </table>
               </GridViewport>

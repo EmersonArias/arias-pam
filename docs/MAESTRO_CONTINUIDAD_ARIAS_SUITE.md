@@ -1863,23 +1863,23 @@ El usuario volvió a ejecutar ambas consultas tras aplicar la migración 065. Lo
 
 **Resultado:** la configuración de privilegios SQL y las políticas listadas queda corregida y verificada en el esquema consultado por el usuario. La seguridad funcional debe terminar de probarse con dos cuentas/casos: un usuario con permisos por hotel debe poder operar normalmente, y un usuario autenticado sin permisos para ese hotel no debe poder leer ni modificar registros de esas tablas. No afirmar que esta prueba funcional se ha realizado hasta recibir su resultado.
 
-### 46.6 Siguiente acción
+### 46.6 Siguiente acción — prueba funcional pendiente
 
-Tras la confirmación de que la migración 065 se ejecutó, el usuario debe volver a ejecutar la consulta de privilegios y el listado de políticas RLS para confirmar los resultados. Resultado esperado:
-- `anon`: SELECT/INSERT/UPDATE/DELETE = false en ambas tablas;
-- `authenticated`: privilegios SQL CRUD = true en ambas tablas;
-- no quedan políticas públicas permisivas sobre las dos tablas;
-- se conservan las políticas `*_authorized` para authenticated.
+La consulta de privilegios y el listado de políticas RLS ya se han repetido y sus resultados son correctos. No es necesario repetirlos ahora.
 
-Realizar además una prueba funcional con un usuario autenticado autorizado y una prueba de aislamiento con un usuario sin permisos/hotel seleccionado. No considerar cerrada la corrección hasta comprobar ambas.
+Pendiente únicamente la prueba funcional:
+- verificar que un usuario autenticado con permisos de mantenimiento adecuados y hotel activo puede seguir consultando y gestionando registros autorizados;
+- verificar que un usuario autenticado sin el permiso correspondiente o sin acceso al hotel no puede leer ni modificar esos registros;
+- comprobar que el inicio de sesión, el cambio de hotel y las pantallas Equipos e instalaciones / Activos siguen funcionando.
+
+No considerar cerrado el ciclo completo de seguridad hasta obtener estos resultados.
 
 ### 46.7 Implicación en el diseño de ubicaciones
 
-La corrección de seguridad tiene prioridad sobre el catálogo de ubicaciones. Antes de diseñar la migración de ubicaciones:
-1. aplicar y validar la migración 065 en el entorno Supabase correcto;
-2. recibir y revisar el resultado completo de columnas de las tablas candidatas;
-3. contrastar el diseño propuesto con el esquema real;
-4. después, crear el catálogo jerárquico mínimo, las relaciones opcionales y la pantalla de Configuración.
+La verificación estática de los privilegios y políticas de la migración 065 es correcta. Queda pendiente la prueba funcional de aislamiento indicada en 46.6. Para avanzar en paralelo con el diseño de ubicaciones:
+1. recibir y revisar el resultado completo de columnas de las tablas candidatas;
+2. contrastar el diseño propuesto con el esquema real;
+3. después, crear el catálogo jerárquico mínimo, las relaciones opcionales y la pantalla de Configuración.
 
-Las migraciones 001–064 permanecen congeladas. La migración 065 se ha confirmado como ejecutada por el usuario; la verificación posterior de privilegios, políticas y aislamiento funcional sigue pendiente.
+Las migraciones 001–064 permanecen congeladas. La migración 065 está aplicada según la confirmación del usuario y sus resultados de privilegios/políticas se han verificado; la prueba funcional de aislamiento sigue pendiente.
 

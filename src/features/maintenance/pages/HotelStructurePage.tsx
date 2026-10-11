@@ -405,8 +405,9 @@ export default function HotelStructurePage() {
     if (!accepted || !hotelId) return
 
     setActionError('')
+    const descendants = descendantIds(locations, item.id)
     if (item.active && locations.some((candidate) =>
-      candidate.active && descendantIds(locations, item.id).has(candidate.id),
+      candidate.active && descendants.has(candidate.id),
     )) {
       await showAlert({
         title: 'Hay ubicaciones activas debajo',
@@ -546,6 +547,11 @@ export default function HotelStructurePage() {
                   <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Ubicación superior</span>
                   <select value={form.parent_location_id} onChange={(event) => changeForm('parent_location_id', event.target.value)} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm">
                     <option value="">Sin ubicación superior</option>
+                    {form.parent_location_id && locations.some((item) => item.id === form.parent_location_id && !item.active) && (
+                      <option value={form.parent_location_id} disabled>
+                        {locations.find((item) => item.id === form.parent_location_id)?.name} · inactiva (vínculo actual)
+                      </option>
+                    )}
                     {sortLocations(locations).filter((item) => item.active && item.id !== editingId && !descendantsOfEditing.has(item.id)).map((item) => (
                       <option key={item.id} value={item.id}>{item.name} · {typeLabel(item.location_type)}</option>
                     ))}

@@ -38,11 +38,11 @@ CREATE POLICY maintenance_pending_item_photos_select
   FOR SELECT
   TO authenticated
   USING (
-    public.has_hotel_permission(hotel_id, 'maintenance.view')
+    public.has_hotel_access(hotel_id)
     AND EXISTS (
       SELECT 1
       FROM public.maintenance_pending_items pending_item
-      WHERE pending_item.id = pending_item_id
+      WHERE pending_item.id = public.maintenance_pending_item_photos.pending_item_id
         AND pending_item.hotel_id = public.maintenance_pending_item_photos.hotel_id
     )
   );
@@ -79,9 +79,34 @@ CREATE POLICY maintenance_pending_item_photos_delete
     public.has_hotel_permission(hotel_id, 'maintenance.update')
   );
 
--- Permite a usuarios con permiso de alta adjuntar fotos solo a pendientes
--- del mismo hotel. El bucket sigue privado; las URLs firmadas exigen acceso.
--- El permiso maintenance.update sigue cubierto por la política preexistente.
+-- Las fotos siguen el mismo acceso de lectura que la tabla de pendientes:
+-- solo se firman URLs si el usuario puede acceder al hotel y al registro.
+DROP POLICY IF EXISTS maintenance_pending_evidence_select
+  ON storage.objects;
+
+CREATE POLICY maintenance_pending_evidence_select
+  ON storage.objects
+  FOR SELECT
+  TO authenticated
+  USING (
+    bucket_id = 'maintenance-evidence'
+    AND name ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/pending/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/[^/]+
+'Fotografías de incidencias y pendientes operativos. Los archivos viven en el bucket privado maintenance-evidence y requieren permisos del hotel.';
+
+COMMIT;
+
+    AND EXISTS (
+      SELECT 1
+      FROM public.maintenance_pending_items pending_item
+      WHERE pending_item.id::text = split_part(storage.objects.name, '/', 3)
+        AND pending_item.hotel_id::text = split_part(storage.objects.name, '/', 1)
+        AND public.has_hotel_access(pending_item.hotel_id)
+    )
+  );
+
+-- Permite adjuntar fotos solo al pendiente activo del mismo hotel.
+-- La política existente maintenance_evidence_insert sigue permitiendo a
+-- usuarios con maintenance.update cargar evidencias en los flujos ya existentes.
 DROP POLICY IF EXISTS maintenance_pending_evidence_insert
   ON storage.objects;
 
@@ -91,14 +116,49 @@ CREATE POLICY maintenance_pending_evidence_insert
   TO authenticated
   WITH CHECK (
     bucket_id = 'maintenance-evidence'
-    AND name ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/pending/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/[^/]+$'
+    AND name ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/pending/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/[^/]+
+'Fotografías de incidencias y pendientes operativos. Los archivos viven en el bucket privado maintenance-evidence y requieren permisos del hotel.';
+
+COMMIT;
+
     AND public.has_hotel_permission(split_part(name, '/', 1)::uuid, 'maintenance.create')
     AND EXISTS (
       SELECT 1
       FROM public.maintenance_pending_items pending_item
-      WHERE pending_item.id = split_part(name, '/', 3)::uuid
-        AND pending_item.hotel_id = split_part(name, '/', 1)::uuid
+      WHERE pending_item.id::text = split_part(storage.objects.name, '/', 3)
+        AND pending_item.hotel_id::text = split_part(storage.objects.name, '/', 1)
         AND pending_item.active = true
+    )
+  );
+
+-- Si falla el registro de metadatos tras subir un archivo, la persona que
+-- puede dar de alta pendientes puede limpiar ese objeto no asociado. No puede
+-- borrar objetos que ya estén registrados en maintenance_pending_item_photos.
+DROP POLICY IF EXISTS maintenance_pending_evidence_cleanup
+  ON storage.objects;
+
+CREATE POLICY maintenance_pending_evidence_cleanup
+  ON storage.objects
+  FOR DELETE
+  TO authenticated
+  USING (
+    bucket_id = 'maintenance-evidence'
+    AND name ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/pending/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/[^/]+
+'Fotografías de incidencias y pendientes operativos. Los archivos viven en el bucket privado maintenance-evidence y requieren permisos del hotel.';
+
+COMMIT;
+
+    AND public.has_hotel_permission(split_part(name, '/', 1)::uuid, 'maintenance.create')
+    AND EXISTS (
+      SELECT 1
+      FROM public.maintenance_pending_items pending_item
+      WHERE pending_item.id::text = split_part(storage.objects.name, '/', 3)
+        AND pending_item.hotel_id::text = split_part(storage.objects.name, '/', 1)
+    )
+    AND NOT EXISTS (
+      SELECT 1
+      FROM public.maintenance_pending_item_photos photo
+      WHERE photo.storage_path = storage.objects.name
     )
   );
 

@@ -44,6 +44,7 @@ BEGIN
         auth.uid() IS NULL
         OR public.has_hotel_access(mp.hotel_id)
       )
+    ORDER BY mp.id
   LOOP
     reference_date := COALESCE(
       plan_record.next_due_date,

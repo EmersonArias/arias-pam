@@ -200,7 +200,7 @@ export default function MaintenanceWorkOrdersPage() {
   const [ticketType, setTicketType] = useState<'CORRECTIVE' | 'ACTUATION'>('CORRECTIVE')
   const [ticketAssetId, setTicketAssetId] = useState('')
   const [ticketLocationId, setTicketLocationId] = useState('')
-  const [ticketScheduledDate, setTicketScheduledDate = useState(new Date().toISOString().slice(0, 10))
+  const [ticketScheduledDate, setTicketScheduledDate] = useState(new Date().toISOString().slice(0, 10))
   const [ticketPriority, setTicketPriority] = useState<'LOW' | 'NORMAL' | 'HIGH' | 'CRITICAL'>('NORMAL')
   const [ticketAssigneeId, setTicketAssigneeId] = useState('')
 

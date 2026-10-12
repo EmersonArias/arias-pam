@@ -1450,7 +1450,7 @@ export default function MaintenancePendingPage() {
                 <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Categoría</span>
                 <select
                   value={newForm.category}
-                  onChange={(event) => handleNewCategoryChange(event.target.value)
+                  onChange={(event) => handleNewCategoryChange(event.target.value)}
                   disabled={savingCreate || !!newPendingItemId}}
                   className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2"
                 >

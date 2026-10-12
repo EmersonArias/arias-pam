@@ -140,7 +140,7 @@ CREATE POLICY apparatus_registry_photos_insert
   TO authenticated
   WITH CHECK (
     bucket_id = 'apparatus-registry'
-    AND split_part(name, '/', 1) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+    AND split_part(name, '/', 1) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
     AND EXISTS (
       SELECT 1
       FROM public.apparatus_registry ar
@@ -155,7 +155,7 @@ CREATE POLICY apparatus_registry_photos_delete
   TO authenticated
   USING (
     bucket_id = 'apparatus-registry'
-    AND split_part(name, '/', 1) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+    AND split_part(name, '/', 1) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
     AND EXISTS (
       SELECT 1
       FROM public.apparatus_registry ar

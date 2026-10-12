@@ -1451,7 +1451,7 @@ export default function MaintenancePendingPage() {
                 <select
                   value={newForm.category}
                   onChange={(event) => handleNewCategoryChange(event.target.value)}
-                  disabled={savingCreate || !!newPendingItemId}}
+                  disabled={savingCreate || !!newPendingItemId}
                   className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2"
                 >
                   <option value="">Selecciona categoría</option>

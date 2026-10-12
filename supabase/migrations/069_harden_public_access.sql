@@ -134,6 +134,24 @@ DROP POLICY IF EXISTS apparatus_registry_photos_select ON storage.objects;
 DROP POLICY IF EXISTS apparatus_registry_photos_insert ON storage.objects;
 DROP POLICY IF EXISTS apparatus_registry_photos_delete ON storage.objects;
 
+-- Restringir la lectura/listado de metadatos a usuarios autenticados con
+-- permiso de lectura sobre el equipo. La URL pública sigue siendo pública
+-- mientras el bucket esté configurado como público.
+CREATE POLICY apparatus_registry_photos_select
+  ON storage.objects
+  FOR SELECT
+  TO authenticated
+  USING (
+    bucket_id = 'apparatus-registry'
+    AND split_part(name, '/', 1) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+    AND EXISTS (
+      SELECT 1
+      FROM public.apparatus_registry ar
+      WHERE ar.id = split_part(name, '/', 1)::uuid
+        AND public.has_hotel_permission(ar.hotel_id, 'apparatusregistry.view')
+    )
+  );
+
 CREATE POLICY apparatus_registry_photos_insert
   ON storage.objects
   FOR INSERT

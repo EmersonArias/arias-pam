@@ -217,3 +217,43 @@ Solo ejecutar cuando haya un preview funcional confirmado y se verifique que usa
 > Supabase conocido: `eqxcuwrfestwqelnucmv`. La migración 068 `068_operational_location_snapshots_and_copy.sql` está aplicada; no repetirla ni ninguna migración anterior. En la última comprobación posterior a 068 había 309 equipos, 203 OTs, 0 ubicaciones y 0 OTs con nuevas instantáneas. Las pruebas funcionales de ubicación/OT y aislamiento de hotel siguen pendientes.
 >
 > El proyecto Vercel visible `arias-suite` apunta al repo `EmersonArias/arias-pam`, rama `feature/arias-suite-common-ui-v1`; despliegues recientes en ERROR. Los logs/configuración están bloqueados por un 403 de permisos del scope `arias9`. No inventes causa ni resultado. No hagas cambios destructivos. Sigue la regla NO ASSUME.
+
+
+---
+
+## 11. ACTUALIZACIÓN DE CONTINUIDAD — 2026-10-12
+
+Esta sección prevalece sobre las referencias históricas anteriores cuando entren en conflicto con el estado comprobado en esta fecha.
+
+### Identidad y nombre definitivo
+
+- El nombre definitivo del producto es **Arias Suite**. El repositorio principal se ha renombrado a `EmersonArias/arias-suite`.
+- Rama de trabajo: `feature/arias-suite-common-ui-v1`.
+- Commit registrado para la corrección de sintaxis de `MaintenanceWorkOrdersPage.tsx`: `60ca1a0a488321b5be40dc394db6fde89792922f`.
+- Copia privada independiente del repositorio Git: `EmersonArias/arias-pam-backup-2026-10-12`.
+- Se comprobó la integridad de la copia local con `git fsck --full`, sin errores de objetos. `git ls-remote backup` confirmó las cuatro ramas principales y los SHA correspondientes en el repositorio privado. GitHub rechazó solo las referencias internas `refs/pull/1/head` y `refs/pull/1/merge`, que no son ramas publicables por push normal.
+- Las carpetas locales `C:\\proyectos\\arias-suite` y `C:\\proyectos\\arias-pam` apuntan al mismo remoto y estaban desactualizadas respecto a la rama remota. La carpeta `C:\\proyectos\\arias-suite-viejo` mostró numerosas modificaciones/archivos sin seguimiento; el usuario indicó que se deje fuera del trabajo. No afirmar que su contenido está respaldado ni borrarlo como parte de este procedimiento.
+- El proyecto de Vercel `arias-suite` muestra en Settings → Git la conexión `EmersonArias/arias-suite`. No desconectar ni recrear el proyecto.
+- Supabase `eqxcuwrfestwqelnucmv` (`arias-pam`) aparece ACTIVE_HEALTHY; Supabase `hqxmycldqltovfkazoub` (`arias-suite`) aparece INACTIVE. No cambiar, restaurar ni migrar ninguna base de datos como efecto colateral del renombrado.
+- El respaldo incluye `.env` en el historial Git. La comprobación de nombres de variables mostró `VITE_SUPABASE_ANON_KEY` y `VITE_SUPABASE_URL`, sin imprimir valores. No publicar valores de secretos ni interpretar una lista de nombres como una auditoría de seguridad completa.
+- Último error de build aportado por el usuario: `src/features/maintenance/pages/MaintenanceWorkOrdersPage.tsx(204,3): error TS1005: ',' expected`. Se corrigió directamente en GitHub el destructuring `ticketScheduledDate` y se guardó en el commit anterior. Build/despliegue posterior aún debe verificarse; no declarar el build resuelto hasta tener estado Ready y logs/validación correspondientes.
+- El conector de Vercel devolvió 403 para el scope `arias9`; el estado actual del despliegue no puede darse por verificado mediante ese conector.
+
+### Nueva norma permanente: reparación directa de errores encontrados
+
+- Cuando se localice un error concreto y reproducible en el código (por ejemplo, error de TypeScript, sintaxis, compilación o una regresión con causa identificada), **corregirlo directamente en GitHub**, sin pedir al usuario que edite manualmente.
+- Antes de editar: leer el contenido real, confirmar repositorio, rama y SHA/HEAD, identificar la causa y limitar el cambio a la reparación necesaria.
+- Después de editar: verificar de nuevo el archivo, registrar el commit, revisar build/deploy y comprobar el resultado. No declarar resuelto un error hasta confirmar el estado pertinente.
+- Si aparecen errores adicionales, investigar y reparar cada uno directamente, siguiendo el mismo ciclo.
+- La reparación directa no autoriza cambios amplios o especulativos. Si la causa no está suficientemente identificada, primero recopilar pruebas.
+- Esta norma no anula los límites ya congelados: **no modificar migraciones ya ejecutadas**, no ejecutar SQL ni cambiar producción, RLS, claves, variables de entorno, dominios, permisos o recursos de Supabase/Vercel sin comprobación específica y autorización adecuada.
+- No tocar Arias Home. No borrar datos, registros ni ramas como forma de “arreglar” errores.
+- Mantener los principios NO ASSUME y trazabilidad: código cambiado, commit creado, build, deployment y prueba funcional son evidencias separadas.
+
+### Enlaces actuales
+
+- Repositorio principal: https://github.com/EmersonArias/arias-suite
+- Rama de trabajo: https://github.com/EmersonArias/arias-suite/tree/feature/arias-suite-common-ui-v1
+- Copia privada: https://github.com/EmersonArias/arias-pam-backup-2026-10-12
+- Vercel: https://vercel.com/arias9/arias-suite
+- Supabase activo conocido: `eqxcuwrfestwqelnucmv`

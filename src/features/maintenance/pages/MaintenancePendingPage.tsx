@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Archive, CheckCircle2, ChevronDown, ChevronUp, ChevronsDown, ChevronsUp, CornerUpLeft, Eraser, FilterX, House, Lock, Pencil, Plus, RefreshCw, RotateCcw, Search, SlidersHorizontal, Trash2, Unlock, X } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
+import { Archive, Camera, CheckCircle2, ChevronDown, ChevronUp, ChevronsDown, ChevronsUp, CornerUpLeft, Eraser, FilterX, House, ImagePlus, Lock, Pencil, Plus, RefreshCw, RotateCcw, Search, SlidersHorizontal, Trash2, Unlock, Upload, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import BrandLogo from '../../../shared/components/branding/BrandLogo'
 import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
@@ -38,6 +38,19 @@ type CategorySupplierDefault = {
   id: string
   category_name: string
   provider_id: string
+}
+
+type PendingPhoto = {
+  id: string
+  hotel_id: string
+  pending_item_id: string
+  storage_path: string
+  file_name: string
+  mime_type: string
+  file_size: number
+  uploaded_by: string | null
+  uploaded_at: string
+  signed_url?: string
 }
 
 const statusLabels = {
@@ -107,6 +120,21 @@ export default function MaintenancePendingPage() {
   const [savingEdit, setSavingEdit] = useState(false)
   const [creating, setCreating] = useState(false)
   const [savingCreate, setSavingCreate] = useState(false)
+  const [newPendingPhotos, setNewPendingPhotos] = useState<File[]>([])
+  const [newPendingItemId, setNewPendingItemId] = useState<string | null>(null)
+  const [selectedPendingPhotos, setSelectedPendingPhotos] = useState<PendingPhoto[]>([])
+  const [loadingPendingPhotos, setLoadingPendingPhotos] = useState(false)
+  const [pendingPhotosError, setPendingPhotosError] = useState('')
+  const cameraInputRef = useRef<HTMLInputElement>(null)
+  const photoInputRef = useRef<HTMLInputElement>(null)
+  const newPendingPhotoPreviews = useMemo(
+    () => newPendingPhotos.map((file) => ({ file, url: URL.createObjectURL(file) })),
+    [newPendingPhotos],
+  )
+
+  useEffect(() => () => {
+    newPendingPhotoPreviews.forEach(({ url }) => URL.revokeObjectURL(url))
+  }, [newPendingPhotoPreviews])
   const emptyForm = {
     location: '',
     category: '',
@@ -251,6 +279,54 @@ export default function MaintenancePendingPage() {
     void loadItems()
   }, [hotel?.id])
 
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadSelectedPendingPhotos() {
+      if (!hotel?.id || !selectedId) {
+        setSelectedPendingPhotos([])
+        setPendingPhotosError('')
+        setLoadingPendingPhotos(false)
+        return
+      }
+
+      setLoadingPendingPhotos(true)
+      setPendingPhotosError('')
+      const result = await supabase
+        .from('maintenance_pending_item_photos')
+        .select('id, hotel_id, pending_item_id, storage_path, file_name, mime_type, file_size, uploaded_by, uploaded_at')
+        .eq('hotel_id', hotel.id)
+        .eq('pending_item_id', selectedId)
+        .order('uploaded_at', { ascending: false })
+
+      if (cancelled) return
+      if (result.error) {
+        setSelectedPendingPhotos([])
+        setPendingPhotosError('No se han podido cargar las fotografías: ' + result.error.message)
+        setLoadingPendingPhotos(false)
+        return
+      }
+
+      const resolved = await Promise.all(
+        ((result.data ?? []) as PendingPhoto[]).map(async (photo) => {
+          const signed = await supabase.storage
+            .from('maintenance-evidence')
+            .createSignedUrl(photo.storage_path, 3600)
+          return signed.error || !signed.data?.signedUrl
+            ? null
+            : { ...photo, signed_url: signed.data.signedUrl }
+        }),
+      )
+
+      if (cancelled) return
+      setSelectedPendingPhotos(resolved.filter((photo): photo is PendingPhoto => photo !== null))
+      setLoadingPendingPhotos(false)
+    }
+
+    void loadSelectedPendingPhotos()
+    return () => { cancelled = true }
+  }, [hotel?.id, selectedId])
+
   const categories = useMemo(
     () => Array.from(new Set([
       ...items.map((item) => item.category).filter(Boolean) as string[],
@@ -377,20 +453,62 @@ export default function MaintenancePendingPage() {
 
   function openNew() {
     setNewForm({ ...emptyForm })
+    setNewPendingPhotos([])
+    setNewPendingItemId(null)
     setError('')
     setCreating(true)
   }
 
+  function addNewPendingPhotos(files: File[]) {
+    const invalidTypeCount = files.filter((file) => !file.type.startsWith('image/')).length
+    const images = files.filter((file) => file.type.startsWith('image/'))
+    const tooLarge = images.filter((file) => file.size > 10 * 1024 * 1024)
+    const validImages = images.filter((file) => file.size <= 10 * 1024 * 1024)
+    const availableSlots = Math.max(0, 10 - newPendingPhotos.length)
+    const accepted = validImages.slice(0, availableSlots)
+
+    setNewPendingPhotos((current) => [...current, ...accepted])
+    const messages: string[] = []
+    if (invalidTypeCount) messages.push('Solo se admiten archivos de imagen.')
+    if (tooLarge.length) messages.push('Cada fotografía debe pesar como máximo 10 MB.')
+    if (validImages.length > availableSlots) messages.push('Se permiten como máximo 10 fotografías por pendiente.')
+    setError(messages.join(' '))
+  }
+
+  function handleNewPendingPhotoFiles(event: ChangeEvent<HTMLInputElement>) {
+    addNewPendingPhotos(Array.from(event.target.files ?? []))
+    event.target.value = ''
+  }
+
+  async function closeNew() {
+    if (savingCreate) return
+    const createdId = newPendingItemId
+    setCreating(false)
+    setNewForm({ ...emptyForm })
+    setNewPendingPhotos([])
+    setNewPendingItemId(null)
+    setError('')
+
+    if (createdId) {
+      setShowHistory(false)
+      clearFilters()
+      await loadItems()
+      setSelectedId(createdId)
+    }
+  }
+
   function clearNewForm() {
+    if (newPendingItemId) return
     if (!window.confirm('¿Deseas limpiar el formulario? Se restablecerán los campos a sus valores iniciales.')) return
     setNewForm({ ...emptyForm })
+    setNewPendingPhotos([])
     setError('')
   }
 
   async function saveNew() {
     if (!hotel?.id || savingCreate) return
 
-    if (!newForm.pending.trim()) {
+    if (!newPendingItemId && !newForm.pending.trim()) {
       setError('El pendiente es obligatorio.')
       return
     }
@@ -398,41 +516,98 @@ export default function MaintenancePendingPage() {
     setSavingCreate(true)
     setError('')
 
-    const result = await supabase
-      .from('maintenance_pending_items')
-      .insert({
-        hotel_id: hotel.id,
-        location: newForm.location.trim() || null,
-        category: newForm.category.trim() || null,
-        pending: newForm.pending.trim(),
-        status: 'PENDING',
-        source_status: 'Pendiente',
-        assigned_to: newForm.assigned_to.trim() || null,
-        priority: newForm.priority,
-        source_priority: null,
-        observation: newForm.observation.trim() || null,
-        source_date: newForm.source_date || todayLocalISO(),
-        source_file: 'ARIAS_SUITE',
-        source_row: Date.now(),
-        active: true,
-      })
-      .select('id')
-      .single()
+    try {
+      let createdId = newPendingItemId
+      if (!createdId) {
+        const result = await supabase
+          .from('maintenance_pending_items')
+          .insert({
+            hotel_id: hotel.id,
+            location: newForm.location.trim() || null,
+            category: newForm.category.trim() || null,
+            pending: newForm.pending.trim(),
+            status: 'PENDING',
+            source_status: 'Pendiente',
+            assigned_to: newForm.assigned_to.trim() || null,
+            priority: newForm.priority,
+            source_priority: null,
+            observation: newForm.observation.trim() || null,
+            source_date: newForm.source_date || todayLocalISO(),
+            source_file: 'ARIAS_SUITE',
+            source_row: Date.now(),
+            active: true,
+          })
+          .select('id')
+          .single()
 
-    if (result.error) {
-      setError(result.error.message)
-    } else {
-      const createdId = result.data?.id as string | undefined
+        if (result.error || !result.data?.id) {
+          setError(result.error?.message ?? 'No se ha podido crear el pendiente.')
+          return
+        }
+        createdId = result.data.id as string
+        setNewPendingItemId(createdId)
+      }
+
+      const pendingItemId = createdId
+      const failedFiles: File[] = []
+      const failedMessages: string[] = []
+      const userResult = await supabase.auth.getUser()
+      const uploadedBy = userResult.data.user?.id ?? null
+
+      for (const file of newPendingPhotos) {
+        const safeName = file.name.replace(/[^a-zA-Z0-9._-]+/g, '_')
+        const storagePath = hotel.id + '/pending/' + pendingItemId + '/' + crypto.randomUUID() + '-' + safeName
+        const upload = await supabase.storage
+          .from('maintenance-evidence')
+          .upload(storagePath, file, {
+            upsert: false,
+            contentType: file.type,
+            cacheControl: '3600',
+          })
+
+        if (upload.error) {
+          failedFiles.push(file)
+          failedMessages.push(file.name + ': ' + upload.error.message)
+          continue
+        }
+
+        const inserted = await supabase.from('maintenance_pending_item_photos').insert({
+          hotel_id: hotel.id,
+          pending_item_id: pendingItemId,
+          storage_path: storagePath,
+          file_name: file.name,
+          mime_type: file.type,
+          file_size: file.size,
+          uploaded_by: uploadedBy,
+        })
+
+        if (inserted.error) {
+          await supabase.storage.from('maintenance-evidence').remove([storagePath])
+          failedFiles.push(file)
+          failedMessages.push(file.name + ': ' + inserted.error.message)
+        }
+      }
+
+      if (failedFiles.length) {
+        setNewPendingPhotos(failedFiles)
+        setError('El pendiente ya se ha creado, pero no se han guardado ' + failedFiles.length + ' fotografía(s): ' + failedMessages.join(' · ') + '. Puedes reintentarlo sin duplicar el pendiente ni las fotos que ya se guardaron.')
+        return
+      }
+
       setCreating(false)
+      setNewForm({ ...emptyForm })
+      setNewPendingPhotos([])
+      setNewPendingItemId(null)
       setShowHistory(false)
       clearFilters()
       await loadItems()
-      if (createdId) setSelectedId(createdId)
+      setSelectedId(pendingItemId)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se ha podido guardar el pendiente y sus fotografías.')
+    } finally {
+      setSavingCreate(false)
     }
-
-    setSavingCreate(false)
   }
-
   async function saveEdit() {
     if (!selected || !hotel?.id || savingEdit) return
 
@@ -1052,6 +1227,29 @@ export default function MaintenancePendingPage() {
                   {selected.observation && <div><strong>Observación:</strong> {selected.observation}</div>}
                 </div>
 
+                <section className="rounded-xl border border-slate-200 bg-white p-3">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-slate-800"><ImagePlus size={16} aria-hidden="true" /> Fotografías</div>
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">{selectedPendingPhotos.length}</span>
+                  </div>
+                  {loadingPendingPhotos ? (
+                    <div className="py-3 text-xs text-slate-400">Cargando fotografías…</div>
+                  ) : pendingPhotosError ? (
+                    <div role="status" className="rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">{pendingPhotosError}</div>
+                  ) : selectedPendingPhotos.length ? (
+                    <div className="grid grid-cols-2 gap-2">
+                      {selectedPendingPhotos.map((photo) => (
+                        <a key={photo.id} href={photo.signed_url} target="_blank" rel="noreferrer" className="overflow-hidden rounded-lg border border-slate-200">
+                          <img src={photo.signed_url} alt={photo.file_name} className="aspect-square w-full object-cover" />
+                          <span className="block truncate border-t px-2 py-1.5 text-[10px] text-slate-500" title={photo.file_name}>{photo.file_name}</span>
+                        </a>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="rounded-lg border border-dashed border-slate-200 px-3 py-4 text-center text-xs text-slate-400">Sin fotografías.</div>
+                  )}
+                </section>
+
                 <div className="flex flex-wrap gap-2">
                   {showHistory ? (
                     <ActionButton
@@ -1149,6 +1347,26 @@ export default function MaintenancePendingPage() {
               )}
             </div>
 
+            <section className="mt-2 rounded-xl border border-slate-200 bg-slate-50 p-2">
+              <div className="mb-2 flex items-center justify-between gap-2 text-xs font-semibold text-slate-700"><span className="flex items-center gap-1.5"><ImagePlus size={14} aria-hidden="true" /> Fotografías</span><span>{selectedPendingPhotos.length}</span></div>
+              {loadingPendingPhotos ? (
+                <div className="py-2 text-[11px] text-slate-400">Cargando fotografías…</div>
+              ) : pendingPhotosError ? (
+                <div role="status" className="rounded-lg bg-rose-50 px-2 py-1.5 text-[11px] text-rose-700">{pendingPhotosError}</div>
+              ) : selectedPendingPhotos.length ? (
+                <div className="grid grid-cols-3 gap-2">
+                  {selectedPendingPhotos.map((photo) => (
+                    <a key={photo.id} href={photo.signed_url} target="_blank" rel="noreferrer" className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+                      <img src={photo.signed_url} alt={photo.file_name} className="aspect-square w-full object-cover" />
+                      <span className="block truncate border-t px-1.5 py-1 text-[9px] text-slate-500" title={photo.file_name}>{photo.file_name}</span>
+                    </a>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-lg border border-dashed border-slate-200 bg-white px-2 py-3 text-center text-[11px] text-slate-400">Sin fotografías.</div>
+              )}
+            </section>
+
             <div className="mt-3 flex items-center justify-end gap-1.5 border-t border-slate-100 pt-2">
               {isRoomLocation(selected.location) && (
                 <IconButton
@@ -1208,7 +1426,7 @@ export default function MaintenancePendingPage() {
               </div>
               <ActionButton
                 label="Cerrar"
-                onClick={() => !savingCreate && setCreating(false)}
+                onClick={() => void closeNew()}
                 disabled={savingCreate}
                 className="min-h-9 px-3 py-1.5 text-xs"
               />
@@ -1224,6 +1442,7 @@ export default function MaintenancePendingPage() {
                   list="pending-location-options"
                   value={newForm.location}
                   onChange={(event) => setNewForm((value) => ({ ...value, location: event.target.value }))}
+                  disabled={savingCreate || !!newPendingItemId}
                   className="w-full rounded-xl border border-slate-300 px-3 py-2"
                 />
               </label>
@@ -1231,7 +1450,8 @@ export default function MaintenancePendingPage() {
                 <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Categoría</span>
                 <select
                   value={newForm.category}
-                  onChange={(event) => handleNewCategoryChange(event.target.value)}
+                  onChange={(event) => handleNewCategoryChange(event.target.value)
+                  disabled={savingCreate || !!newPendingItemId}}
                   className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2"
                 >
                   <option value="">Selecciona categoría</option>
@@ -1243,6 +1463,7 @@ export default function MaintenancePendingPage() {
                 <input
                   value={newForm.pending}
                   onChange={(event) => setNewForm((value) => ({ ...value, pending: event.target.value }))}
+                  disabled={savingCreate || !!newPendingItemId}
                   className="w-full rounded-xl border border-slate-300 px-3 py-2"
                   autoFocus
                 />
@@ -1252,6 +1473,7 @@ export default function MaintenancePendingPage() {
                 <select
                   value={newForm.priority}
                   onChange={(event) => setNewForm((value) => ({ ...value, priority: event.target.value as PendingItem['priority'] }))}
+                  disabled={savingCreate || !!newPendingItemId}
                   className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2"
                 >
                   <option value="CRITICAL">Crítica</option>
@@ -1266,6 +1488,7 @@ export default function MaintenancePendingPage() {
                   list="pending-supplier-options"
                   value={newForm.assigned_to}
                   onChange={(event) => setNewForm((value) => ({ ...value, assigned_to: event.target.value }))}
+                  disabled={savingCreate || !!newPendingItemId}
                   className="w-full rounded-xl border border-slate-300 px-3 py-2"
                 />
                 {newForm.category && getSupplierForCategory(newForm.category) && (
@@ -1279,6 +1502,7 @@ export default function MaintenancePendingPage() {
                   type="date"
                   value={newForm.source_date}
                   onChange={(event) => setNewForm((value) => ({ ...value, source_date: event.target.value }))}
+                  disabled={savingCreate || !!newPendingItemId}
                   className="w-full rounded-xl border border-slate-300 px-3 py-2"
                 />
               </label>
@@ -1288,9 +1512,56 @@ export default function MaintenancePendingPage() {
                   rows={4}
                   value={newForm.observation}
                   onChange={(event) => setNewForm((value) => ({ ...value, observation: event.target.value }))}
+                  disabled={savingCreate || !!newPendingItemId}
                   className="w-full rounded-xl border border-slate-300 px-3 py-2"
                 />
               </label>
+              <section className="sm:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+                      <ImagePlus size={17} aria-hidden="true" /> Fotografías del pendiente
+                    </div>
+                    <div className="mt-1 text-xs text-slate-500">
+                      Puedes hacer una foto con la cámara del dispositivo o elegir imágenes guardadas. Máximo 10 fotos de 10 MB cada una.
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleNewPendingPhotoFiles} />
+                    <input ref={photoInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleNewPendingPhotoFiles} />
+                    <button type="button" onClick={() => cameraInputRef.current?.click()} disabled={savingCreate} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50">
+                      <Camera size={15} aria-hidden="true" /> Hacer foto
+                    </button>
+                    <button type="button" onClick={() => photoInputRef.current?.click()} disabled={savingCreate} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50">
+                      <Upload size={15} aria-hidden="true" /> Subir fotos
+                    </button>
+                  </div>
+                </div>
+                {newPendingItemId && (
+                  <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                    El pendiente ya está creado. Solo se reintentarán las fotos que todavía no se hayan guardado.
+                  </div>
+                )}
+                {newPendingPhotoPreviews.length > 0 ? (
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+                    {newPendingPhotoPreviews.map(({ file, url }, index) => (
+                      <div key={file.name + "-" + file.lastModified + "-" + index} className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+                        <img src={url} alt={"Vista previa de " + file.name} className="aspect-square w-full object-cover" />
+                        <div className="flex items-center justify-between gap-2 border-t px-2 py-1.5">
+                          <span className="min-w-0 truncate text-[10px] text-slate-600" title={file.name}>{file.name}</span>
+                          <button type="button" aria-label={"Quitar " + file.name} title="Quitar fotografía" onClick={() => setNewPendingPhotos((current) => current.filter((_, fileIndex) => fileIndex !== index))} disabled={savingCreate} className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-rose-50 hover:text-rose-700 disabled:opacity-50">
+                            <X size={14} aria-hidden="true" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-dashed border-slate-300 bg-white px-3 py-5 text-center text-xs text-slate-400">
+                    Todavía no has añadido fotografías.
+                  </div>
+                )}
+              </section>
             </div>
 
             <div className="flex flex-wrap justify-end gap-2 border-t px-5 py-4">
@@ -1298,20 +1569,20 @@ export default function MaintenancePendingPage() {
                 icon={Eraser}
                 label="Limpiar formulario"
                 onClick={clearNewForm}
-                disabled={savingCreate}
+                disabled={savingCreate || !!newPendingItemId}
                 className="text-xs"
               />
               <ActionButton
                 label="Cancelar"
-                onClick={() => setCreating(false)}
+                onClick={() => void closeNew()}
                 disabled={savingCreate}
                 className="text-xs"
               />
               <ActionButton
                 icon={Plus}
-                label={savingCreate ? 'Creando…' : 'Crear pendiente'}
+                label={savingCreate ? 'Guardando…' : newPendingItemId ? (newPendingPhotos.length ? 'Reintentar fotos' : 'Finalizar') : 'Crear pendiente'}
                 onClick={() => void saveNew()}
-                disabled={savingCreate || !newForm.pending.trim()}
+                disabled={savingCreate || (!newPendingItemId && !newForm.pending.trim())}
                 className="text-xs"
               />
             </div>

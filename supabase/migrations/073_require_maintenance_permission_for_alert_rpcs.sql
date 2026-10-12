@@ -140,6 +140,7 @@ BEGIN
             ELSE
               'El mantenimiento está previsto para hoy. Registra la ejecución real cuando se haya realizado.'
           END;
+      END IF;
 
     ELSIF reference_date <= CURRENT_DATE + days_before THEN
       desired_type := 'UPCOMING_REVIEW';

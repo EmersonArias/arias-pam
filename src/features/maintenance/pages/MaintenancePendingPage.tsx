@@ -319,7 +319,7 @@ export default function MaintenancePendingPage() {
       )
 
       if (cancelled) return
-      setSelectedPendingPhotos(resolved.filter((photo): photo is PendingPhoto => photo !== null))
+      setSelectedPendingPhotos(resolved.filter((photo) => photo !== null))
       setLoadingPendingPhotos(false)
     }
 

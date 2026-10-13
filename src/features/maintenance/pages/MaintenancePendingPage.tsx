@@ -8,6 +8,7 @@ import ActionButton from '../../../shared/components/buttons/ActionButton'
 import GridViewport from '../../../shared/components/grid/GridViewport'
 import { useGridKeyboardNavigation } from '../../../shared/components/grid/useGridKeyboardNavigation'
 import { useHotelScope } from '../../../shared/context/HotelScopeContext'
+import { useSystemDialog } from '../../../shared/components/dialogs/SystemDialogProvider'
 import { supabase } from '../../../lib/supabase'
 
 type PendingItem = {
@@ -100,6 +101,7 @@ function normalizeCatalogKey(value: string) {
 export default function MaintenancePendingPage() {
   const navigate = useNavigate()
   const { hotel } = useHotelScope()
+  const { confirm } = useSystemDialog()
   const [items, setItems] = useState<PendingItem[]>([])
   const [suppliers, setSuppliers] = useState<SupplierCatalogItem[]>([])
   const [categorySupplierDefaults, setCategorySupplierDefaults] = useState<CategorySupplierDefault[]>([])
@@ -123,6 +125,7 @@ export default function MaintenancePendingPage() {
   const [newPendingPhotos, setNewPendingPhotos] = useState<File[]>([])
   const [newPendingItemId, setNewPendingItemId] = useState<string | null>(null)
   const [selectedPendingPhotos, setSelectedPendingPhotos] = useState<PendingPhoto[]>([])
+  const [deletingPendingPhotoId, setDeletingPendingPhotoId] = useState<string | null>(null)
   const [loadingPendingPhotos, setLoadingPendingPhotos] = useState(false)
   const [pendingPhotosError, setPendingPhotosError] = useState('')
   const cameraInputRef = useRef<HTMLInputElement>(null)
@@ -608,6 +611,70 @@ export default function MaintenancePendingPage() {
       setSavingCreate(false)
     }
   }
+  async function deleteSelectedPendingPhoto(photo: PendingPhoto) {
+    if (!hotel?.id || !selected || deletingPendingPhotoId) return
+    if (photo.hotel_id !== hotel.id || photo.pending_item_id !== selected.id) {
+      setPendingPhotosError('La fotografía no pertenece al hotel y pendiente seleccionados.')
+      return
+    }
+
+    const confirmed = await confirm({
+      title: 'Eliminar fotografía',
+      message: `¿Quieres eliminar la fotografía "${photo.file_name}"? Esta acción no se puede deshacer.`,
+      variant: 'warning',
+      confirmLabel: 'Eliminar',
+    })
+    if (!confirmed) return
+
+    setDeletingPendingPhotoId(photo.id)
+    setPendingPhotosError('')
+    try {
+      const removedMetadata = await supabase
+        .from('maintenance_pending_item_photos')
+        .delete()
+        .eq('id', photo.id)
+        .eq('hotel_id', hotel.id)
+        .eq('pending_item_id', selected.id)
+        .select('id')
+
+      if (removedMetadata.error) throw new Error(removedMetadata.error.message)
+      if (!removedMetadata.data?.length) {
+        throw new Error('No se ha eliminado ningún registro. Comprueba los permisos del hotel.')
+      }
+
+      const removedFile = await supabase.storage
+        .from('maintenance-evidence')
+        .remove([photo.storage_path])
+
+      if (removedFile.error) {
+        // Si Storage no puede borrar el objeto, restaurar el metadato para que
+        // la foto siga apareciendo y pueda reintentarse sin perder la referencia.
+        const restored = await supabase.from('maintenance_pending_item_photos').insert({
+          id: photo.id,
+          hotel_id: photo.hotel_id,
+          pending_item_id: photo.pending_item_id,
+          storage_path: photo.storage_path,
+          file_name: photo.file_name,
+          mime_type: photo.mime_type,
+          file_size: photo.file_size,
+          uploaded_by: photo.uploaded_by,
+          uploaded_at: photo.uploaded_at,
+        })
+        if (restored.error) {
+          setSelectedPendingPhotos((current) => current.filter((item) => item.id !== photo.id))
+          throw new Error(`No se pudo borrar el archivo (${removedFile.error.message}) y tampoco se pudo restaurar su registro (${restored.error.message}). Revisa el almacenamiento.`)
+        }
+        throw new Error(`No se pudo borrar el archivo: ${removedFile.error.message}. Se ha conservado su registro para poder reintentarlo.`)
+      }
+
+      setSelectedPendingPhotos((current) => current.filter((item) => item.id !== photo.id))
+    } catch (err) {
+      setPendingPhotosError(err instanceof Error ? err.message : 'No se ha podido eliminar la fotografía.')
+    } finally {
+      setDeletingPendingPhotoId(null)
+    }
+  }
+
   async function saveEdit() {
     if (!selected || !hotel?.id || savingEdit) return
 
@@ -1239,10 +1306,22 @@ export default function MaintenancePendingPage() {
                   ) : selectedPendingPhotos.length ? (
                     <div className="grid grid-cols-2 gap-2">
                       {selectedPendingPhotos.map((photo) => (
-                        <a key={photo.id} href={photo.signed_url} target="_blank" rel="noreferrer" className="overflow-hidden rounded-lg border border-slate-200">
-                          <img src={photo.signed_url} alt={photo.file_name} className="aspect-square w-full object-cover" />
-                          <span className="block truncate border-t px-2 py-1.5 text-[10px] text-slate-500" title={photo.file_name}>{photo.file_name}</span>
-                        </a>
+                        <div key={photo.id} className="relative overflow-hidden rounded-lg border border-slate-200">
+                          <a href={photo.signed_url} target="_blank" rel="noreferrer" className="block">
+                            <img src={photo.signed_url} alt={photo.file_name} className="aspect-square w-full object-cover" />
+                            <span className="block truncate border-t px-2 py-1.5 pr-10 text-[10px] text-slate-500" title={photo.file_name}>{photo.file_name}</span>
+                          </a>
+                          <IconButton
+                            icon={Trash2}
+                            label={`Eliminar fotografía ${photo.file_name}`}
+                            title={deletingPendingPhotoId === photo.id ? 'Eliminando fotografía…' : `Eliminar fotografía ${photo.file_name}`}
+                            onClick={() => void deleteSelectedPendingPhoto(photo)}
+                            disabled={deletingPendingPhotoId !== null}
+                            size="compact"
+                            variant="flat"
+                            className="absolute right-1 top-1 z-10 bg-white/95 text-rose-700 shadow-sm"
+                          />
+                        </div>
                       ))}
                     </div>
                   ) : (
@@ -1356,10 +1435,22 @@ export default function MaintenancePendingPage() {
               ) : selectedPendingPhotos.length ? (
                 <div className="grid grid-cols-3 gap-2">
                   {selectedPendingPhotos.map((photo) => (
-                    <a key={photo.id} href={photo.signed_url} target="_blank" rel="noreferrer" className="overflow-hidden rounded-lg border border-slate-200 bg-white">
-                      <img src={photo.signed_url} alt={photo.file_name} className="aspect-square w-full object-cover" />
-                      <span className="block truncate border-t px-1.5 py-1 text-[9px] text-slate-500" title={photo.file_name}>{photo.file_name}</span>
-                    </a>
+                    <div key={photo.id} className="relative overflow-hidden rounded-lg border border-slate-200 bg-white">
+                      <a href={photo.signed_url} target="_blank" rel="noreferrer" className="block">
+                        <img src={photo.signed_url} alt={photo.file_name} className="aspect-square w-full object-cover" />
+                        <span className="block truncate border-t px-1.5 py-1 pr-9 text-[9px] text-slate-500" title={photo.file_name}>{photo.file_name}</span>
+                      </a>
+                      <IconButton
+                        icon={Trash2}
+                        label={`Eliminar fotografía ${photo.file_name}`}
+                        title={deletingPendingPhotoId === photo.id ? 'Eliminando fotografía…' : `Eliminar fotografía ${photo.file_name}`}
+                        onClick={() => void deleteSelectedPendingPhoto(photo)}
+                        disabled={deletingPendingPhotoId !== null}
+                        size="compact"
+                        variant="flat"
+                        className="absolute right-1 top-1 z-10 bg-white/95 text-rose-700 shadow-sm"
+                      />
+                    </div>
                   ))}
                 </div>
               ) : (

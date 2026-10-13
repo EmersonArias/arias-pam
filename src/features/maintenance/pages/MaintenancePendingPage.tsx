@@ -51,7 +51,7 @@ type PendingPhoto = {
   file_size: number
   uploaded_by: string | null
   uploaded_at: string
-  signed_url?: string
+  preview_url?: string
 }
 
 const statusLabels = {
@@ -284,6 +284,7 @@ export default function MaintenancePendingPage() {
 
   useEffect(() => {
     let cancelled = false
+    const objectUrls: string[] = []
 
     async function loadSelectedPendingPhotos() {
       if (!hotel?.id || !selectedId) {
@@ -312,22 +313,31 @@ export default function MaintenancePendingPage() {
 
       const resolved = await Promise.all(
         ((result.data ?? []) as PendingPhoto[]).map(async (photo) => {
-          const signed = await supabase.storage
+          const downloaded = await supabase.storage
             .from('maintenance-evidence')
-            .createSignedUrl(photo.storage_path, 3600)
-          return signed.error || !signed.data?.signedUrl
-            ? null
-            : { ...photo, signed_url: signed.data.signedUrl }
+            .download(photo.storage_path)
+
+          if (downloaded.error || !downloaded.data || cancelled) return null
+
+          const previewUrl = URL.createObjectURL(downloaded.data)
+          objectUrls.push(previewUrl)
+          return { ...photo, preview_url: previewUrl }
         }),
       )
 
-      if (cancelled) return
+      if (cancelled) {
+        objectUrls.forEach((url) => URL.revokeObjectURL(url))
+        return
+      }
       setSelectedPendingPhotos(resolved.filter((photo) => photo !== null))
       setLoadingPendingPhotos(false)
     }
 
     void loadSelectedPendingPhotos()
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+      objectUrls.forEach((url) => URL.revokeObjectURL(url))
+    }
   }, [hotel?.id, selectedId])
 
   const categories = useMemo(
@@ -667,6 +677,7 @@ export default function MaintenancePendingPage() {
         throw new Error(`No se pudo borrar el archivo: ${removedFile.error.message}. Se ha conservado su registro para poder reintentarlo.`)
       }
 
+      if (photo.preview_url) URL.revokeObjectURL(photo.preview_url)
       setSelectedPendingPhotos((current) => current.filter((item) => item.id !== photo.id))
     } catch (err) {
       setPendingPhotosError(err instanceof Error ? err.message : 'No se ha podido eliminar la fotografía.')
@@ -1307,8 +1318,8 @@ export default function MaintenancePendingPage() {
                     <div className="grid grid-cols-2 gap-2">
                       {selectedPendingPhotos.map((photo) => (
                         <div key={photo.id} className="relative overflow-hidden rounded-lg border border-slate-200">
-                          <a href={photo.signed_url} target="_blank" rel="noreferrer" className="block">
-                            <img src={photo.signed_url} alt={photo.file_name} className="aspect-square w-full object-cover" />
+                          <a href={photo.preview_url} target="_blank" rel="noreferrer" className="block">
+                            <img src={photo.preview_url} alt={photo.file_name} className="aspect-square w-full object-cover" />
                             <span className="block truncate border-t px-2 py-1.5 pr-10 text-[10px] text-slate-500" title={photo.file_name}>{photo.file_name}</span>
                           </a>
                           <IconButton
@@ -1436,8 +1447,8 @@ export default function MaintenancePendingPage() {
                 <div className="grid grid-cols-3 gap-2">
                   {selectedPendingPhotos.map((photo) => (
                     <div key={photo.id} className="relative overflow-hidden rounded-lg border border-slate-200 bg-white">
-                      <a href={photo.signed_url} target="_blank" rel="noreferrer" className="block">
-                        <img src={photo.signed_url} alt={photo.file_name} className="aspect-square w-full object-cover" />
+                      <a href={photo.preview_url} target="_blank" rel="noreferrer" className="block">
+                        <img src={photo.preview_url} alt={photo.file_name} className="aspect-square w-full object-cover" />
                         <span className="block truncate border-t px-1.5 py-1 pr-9 text-[9px] text-slate-500" title={photo.file_name}>{photo.file_name}</span>
                       </a>
                       <IconButton

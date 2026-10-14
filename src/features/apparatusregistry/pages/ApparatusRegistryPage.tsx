@@ -218,7 +218,7 @@ export default function ApparatusRegistryPage() {
           </div>
         </div>
 
-                {(errorMessage || loading) && (                {(errorMessage || loading) && (
+        {(errorMessage || loading) && (
           <div className="mb-4 rounded-xl border bg-white p-3 text-sm shadow-sm">
             {loading ? 'Cargando registros…' : errorMessage}
           </div>

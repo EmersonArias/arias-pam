@@ -354,7 +354,7 @@ export default function RoomProjectsPage() {
       setNotice(`No se ha podido guardar la habitación ${code} en la base de datos. Comprueba tus permisos e inténtalo de nuevo.`)
       return
     }
-    setRecords((current) => ({ ...current, [code]: { ...updated, technician } }))
+    setRecords((current) => ({ ...current, [code]: { ...updated, technician: loggedInTechnician || updated.technician } }))
     setNotice('Guardado')
   }
 

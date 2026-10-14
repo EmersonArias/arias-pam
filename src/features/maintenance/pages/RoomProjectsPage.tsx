@@ -292,12 +292,13 @@ export default function RoomProjectsPage() {
       completedAt: status === 'DONE' ? (existing.completedAt || localDate()) : '',
     }
 
+    const technician = loggedInTechnician || updated.technician
     const { error } = await supabase.from('maintenance_room_led_tracking').upsert({
       hotel_id: hotel.id,
       room_code: code,
       status: updated.status,
       completed_at: updated.completedAt || null,
-      technician: updated.technician,
+      technician,
       notes: updated.notes,
     }, { onConflict: 'hotel_id,room_code' })
 

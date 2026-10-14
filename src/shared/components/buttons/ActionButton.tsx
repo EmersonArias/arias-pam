@@ -18,14 +18,21 @@ interface ActionButtonProps {
   className?: string
 }
 
-const raisedBlueGradient =
-  'border border-blue-100 bg-gradient-to-b from-blue-50 via-blue-50 to-blue-100/80 text-slate-700 shadow-[0_2px_5px_rgba(37,99,235,0.12)]'
+const toneClasses: Record<ActionButtonTone, string> = {
+  default: 'border-slate-200 bg-slate-100 text-slate-800 hover:bg-slate-200 active:bg-slate-300',
+  primary: 'border-blue-700 bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800',
+  success: 'border-emerald-700 bg-emerald-600 text-white hover:bg-emerald-700 active:bg-emerald-800',
+  warning: 'border-amber-300 bg-amber-100 text-amber-950 hover:bg-amber-200 active:bg-amber-300',
+  danger: 'border-red-700 bg-red-600 text-white hover:bg-red-700 active:bg-red-800',
+  dark: 'border-slate-700 bg-slate-800 text-white hover:bg-slate-900 active:bg-black',
+}
 
 export default function ActionButton({
   icon: Icon,
   label,
   onClick,
   type = 'button',
+  tone = 'default',
   disabled = false,
   className = '',
 }: ActionButtonProps) {
@@ -35,16 +42,16 @@ export default function ActionButton({
       onClick={onClick}
       disabled={disabled}
       className={[
-        'arias-action-button inline-flex min-h-10 min-w-0 items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold',
-        'transition-all duration-150',
-        'hover:-translate-y-1 hover:border-blue-200 hover:from-blue-50 hover:via-blue-100 hover:to-blue-200/80 hover:shadow-[0_8px_16px_rgba(37,99,235,0.18)]',
-        'active:translate-y-0 active:shadow-[inset_0_2px_4px_rgba(37,99,235,0.14)]',
-        'disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:from-slate-100 disabled:via-slate-100 disabled:to-slate-100 disabled:text-slate-400 disabled:opacity-100 disabled:hover:translate-y-0 disabled:hover:shadow-[0_2px_5px_rgba(15,23,42,0.06)]',
-        raisedBlueGradient,
+        'arias-action-button inline-flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold',
+        'shadow-sm transition-colors duration-150',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2',
+        'active:scale-[0.98]',
+        'disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none disabled:active:scale-100',
+        toneClasses[tone],
         className,
       ].join(' ')}
     >
-      {Icon && <Icon size={17} strokeWidth={2} />}
+      {Icon && <Icon size={18} strokeWidth={2} aria-hidden="true" />}
       <span className="truncate">{label}</span>
     </button>
   )

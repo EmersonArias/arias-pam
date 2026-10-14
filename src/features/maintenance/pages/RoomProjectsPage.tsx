@@ -323,7 +323,7 @@ export default function RoomProjectsPage() {
 
             {configuring && (
               <p className="mt-4 rounded-xl bg-amber-50 p-3 text-xs leading-5 text-amber-900">
-                Configuración del inventario: pulsa una celda para incluirla o retirarla del edificio. Planta 2 queda limitada a las habitaciones 01–17 y planta 15 a 15-01 y 15-02, según tus indicaciones. En las demás plantas se parte de la cuadrícula del documento y puedes corregir las habitaciones que no existan.
+                Inventario según tus indicaciones: planta 2 (17 habitaciones); plantas 3–11 (23 por planta); plantas 12–14 (12 por planta); planta 15 (solo 15-01 y 15-02).
               </p>
             )}
 

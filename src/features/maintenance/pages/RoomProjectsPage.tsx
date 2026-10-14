@@ -421,13 +421,12 @@ export default function RoomProjectsPage() {
 
     autoTable(pdf, {
       startY: 34,
-      head: [['Habitación', 'Planta', 'Estado', 'Fecha de sustitución', 'Técnico', 'Observaciones']],
+      head: [['Habitación', 'Planta', 'Estado', 'Fecha de sustitución', 'Observaciones']],
       body: rows.map(({ code, floor, record }) => [
         code,
         String(floor),
         STATUS_LABELS[record.status],
         record.completedAt ? new Date(`${record.completedAt}T12:00:00`).toLocaleDateString('es-ES') : '—',
-        record.technician || '—',
         record.notes || '—',
       ]),
       styles: { fontSize: 8, cellPadding: 2.2, overflow: 'linebreak' },
@@ -436,8 +435,7 @@ export default function RoomProjectsPage() {
         0: { cellWidth: 24 },
         1: { cellWidth: 18 },
         2: { cellWidth: 28 },
-        3: { cellWidth: 36 },
-        4: { cellWidth: 48 },
+        3: { cellWidth: 42 },
       },
       margin: { left: 14, right: 14, bottom: 14 },
       didDrawPage: () => {

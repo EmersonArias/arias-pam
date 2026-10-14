@@ -154,6 +154,32 @@ export default function RoomProjectsPage() {
   const [filter, setFilter] = useState<'ALL' | RoomStatus>('ALL')
   const [configuring, setConfiguring] = useState(false)
   const [notice, setNotice] = useState('')
+  const [loggedInTechnician, setLoggedInTechnician] = useState('')
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadTechnician() {
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
+      if (cancelled) return
+      if (userError || !user) {
+        setLoggedInTechnician('')
+        return
+      }
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name, email')
+        .eq('id', user.id)
+        .maybeSingle()
+
+      if (cancelled) return
+      setLoggedInTechnician(profile?.full_name?.trim() || profile?.email?.trim() || user.email || '')
+    }
+
+    void loadTechnician()
+    return () => { cancelled = true }
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -279,7 +305,7 @@ export default function RoomProjectsPage() {
       setNotice(`No se ha podido guardar la habitación ${code} en la base de datos. Comprueba tus permisos e inténtalo de nuevo.`)
       return
     }
-    setRecords((current) => ({ ...current, [code]: updated }))
+    setRecords((current) => ({ ...current, [code]: { ...updated, technician } }))
     setNotice(`Habitación ${code}: ${STATUS_LABELS[status].toLowerCase()} y guardada.`)
   }
 
@@ -297,7 +323,7 @@ export default function RoomProjectsPage() {
     }
     const roomCodeToSave = selectedRoom
     const completedAt = draft.status === 'DONE' ? (draft.completedAt || localDate()) : ''
-    const updated = { ...draft, completedAt }
+    const updated = { ...draft, completedAt, technician: loggedInTechnician || draft.technician }
     const { error } = await supabase.from('maintenance_room_led_tracking').upsert({
       hotel_id: hotel.id,
       room_code: roomCodeToSave,

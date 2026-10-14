@@ -19,7 +19,7 @@ interface ActionButtonProps {
 }
 
 const interactionClasses: Record<ActionButtonTone, string> = {
-  default: 'hover:bg-slate-100 active:bg-slate-200 active:ring-4 active:ring-slate-200/70',
+  default: 'hover:bg-blue-100/70 active:bg-blue-100 active:ring-4 active:ring-blue-300/70',
   primary: 'hover:bg-blue-50 active:bg-blue-100 active:ring-4 active:ring-blue-200/70',
   success: 'hover:bg-emerald-50 active:bg-emerald-100 active:ring-4 active:ring-emerald-200/70',
   warning: 'hover:bg-amber-50 active:bg-amber-100 active:ring-4 active:ring-amber-200/70',

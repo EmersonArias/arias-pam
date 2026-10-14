@@ -18,13 +18,13 @@ interface ActionButtonProps {
   className?: string
 }
 
-const toneClasses: Record<ActionButtonTone, string> = {
-  default: 'border-slate-200 bg-slate-100 text-slate-800 hover:bg-slate-200 active:bg-slate-300',
-  primary: 'border-blue-700 bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800',
-  success: 'border-emerald-700 bg-emerald-600 text-white hover:bg-emerald-700 active:bg-emerald-800',
-  warning: 'border-amber-300 bg-amber-100 text-amber-950 hover:bg-amber-200 active:bg-amber-300',
-  danger: 'border-red-700 bg-red-600 text-white hover:bg-red-700 active:bg-red-800',
-  dark: 'border-slate-700 bg-slate-800 text-white hover:bg-slate-900 active:bg-black',
+const interactionClasses: Record<ActionButtonTone, string> = {
+  default: 'hover:bg-slate-100 active:bg-slate-200 active:ring-4 active:ring-slate-200/70',
+  primary: 'hover:bg-blue-50 active:bg-blue-100 active:ring-4 active:ring-blue-200/70',
+  success: 'hover:bg-emerald-50 active:bg-emerald-100 active:ring-4 active:ring-emerald-200/70',
+  warning: 'hover:bg-amber-50 active:bg-amber-100 active:ring-4 active:ring-amber-200/70',
+  danger: 'hover:bg-red-50 active:bg-red-100 active:ring-4 active:ring-red-200/70',
+  dark: 'hover:bg-slate-100 active:bg-slate-200 active:ring-4 active:ring-slate-300/70',
 }
 
 export default function ActionButton({
@@ -36,23 +36,46 @@ export default function ActionButton({
   disabled = false,
   className = '',
 }: ActionButtonProps) {
+  if (!Icon) {
+    return (
+      <button
+        type={type}
+        onClick={onClick}
+        disabled={disabled}
+        aria-label={label}
+        title={label}
+        className={[
+          'arias-action-button rounded-lg px-2.5 py-2 text-sm font-medium text-slate-700',
+          'transition-colors duration-150 hover:bg-slate-100 active:bg-slate-200',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400',
+          'disabled:cursor-not-allowed disabled:text-slate-300',
+          className,
+        ].join(' ')}
+      >
+        {label}
+      </button>
+    )
+  }
+
   return (
     <button
       type={type}
       onClick={onClick}
       disabled={disabled}
+      aria-label={label}
+      title={label}
       className={[
-        'arias-action-button inline-flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold',
-        'shadow-sm transition-colors duration-150',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2',
-        'active:scale-[0.98]',
-        'disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none disabled:active:scale-100',
-        toneClasses[tone],
+        'arias-action-button inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full',
+        'text-slate-700 transition-[background-color,box-shadow,transform] duration-150',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-1',
+        'active:scale-95',
+        interactionClasses[tone],
+        'disabled:cursor-not-allowed disabled:text-slate-300 disabled:hover:bg-transparent disabled:active:scale-100 disabled:active:ring-0',
         className,
       ].join(' ')}
     >
-      {Icon && <Icon size={18} strokeWidth={2} aria-hidden="true" />}
-      <span className="truncate">{label}</span>
+      <Icon size={19} strokeWidth={2} aria-hidden="true" />
+      <span className="sr-only">{label}</span>
     </button>
   )
 }

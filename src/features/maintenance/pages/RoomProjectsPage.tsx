@@ -559,27 +559,26 @@ export default function RoomProjectsPage() {
   return (
     <div className="min-h-screen bg-slate-100 px-2 py-2 text-slate-900 sm:px-4 sm:py-4">
       <div className="mx-auto max-w-[1600px]">
-        <header className="mb-2 rounded-2xl border border-slate-200 bg-white p-2.5 shadow-sm sm:p-4">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex min-w-0 items-center gap-2">
+        <header className="room-led-header mb-2 rounded-2xl border border-slate-200 bg-white p-2.5 shadow-sm sm:p-4">
+          <div className="room-led-header-layout">
+            <div className="room-led-title flex min-w-0 items-center gap-2">
               <BrandLogo onActivate={() => navigate('/')} className="h-9 w-auto shrink-0 object-contain sm:h-11" />
               <div className="min-w-0">
                 <h1 className="text-xl font-bold leading-tight text-slate-900 sm:text-2xl">LED de armario</h1>
                 <p className="mt-0.5 text-[10px] text-slate-400 sm:text-xs">Control visual de habitaciones · Datos provisionales</p>
               </div>
             </div>
-          </div>
-        </header>
-
-        <main className="space-y-2">
-          <section className="rounded-2xl border border-slate-200 bg-white p-2.5 shadow-sm sm:p-4">
-            <div className="arias-grid-toolbar mb-2 flex w-full flex-nowrap items-start justify-around gap-1 overflow-x-auto">
+            <div className="room-led-toolbar arias-grid-toolbar flex w-full flex-nowrap items-start justify-start gap-1 overflow-x-auto">
               <BackButton onBack={() => navigate('/maintenance')} />
               <HomeButton onHome={() => navigate('/')} />
               <ActionButton icon={FileText} label="Exportar" onClick={exportRoomListPdf} />
               <ActionButton icon={Download} label="Imagen" onClick={exportBuildingImage} />
             </div>
+          </div>
+        </header>
 
+        <main className="space-y-2">
+          <section className="rounded-2xl border border-slate-200 bg-white p-2.5 shadow-sm sm:p-4">
             <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 p-2">
                 <label htmlFor="room-list-filter" className="text-xs font-semibold text-slate-600">Filtrar listado:</label>
                 <select id="room-list-filter" value={filter} onChange={(event) => setFilter(event.target.value as 'ALL' | RoomStatus)} className="min-h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-800">

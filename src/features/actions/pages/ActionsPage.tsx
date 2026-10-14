@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import BrandLogo from '../../../shared/components/branding/BrandLogo'
 import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
 import IconButton from '../../../shared/components/buttons/IconButton'
+import ActionButton from '../../../shared/components/buttons/ActionButton'
 import { supabase } from '../../../lib/supabase'
 
 type ActionType = 'REPAIR' | 'EXTERNAL_INTERVENTION' | 'LEGIONELLA' | 'PROJECT' | 'OTHER'
@@ -306,7 +307,7 @@ export default function ActionsPage() {
     <div className="min-h-screen bg-slate-100 p-3 sm:p-5">
       <div className="mx-auto max-w-[1500px]">
         <div className="mb-4 rounded-2xl bg-white p-3 shadow-lg sm:p-4">
-          <div className="flex flex-col gap-2.5 sm:gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-col gap-2.5 sm:gap-3">
             <div className="flex min-w-0 items-center gap-3">
               <BrandLogo onActivate={() => navigate('/')} className="h-9 w-auto shrink-0 object-contain sm:h-13" />
               <div className="min-w-0">
@@ -317,17 +318,14 @@ export default function ActionsPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
+            <div className="arias-grid-toolbar flex w-full flex-nowrap items-start justify-start gap-1 overflow-x-auto sm:w-auto">
               <BackButton onBack={() => navigate('/maintenance')} />
               <HomeButton onHome={() => navigate('/')} />
-              <button
-                type="button"
+              <ActionButton
+                icon={Plus}
+                label="Nueva"
                 onClick={openNew}
-                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-              >
-                <Plus size={16} />
-                Nueva intervención
-              </button>
+              />
               <IconButton
                 icon={RefreshCw}
                 label="Actualizar"

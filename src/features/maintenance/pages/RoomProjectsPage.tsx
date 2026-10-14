@@ -576,22 +576,13 @@ export default function RoomProjectsPage() {
         </header>
 
         <main className="space-y-2">
-          <section className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <h2 className="text-base font-bold text-slate-900">Edificio completo</h2>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <button type="button" onClick={exportRoomListPdf} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50">
-                  <FileText size={17} /> Exportar listado PDF
-                </button>
-                <button type="button" onClick={exportBuildingImage} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-700">
-                  <Download size={17} /> Descargar imagen
-                </button>
-              </div>
+          <section className="rounded-2xl border border-slate-200 bg-white p-2.5 shadow-sm sm:p-4">
+            <div className="mb-2 flex w-full flex-nowrap items-center gap-2">
+              <ActionButton icon={FileText} label="Exportar PDF" onClick={exportRoomListPdf} className="min-w-0 flex-1 px-2 text-xs sm:flex-none sm:px-3 sm:text-sm" />
+              <ActionButton icon={Download} label="Imagen" onClick={exportBuildingImage} className="min-w-0 flex-1 px-2 text-xs sm:flex-none sm:px-3 sm:text-sm" />
             </div>
 
-            <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 p-2">
+            <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 p-2">
                 <label htmlFor="room-list-filter" className="text-xs font-semibold text-slate-600">Filtrar listado:</label>
                 <select id="room-list-filter" value={filter} onChange={(event) => setFilter(event.target.value as 'ALL' | RoomStatus)} className="min-h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-800">
                   <option value="ALL">Todos los estados</option>

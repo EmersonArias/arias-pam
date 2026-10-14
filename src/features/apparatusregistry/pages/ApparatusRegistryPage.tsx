@@ -187,8 +187,8 @@ export default function ApparatusRegistryPage() {
     <div className="min-h-screen bg-slate-100 p-3 sm:p-5">
       <div className="mx-auto max-w-7xl">
         <div className="mb-3 rounded-2xl bg-white p-3 shadow-sm sm:mb-4 sm:p-4">
-          <div className="flex flex-col gap-2">
-            <div className="flex min-w-0 items-center gap-2">
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <div className="flex min-w-0 items-center gap-2 md:flex-1">
               <div className="flex min-w-0 items-center gap-2.5">
                 <BrandLogo
                   onActivate={() => navigate('/')}
@@ -207,7 +207,7 @@ export default function ApparatusRegistryPage() {
             </div>
 
             <GridToolbar
-              className="flex w-full items-center justify-start gap-1"
+              className="flex w-full shrink-0 items-center justify-start gap-1 md:w-auto md:justify-end"
               actions={[
                 { key: 'back', label: 'Volver', icon: CornerUpLeft, onClick: () => navigate(-1) },
                 { key: 'home', label: 'Inicio', icon: House, onClick: () => navigate('/') },

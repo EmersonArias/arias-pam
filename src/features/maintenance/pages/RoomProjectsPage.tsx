@@ -23,6 +23,84 @@ const FLOOR_ROOM_LIMITS: Array<{ floor: number; maxRoom: number }> = [
 const DEFAULT_ROOM_CODES = FLOOR_ROOM_LIMITS.flatMap(({ floor, maxRoom }) =>
   Array.from({ length: maxRoom }, (_, index) => roomCode(floor, index + 1)),
 )
+const DEFAULT_DONE_CODES = new Set([
+  roomCode(2, 1),
+  roomCode(2, 2),
+  roomCode(2, 3),
+  roomCode(2, 4),
+  roomCode(2, 6),
+  roomCode(2, 15),
+  roomCode(2, 16),
+  roomCode(2, 17),
+  roomCode(3, 1),
+  roomCode(3, 2),
+  roomCode(3, 4),
+  roomCode(3, 7),
+  roomCode(3, 10),
+  roomCode(3, 11),
+  roomCode(3, 12),
+  roomCode(3, 13),
+  roomCode(3, 14),
+  roomCode(3, 16),
+  roomCode(3, 18),
+  roomCode(3, 20),
+  roomCode(4, 3),
+  roomCode(4, 5),
+  roomCode(4, 7),
+  roomCode(4, 9),
+  roomCode(4, 10),
+  roomCode(4, 16),
+  roomCode(4, 18),
+  roomCode(4, 19),
+  roomCode(4, 20),
+  roomCode(5, 2),
+  roomCode(5, 11),
+  roomCode(5, 17),
+  roomCode(5, 21),
+  roomCode(5, 22),
+  roomCode(6, 4),
+  roomCode(6, 5),
+  roomCode(6, 11),
+  roomCode(6, 15),
+  roomCode(6, 17),
+  roomCode(6, 19),
+  roomCode(6, 20),
+  roomCode(7, 12),
+  roomCode(7, 20),
+  roomCode(8, 3),
+  roomCode(8, 5),
+  roomCode(8, 7),
+  roomCode(8, 13),
+  roomCode(8, 16),
+  roomCode(9, 7),
+  roomCode(9, 8),
+  roomCode(9, 13),
+  roomCode(10, 1),
+  roomCode(10, 3),
+  roomCode(10, 4),
+  roomCode(10, 5),
+  roomCode(10, 7),
+  roomCode(10, 18),
+  roomCode(10, 19),
+  roomCode(11, 2),
+  roomCode(11, 11),
+  roomCode(12, 1),
+  roomCode(12, 7),
+  roomCode(12, 11),
+  roomCode(13, 2),
+  roomCode(13, 3),
+  roomCode(13, 4),
+  roomCode(13, 6),
+  roomCode(13, 7),
+  roomCode(13, 10),
+  roomCode(13, 12),
+  roomCode(14, 8),
+  roomCode(14, 9),
+  roomCode(14, 10),
+])
+const DEFAULT_DONE_RECORDS: Record<string, RoomRecord> = Object.fromEntries(
+  [...DEFAULT_DONE_CODES].map((code) => [code, { ...defaultRecord(), status: 'DONE', completedAt: '' }]),
+)
 const STATUS_LABELS: Record<RoomStatus, string> = {
   PENDING: 'Pendiente',
   IN_PROGRESS: 'En curso',
@@ -77,7 +155,7 @@ export default function RoomProjectsPage() {
   const [notice, setNotice] = useState('')
 
   useEffect(() => {
-    setRecords(safeRead<Record<string, RoomRecord>>(`${storageKey}:records`, {}))
+    setRecords({ ...DEFAULT_DONE_RECORDS, ...safeRead<Record<string, RoomRecord>>(`${storageKey}:records`, {}) })
     setActiveRooms(safeRead<string[]>(`${storageKey}:rooms`, DEFAULT_ROOM_CODES))
     setSelectedRoom(null)
     setLoadedKey(storageKey)
@@ -100,7 +178,7 @@ export default function RoomProjectsPage() {
         .filter((code) => activeRooms.includes(code))
         .filter((code) => {
           if (configuring || filter === 'ALL') return true
-          return (records[code]?.status ?? 'PENDING') === filter
+          return (records[code]?.status ?? (DEFAULT_DONE_CODES.has(code) ? 'DONE' : 'PENDING')) === filter
         }),
       configurableRooms: Array.from({ length: maxRoom }, (_, index) => roomCode(floor, index + 1)),
     })).filter((row) => configuring || row.rooms.length > 0),
@@ -109,8 +187,8 @@ export default function RoomProjectsPage() {
 
   const totals = useMemo(() => {
     const all = activeRooms
-    const done = all.filter((code) => (records[code]?.status ?? 'PENDING') === 'DONE').length
-    const inProgress = all.filter((code) => (records[code]?.status ?? 'PENDING') === 'IN_PROGRESS').length
+    const done = all.filter((code) => (records[code]?.status ?? (DEFAULT_DONE_CODES.has(code) ? 'DONE' : 'PENDING')) === 'DONE').length
+    const inProgress = all.filter((code) => (records[code]?.status ?? (DEFAULT_DONE_CODES.has(code) ? 'DONE' : 'PENDING')) === 'IN_PROGRESS').length
     return { total: all.length, done, inProgress, pending: all.length - done - inProgress }
   }, [activeRooms, records])
 
@@ -121,7 +199,7 @@ export default function RoomProjectsPage() {
   }, [records, selectedRoom])
 
   function setRoomStatus(code: string, status: RoomStatus) {
-    const existing = records[code] ?? defaultRecord()
+    const existing = records[code] ?? (DEFAULT_DONE_CODES.has(code) ? { ...defaultRecord(), status: 'DONE' as RoomStatus } : defaultRecord())
     setRecords((current) => ({
       ...current,
       [code]: {
@@ -220,7 +298,7 @@ export default function RoomProjectsPage() {
       context.textBaseline = 'middle'
       context.fillText(`PLANTA ${row.floor}`, padding + 8, y + cellHeight / 2)
       row.rooms.forEach((code, roomIndex) => {
-        const status = records[code]?.status ?? 'PENDING'
+        const status = records[code]?.status ?? (DEFAULT_DONE_CODES.has(code) ? 'DONE' : 'PENDING')
         const colors = STATUS_COLORS[status]
         const x = padding + labelWidth + roomIndex * cellWidth
         context.fillStyle = colors.fill
@@ -293,7 +371,7 @@ export default function RoomProjectsPage() {
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <h2 className="text-base font-bold text-slate-900">Edificio completo</h2>
-                <p className="mt-1 text-xs text-slate-500">Elige un estado arriba y después pulsa las habitaciones que quieras marcar. Pulsa una habitación para abrir su ficha y editar detalles.</p>
+                <p className="mt-1 text-xs text-slate-500">Selecciona un estado y toca las habitaciones para marcarlo. Doble toque en una habitación para editar su ficha.</p>
               </div>
               <div className="flex flex-wrap gap-2">
                 <button type="button" onClick={() => { setConfiguring((value) => !value); setFilter('ALL') }} className={`inline-flex min-h-10 items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold ${configuring ? 'border-slate-800 bg-slate-800 text-white' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'}`}>
@@ -306,18 +384,18 @@ export default function RoomProjectsPage() {
             </div>
 
             {!configuring && (
-              <div className="mt-3 flex flex-wrap items-center gap-2" aria-label="Estado que se aplicará al pulsar una habitación">
-                <span className="mr-1 text-xs font-semibold text-slate-500">Marcar habitaciones:</span>
+              <div className="mt-2 flex flex-wrap items-center gap-2" aria-label="Estado que se aplicará al pulsar una habitación">
+                <span className="text-[11px] text-slate-500">Marcar:</span>
                 {([
                   ['DONE', 'Terminado'],
                   ['IN_PROGRESS', 'En curso'],
                   ['PENDING', 'Pendiente'],
                 ] as Array<[RoomStatus, string]>).map(([value, label]) => (
-                  <button key={value} type="button" onClick={() => setSelectedStatus(value)} aria-pressed={selectedStatus === value} className={`min-h-10 rounded-xl border px-4 py-2 text-sm font-bold transition ${selectedStatus === value ? 'ring-2 ring-slate-900 ring-offset-2' : ''} ${STATUS_CLASSES[value]}`}>
+                  <button key={value} type="button" onClick={() => setSelectedStatus(value)} aria-pressed={selectedStatus === value} className={`rounded-md border px-2 py-1 text-[11px] font-medium transition ${selectedStatus === value ? 'ring-1 ring-slate-500 ring-offset-1' : ''} ${STATUS_CLASSES[value]}`}>
                     {label}
                   </button>
                 ))}
-                <span className="text-[10px] text-slate-400">Habitaciones: {totals.total}</span>
+                <span className="ml-auto text-[10px] text-slate-500">Hechas <strong className="text-emerald-700">{totals.done}</strong> · Pendientes <strong>{totals.pending}</strong></span>
               </div>
             )}
 
@@ -335,7 +413,7 @@ export default function RoomProjectsPage() {
                     <div className="flex min-w-0 flex-1 gap-1">
                       {(configuring ? row.configurableRooms : row.rooms).map((code) => {
                         const isActive = activeRooms.includes(code)
-                        const record = records[code] ?? defaultRecord()
+                        const record = records[code] ?? (DEFAULT_DONE_CODES.has(code) ? { ...defaultRecord(), status: 'DONE' as RoomStatus } : defaultRecord())
                         if (configuring) {
                           return (
                             <button key={code} type="button" onClick={() => toggleRoom(code)} aria-label={`${isActive ? 'Retirar' : 'Incluir'} habitación ${code}`} aria-pressed={isActive} className={`h-9 min-w-8 flex-1 rounded-md border text-[11px] font-semibold transition ${isActive ? 'border-slate-300 bg-slate-700 text-white hover:bg-rose-700' : 'border-dashed border-slate-300 bg-white text-slate-300 hover:border-emerald-400 hover:text-emerald-700'}`}>

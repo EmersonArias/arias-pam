@@ -10,7 +10,7 @@ const shortLabels: Record<string, string> = {
   Volver: 'Volver', Inicio: 'Inicio', Guardar: 'Guardar', Cancelar: 'Cancelar',
   Buscar: 'Buscar', Filtrar: 'Filtrar', Limpiar: 'Limpiar', Fotos: 'Fotos',
   Imagen: 'Fotos', Descargar: 'Descarga', Exportar: 'Exportar', Importar: 'Importar',
-  Actualizar: 'Actualizar', Refrescar: 'Actualizar', Cerrar: 'Cerrar',
+  Refrescar: 'Actualizar', Cerrar: 'Cerrar',
 }
 
 function shortLabel(label: string) {

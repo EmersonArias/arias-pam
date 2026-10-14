@@ -330,15 +330,15 @@ export default function MaintenancePlanningPage() {
     <div className="min-h-screen bg-slate-100 px-3 py-3 text-slate-900 sm:px-5 sm:py-5">
       <div className="mx-auto max-w-[1500px]">
         <header className="mb-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-lg sm:p-4">
-          <div className="flex flex-nowrap items-center justify-between gap-2">
-            <div className="flex min-w-0 items-center gap-3">
+          <div className="flex min-w-0 flex-col gap-2">
+            <div className="flex min-w-0 items-center gap-2">
               <BrandLogo onActivate={() => navigate('/')} className="h-9 w-auto shrink-0 object-contain sm:h-11" />
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <h1 className="text-xl font-bold leading-tight sm:text-2xl">Planificación</h1>
                 <p className="text-xs text-slate-500 sm:text-sm">Trabajos programados derivados del PAM</p>
               </div>
             </div>
-            <div className="arias-grid-toolbar flex shrink-0 flex-nowrap items-start gap-1">
+            <div className="arias-grid-toolbar flex w-full flex-nowrap items-start justify-start gap-1 overflow-x-auto">
               <IconButton icon={RefreshCw} label="Actualizar" title="Actualizar" onClick={() => void loadPlanning()} disabled={loading} />
               <BackButton onBack={() => navigate('/maintenance')} />
               <HomeButton onHome={() => navigate('/')} />

@@ -1,16 +1,19 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
+  CheckCircle2,
   ChevronDown,
   ChevronUp,
   ChevronsDown,
   ChevronsUp,
+  CirclePause,
   FileText,
   Pencil,
   Plus,
   RefreshCw,
   Wrench,
 } from 'lucide-react'
+import ActionButton from '../../../shared/components/buttons/ActionButton'
 import IconButton from '../../../shared/components/buttons/IconButton'
 import BrandLogo from '../../../shared/components/branding/BrandLogo'
 import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
@@ -18,6 +21,7 @@ import GridToolbar from '../../../shared/components/grid/GridToolbar'
 import GridViewport from '../../../shared/components/grid/GridViewport'
 import { useGridKeyboardNavigation } from '../../../shared/components/grid/useGridKeyboardNavigation'
 import { supabase } from '../../../lib/supabase'
+import { useSystemDialog } from '../../../shared/components/dialogs/SystemDialogProvider'
 import {
   fromDatabase,
   type ApparatusRegistry,
@@ -26,6 +30,7 @@ import {
 
 export default function ApparatusRegistryPage() {
   const navigate = useNavigate()
+  const { confirm } = useSystemDialog()
 
   const [records, setRecords] = useState<ApparatusRegistry[]>([])
   const [selectedId, setSelectedId] = useState('')
@@ -149,53 +154,82 @@ export default function ApparatusRegistryPage() {
     navigate(`/apparatusregistry/report?${params.toString()}`)
   }
 
+  async function toggleActive() {
+    if (!selected || loading) return
+
+    const nextActive = !selected.active
+    const confirmed = await confirm({
+      title: nextActive ? 'Activar equipo' : 'Desactivar equipo',
+      message: nextActive
+        ? `¿Quieres volver a activar ${selected.code} — ${selected.name}?`
+        : `¿Quieres desactivar ${selected.code} — ${selected.name}? El registro y su histórico se conservarán.`,
+      variant: 'warning',
+      confirmLabel: nextActive ? 'Activar' : 'Desactivar',
+    })
+    if (!confirmed) return
+
+    setErrorMessage('')
+    const { error } = await supabase
+      .from('apparatus_registry')
+      .update({ active: nextActive })
+      .eq('id', selected.id)
+
+    if (error) {
+      setErrorMessage(`No se pudo ${nextActive ? 'activar' : 'desactivar'} el equipo: ${error.message}`)
+      return
+    }
+
+    await loadRecords(selected.id)
+  }
+
   return (
     <div className="min-h-screen bg-slate-100 p-3 sm:p-5">
       <div className="mx-auto max-w-7xl">
-        <div className="mb-4 rounded-2xl bg-white p-3 shadow-lg sm:p-4">
-          <div className="grid gap-3 sm:gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
-            <div className="flex min-w-0 items-center gap-3">
-              <BrandLogo
-                onActivate={() => navigate('/')}
-                className="h-9 w-[104px] shrink-0 object-contain sm:h-13 sm:w-auto"
-              />
-              <div className="min-w-0">
-                <h1 className="text-xl font-bold leading-tight text-slate-900 sm:text-3xl">
-                  Equipos e instalaciones
-                </h1>
-                <p className="hidden text-sm text-slate-500 sm:block">
-                  Mantenimientos, controles y estado de equipos
-                </p>
+        <div className="mb-3 rounded-2xl bg-white p-3 shadow-sm sm:mb-4 sm:p-4">
+          <div className="flex flex-col gap-3">
+            <div className="flex min-w-0 items-center justify-between gap-2">
+              <div className="flex min-w-0 items-center gap-2.5">
+                <BrandLogo
+                  onActivate={() => navigate('/')}
+                  className="h-9 w-[92px] shrink-0 object-contain sm:h-11 sm:w-auto"
+                />
+                <div className="min-w-0">
+                  <h1 className="text-lg font-bold leading-tight text-slate-900 sm:text-2xl">
+                    Equipos e instalaciones
+                  </h1>
+                  <p className="hidden text-sm text-slate-500 sm:block">
+                    Mantenimientos, controles y estado de equipos
+                  </p>
+                </div>
+              </div>
+              <div className="flex shrink-0 items-center gap-1.5">
+                <BackButton onBack={() => navigate(-1)} />
+                <HomeButton onHome={() => navigate('/')} />
               </div>
             </div>
 
-            <div className="grid w-full grid-cols-2 gap-2 lg:flex lg:w-auto lg:flex-wrap lg:items-center lg:justify-end">
-              <BackButton onBack={() => navigate(-1)} />
-              <HomeButton onHome={() => navigate('/')} className="justify-self-center" />
-              <div className="col-span-2 lg:col-auto">
-                <GridToolbar
-                  className="grid grid-cols-2 gap-2 lg:flex lg:flex-wrap lg:gap-2"
-                  actions={[
-                    { key: 'new', label: 'Nuevo', icon: Plus, tone: 'primary', onClick: openNew },
-                    { key: 'modify', label: 'Modificar', icon: Pencil, tone: 'warning', onClick: openModify, disabled: !selected },
-                    { key: 'maintenance', label: 'Mantenimientos', icon: Wrench, onClick: () => navigate('/maintenance') },
-                    { key: 'report', label: 'PDF', icon: FileText, tone: 'dark', onClick: openReport },
-                  ]}
-                />
-              </div>
-            </div>
+            <GridToolbar
+              className="grid w-full grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end"
+              actions={[
+                { key: 'new', label: 'Nuevo', icon: Plus, tone: 'primary', onClick: openNew },
+                { key: 'modify', label: 'Modificar', icon: Pencil, tone: 'warning', onClick: openModify, disabled: !selected || loading },
+                { key: 'active', label: selected?.active ? 'Desactivar' : 'Activar', icon: selected?.active ? CirclePause : CheckCircle2, tone: selected?.active ? 'danger' : 'success', onClick: () => void toggleActive(), disabled: !selected || loading },
+                { key: 'maintenance', label: 'Mantenimientos', icon: Wrench, onClick: () => navigate('/maintenance') },
+                { key: 'report', label: 'PDF', icon: FileText, tone: 'dark', onClick: openReport },
+              ]}
+            />
           </div>
         </div>
 
-        {(errorMessage || loading) && (
+                {(errorMessage || loading) && (
           <div className="mb-4 rounded-xl border bg-white p-3 text-sm shadow-sm">
             {loading ? 'Cargando registros…' : errorMessage}
           </div>
         )}
 
-        <div className="mb-4 rounded-2xl bg-white p-3 shadow-lg sm:p-4">
-          <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-5 lg:items-end">
-            <label className="block">
+        <div className="mb-3 rounded-2xl bg-white p-3 shadow-sm sm:mb-4 sm:p-4">
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-2 lg:grid-cols-5 lg:items-end">
+            <label className="col-span-2 block lg:col-span-1">
               <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                 Buscar
               </span>
@@ -242,7 +276,7 @@ export default function ApparatusRegistryPage() {
               </select>
             </label>
 
-            <label className="block">
+            <label className="col-span-2 block sm:col-span-1 lg:col-span-1">
               <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
                 Reporte
               </span>
@@ -259,11 +293,15 @@ export default function ApparatusRegistryPage() {
               </select>
             </label>
 
-            <IconButton
-              icon={RefreshCw}
-              label="Actualizar"
-              onClick={() => void loadRecords(selectedId)}
-            />
+            <div className="col-span-2 flex sm:col-span-1 lg:col-span-1">
+              <ActionButton
+                icon={RefreshCw}
+                label="Actualizar"
+                onClick={() => void loadRecords(selectedId)}
+                disabled={loading}
+                className="w-full sm:w-auto lg:w-full"
+              />
+            </div>
           </div>
         </div>
 
@@ -285,10 +323,8 @@ export default function ApparatusRegistryPage() {
                   <button
                     key={item.id}
                     type="button"
-                    onClick={() => {
-                      setSelectedId(item.id)
-                      navigate(`/apparatusregistry/${item.id}`)
-                    }}
+                    onClick={() => setSelectedId(item.id)}
+                    aria-pressed={isSelected}
                     className={`w-full rounded-xl border p-3 text-left shadow-sm transition ${
                       isSelected
                         ? 'border-blue-200 bg-blue-50'
@@ -375,10 +411,7 @@ export default function ApparatusRegistryPage() {
                     <tr
                       key={item.id}
                       {...getRowProps(item.id)}
-                      onClick={() => {
-                        setSelectedId(item.id)
-                        navigate(`/apparatusregistry/${item.id}`)
-                      }}
+                      onClick={() => setSelectedId(item.id)}
                       className={`scroll-mt-12 cursor-pointer border-b transition outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-200 ${
                         isSelected
                           ? 'bg-blue-50'

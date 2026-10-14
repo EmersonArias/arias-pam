@@ -568,18 +568,16 @@ export default function RoomProjectsPage() {
                 <p className="mt-0.5 text-[10px] text-slate-400 sm:text-xs">Control visual de habitaciones · Datos provisionales</p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <BackButton onBack={() => navigate('/maintenance')} />
-              <HomeButton onHome={() => navigate('/')} />
-            </div>
           </div>
         </header>
 
         <main className="space-y-2">
           <section className="rounded-2xl border border-slate-200 bg-white p-2.5 shadow-sm sm:p-4">
-            <div className="mb-2 flex w-full flex-nowrap items-center gap-2">
-              <ActionButton icon={FileText} label="Exportar PDF" onClick={exportRoomListPdf} className="min-w-0 flex-1 px-2 text-xs sm:flex-none sm:px-3 sm:text-sm" />
-              <ActionButton icon={Download} label="Imagen" onClick={exportBuildingImage} className="min-w-0 flex-1 px-2 text-xs sm:flex-none sm:px-3 sm:text-sm" />
+            <div className="arias-grid-toolbar mb-2 flex w-full flex-nowrap items-start justify-around gap-1 overflow-x-auto">
+              <BackButton onBack={() => navigate('/maintenance')} />
+              <HomeButton onHome={() => navigate('/')} />
+              <ActionButton icon={FileText} label="Exportar" onClick={exportRoomListPdf} />
+              <ActionButton icon={Download} label="Imagen" onClick={exportBuildingImage} />
             </div>
 
             <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 p-2">

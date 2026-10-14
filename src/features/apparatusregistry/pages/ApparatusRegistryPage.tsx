@@ -276,31 +276,33 @@ export default function ApparatusRegistryPage() {
               </select>
             </label>
 
-            <label className="col-span-2 block sm:col-span-1 lg:col-span-1">
-              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Reporte
-              </span>
-              <select
-                value={reportScope}
-                onChange={(event) =>
-                  setReportScope(event.target.value as 'SELECTED' | 'FILTERED' | 'ALL')
-                }
-                className="w-full rounded-lg border border-slate-300 px-3 py-2"
-              >
-                <option value="SELECTED">Seleccionado</option>
-                <option value="FILTERED">Según filtros</option>
-                <option value="ALL">Todos</option>
-              </select>
-            </label>
+            <div className="col-span-2 flex min-w-0 items-end gap-2 lg:col-span-2">
+              <label className="block min-w-0 flex-1">
+                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Reporte
+                </span>
+                <select
+                  value={reportScope}
+                  onChange={(event) =>
+                    setReportScope(event.target.value as 'SELECTED' | 'FILTERED' | 'ALL')
+                  }
+                  className="h-[46px] w-full rounded-lg border border-slate-300 px-3 py-2"
+                >
+                  <option value="SELECTED">Seleccionado</option>
+                  <option value="FILTERED">Según filtros</option>
+                  <option value="ALL">Todos</option>
+                </select>
+              </label>
 
-            <div className="col-span-2 flex sm:col-span-1 lg:col-span-1">
-              <ActionButton
-                icon={RefreshCw}
-                label="Actualizar"
-                onClick={() => void loadRecords(selectedId)}
-                disabled={loading}
-                className="w-full sm:w-auto lg:w-full"
-              />
+              <div className="flex h-[46px] shrink-0 items-center justify-center">
+                <ActionButton
+                  icon={RefreshCw}
+                  label="Actualizar"
+                  onClick={() => void loadRecords(selectedId)}
+                  disabled={loading}
+                  className="h-9 w-9"
+                />
+              </div>
             </div>
           </div>
         </div>

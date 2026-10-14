@@ -186,28 +186,25 @@ export default function ApparatusRegistryPage() {
   return (
     <div className="min-h-screen bg-slate-100 p-3 sm:p-5">
       <div className="mx-auto max-w-7xl">
-        <div className="mb-3 rounded-2xl bg-white p-3 shadow-sm sm:mb-4 sm:p-4">
-          <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex min-w-0 flex-1 items-center gap-2">
-              <div className="flex min-w-0 flex-1 items-center gap-2.5">
-                <BrandLogo
-                  onActivate={() => navigate('/')}
-                  className="h-9 w-[92px] shrink-0 object-contain sm:h-11 sm:w-auto"
-                />
-                <div className="min-w-0 flex-1">
-                  <h1 className="text-lg font-bold leading-tight text-slate-900 sm:text-2xl lg:whitespace-nowrap">
-                    Equipos e instalaciones
-                  </h1>
-                  <p className="hidden text-sm text-slate-500 sm:block">
-                    Mantenimientos, controles y estado de equipos
-                  </p>
-                </div>
+        <div className="apparatus-registry-header-card mb-3 rounded-2xl bg-white p-3 shadow-sm sm:mb-4 sm:p-4">
+          <div className="apparatus-registry-header-layout">
+            <div className="apparatus-registry-title">
+              <BrandLogo
+                onActivate={() => navigate('/')}
+                className="apparatus-registry-brand h-9 w-[92px] shrink-0 object-contain sm:h-11 sm:w-auto"
+              />
+              <div className="apparatus-registry-title-copy">
+                <h1 className="text-lg font-bold leading-tight text-slate-900 sm:text-2xl">
+                  Equipos e instalaciones
+                </h1>
+                <p className="hidden text-sm text-slate-500 sm:block">
+                  Mantenimientos, controles y estado de equipos
+                </p>
               </div>
-
             </div>
 
             <GridToolbar
-              className="flex w-full shrink-0 items-center justify-start gap-1 lg:w-auto lg:justify-end"
+              className="apparatus-registry-toolbar flex w-full items-center justify-start gap-1"
               actions={[
                 { key: 'back', label: 'Volver', icon: CornerUpLeft, onClick: () => navigate(-1) },
                 { key: 'home', label: 'Inicio', icon: House, onClick: () => navigate('/') },
@@ -221,7 +218,7 @@ export default function ApparatusRegistryPage() {
           </div>
         </div>
 
-                {(errorMessage || loading) && (
+                {(errorMessage || loading) && (                {(errorMessage || loading) && (
           <div className="mb-4 rounded-xl border bg-white p-3 text-sm shadow-sm">
             {loading ? 'Cargando registros…' : errorMessage}
           </div>

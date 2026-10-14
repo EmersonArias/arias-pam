@@ -317,3 +317,14 @@ svg {
 .arias-suite-app div.flex.flex-wrap:has(> button:not(.arias-action-button):not(.arias-icon-button):has(svg))::-webkit-scrollbar {
   display: none;
 }
+
+
+.arias-suite-app button[aria-label]:not(.arias-action-button):not(.arias-icon-button):has(svg) svg,
+.arias-suite-app button[title]:not([aria-label]):not(.arias-action-button):not(.arias-icon-button):has(svg) svg {
+  color: #294b70 !important;
+}
+
+.arias-suite-app button[aria-label]:not(.arias-action-button):not(.arias-icon-button):has(svg) > :not(svg),
+.arias-suite-app button[title]:not([aria-label]):not(.arias-action-button):not(.arias-icon-button):has(svg) > :not(svg) {
+  display: none !important;
+}

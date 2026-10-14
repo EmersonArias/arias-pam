@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Download, Home, Settings2, X, CheckCircle2, Clock3, Wrench } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import BrandLogo from '../../../shared/components/branding/BrandLogo'
@@ -117,7 +117,7 @@ export default function RoomProjectsPage() {
 
   useEffect(() => {
     if (selectedRoom) setDraft({ ...(records[selectedRoom] ?? defaultRecord()) })
-  }, [selectedRoom])
+  }, [records, selectedRoom])
 
   function toggleRoom(code: string) {
     setActiveRooms((current) =>
@@ -411,7 +411,7 @@ export default function RoomProjectsPage() {
   )
 }
 
-function SummaryCard({ label, value, icon, color = 'slate' }: { label: string; value: number; icon: React.ReactNode; color?: 'slate' | 'green' | 'amber' | 'blue' }) {
+function SummaryCard({ label, value, icon, color = 'slate' }: { label: string; value: number; icon: ReactNode; color?: 'slate' | 'green' | 'amber' | 'blue' }) {
   const styles = {
     slate: 'bg-slate-100 text-slate-700',
     green: 'bg-emerald-100 text-emerald-700',

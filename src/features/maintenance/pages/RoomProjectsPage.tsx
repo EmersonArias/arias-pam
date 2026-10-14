@@ -170,7 +170,7 @@ export default function RoomProjectsPage() {
     context.fillRect(0, 0, width, height)
     context.fillStyle = '#0F172A'
     context.font = '700 25px Arial, sans-serif'
-    context.fillText('SUSTITUCIÓN LED DE ARMARIOS', padding, 42)
+    context.fillText('LED DE ARMARIO', padding, 42)
     context.fillStyle = '#475569'
     context.font = '14px Arial, sans-serif'
     context.fillText(hotel?.name ? `Hotel: ${hotel.name}` : 'Seguimiento de habitaciones', padding, 67)
@@ -238,7 +238,7 @@ export default function RoomProjectsPage() {
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
-      link.download = `sustitucion-led-armarios-${localDate()}.png`
+      link.download = `led-de-armario-${localDate()}.png`
       document.body.appendChild(link)
       link.click()
       link.remove()
@@ -256,7 +256,7 @@ export default function RoomProjectsPage() {
               <BrandLogo onActivate={() => navigate('/')} className="h-9 w-auto shrink-0 object-contain sm:h-11" />
               <div className="min-w-0">
                 <h1 className="text-xl font-bold leading-tight text-slate-900 sm:text-2xl">Trabajos por habitaciones</h1>
-                <p className="mt-0.5 text-xs text-slate-500 sm:text-sm">Sustitución de fluorescentes por tiras LED en armarios</p>
+                <p className="mt-0.5 text-xs text-slate-500 sm:text-sm">LED de armario</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -370,7 +370,7 @@ export default function RoomProjectsPage() {
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Ficha de habitación</p>
                 <h2 id="room-detail-title" className="mt-1 text-xl font-bold text-slate-900">Habitación {selectedRoom}</h2>
-                <p className="mt-1 text-sm text-slate-500">Sustitución de fluorescentes por tiras LED de armario</p>
+                <p className="mt-1 text-sm text-slate-500">LED de armario</p>
               </div>
               <button type="button" onClick={() => setSelectedRoom(null)} className="rounded-xl p-2 text-slate-500 hover:bg-slate-100" aria-label="Cerrar ficha"><X size={20} /></button>
             </div>

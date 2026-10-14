@@ -2,12 +2,14 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   CheckCircle2,
+  CornerUpLeft,
   ChevronDown,
   ChevronUp,
   ChevronsDown,
   ChevronsUp,
   CirclePause,
   FileText,
+  House,
   Pencil,
   Plus,
   RefreshCw,
@@ -16,7 +18,6 @@ import {
 import ActionButton from '../../../shared/components/buttons/ActionButton'
 import IconButton from '../../../shared/components/buttons/IconButton'
 import BrandLogo from '../../../shared/components/branding/BrandLogo'
-import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
 import GridToolbar from '../../../shared/components/grid/GridToolbar'
 import GridViewport from '../../../shared/components/grid/GridViewport'
 import { useGridKeyboardNavigation } from '../../../shared/components/grid/useGridKeyboardNavigation'
@@ -186,8 +187,8 @@ export default function ApparatusRegistryPage() {
     <div className="min-h-screen bg-slate-100 p-3 sm:p-5">
       <div className="mx-auto max-w-7xl">
         <div className="mb-3 rounded-2xl bg-white p-3 shadow-sm sm:mb-4 sm:p-4">
-          <div className="flex flex-col gap-3">
-            <div className="flex min-w-0 items-center justify-between gap-2">
+          <div className="flex flex-col gap-2">
+            <div className="flex min-w-0 items-center gap-2">
               <div className="flex min-w-0 items-center gap-2.5">
                 <BrandLogo
                   onActivate={() => navigate('/')}
@@ -202,15 +203,14 @@ export default function ApparatusRegistryPage() {
                   </p>
                 </div>
               </div>
-              <div className="flex shrink-0 items-center gap-1.5">
-                <BackButton onBack={() => navigate(-1)} />
-                <HomeButton onHome={() => navigate('/')} />
-              </div>
+
             </div>
 
             <GridToolbar
-              className="flex w-full items-center justify-between gap-1"
+              className="flex w-full items-center justify-start gap-1"
               actions={[
+                { key: 'back', label: 'Volver', icon: CornerUpLeft, onClick: () => navigate(-1) },
+                { key: 'home', label: 'Inicio', icon: House, onClick: () => navigate('/') },
                 { key: 'new', label: 'Nuevo', icon: Plus, tone: 'primary', onClick: openNew },
                 { key: 'modify', label: 'Modificar', icon: Pencil, tone: 'warning', onClick: openModify, disabled: !selected || loading },
                 { key: 'active', label: selected?.active ? 'Desactivar' : 'Activar', icon: selected?.active ? CirclePause : CheckCircle2, tone: selected?.active ? 'danger' : 'success', onClick: () => void toggleActive(), disabled: !selected || loading },

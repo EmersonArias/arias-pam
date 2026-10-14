@@ -209,7 +209,7 @@ export default function ApparatusRegistryPage() {
             </div>
 
             <GridToolbar
-              className="flex w-full flex-wrap items-center justify-end gap-1"
+              className="flex w-full items-center justify-between gap-1"
               actions={[
                 { key: 'new', label: 'Nuevo', icon: Plus, tone: 'primary', onClick: openNew },
                 { key: 'modify', label: 'Modificar', icon: Pencil, tone: 'warning', onClick: openModify, disabled: !selected || loading },
@@ -316,7 +316,7 @@ export default function ApparatusRegistryPage() {
           </div>
 
           <div className="md:hidden">
-            <div className="max-h-[calc(100vh-390px)] min-h-[280px] space-y-2 overflow-auto p-2">
+            <div className="max-h-[calc(100dvh-300px)] min-h-[280px] space-y-2 overflow-auto p-2">
               {filteredRecords.map((item) => {
                 const isSelected = item.id === selectedId
                 return (

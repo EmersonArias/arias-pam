@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { Download, Home, Settings2, X, CheckCircle2, Clock3, Wrench } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { Download, Settings2, Wrench } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import BrandLogo from '../../../shared/components/branding/BrandLogo'
 import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
@@ -16,8 +16,8 @@ type RoomDraft = RoomRecord
 
 const FLOOR_ROOM_LIMITS: Array<{ floor: number; maxRoom: number }> = [
   { floor: 2, maxRoom: 17 },
-  ...Array.from({ length: 11 }, (_, index) => ({ floor: index + 3, maxRoom: 23 })),
-  { floor: 14, maxRoom: 12 },
+  ...Array.from({ length: 9 }, (_, index) => ({ floor: index + 3, maxRoom: 23 })),
+  ...Array.from({ length: 3 }, (_, index) => ({ floor: index + 12, maxRoom: 12 })),
   { floor: 15, maxRoom: 2 },
 ]
 const DEFAULT_ROOM_CODES = FLOOR_ROOM_LIMITS.flatMap(({ floor, maxRoom }) =>
@@ -29,14 +29,14 @@ const STATUS_LABELS: Record<RoomStatus, string> = {
   DONE: 'Terminada',
 }
 const STATUS_CLASSES: Record<RoomStatus, string> = {
-  PENDING: 'border-amber-200 bg-amber-50 text-amber-900 hover:bg-amber-100',
-  IN_PROGRESS: 'border-blue-200 bg-blue-50 text-blue-900 hover:bg-blue-100',
-  DONE: 'border-emerald-200 bg-emerald-50 text-emerald-900 hover:bg-emerald-100',
+  PENDING: 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50',
+  IN_PROGRESS: 'border-orange-300 bg-orange-400 text-white hover:bg-orange-500',
+  DONE: 'border-emerald-300 bg-emerald-500 text-white hover:bg-emerald-600',
 }
 const STATUS_COLORS: Record<RoomStatus, { fill: string; stroke: string; text: string }> = {
-  PENDING: { fill: '#FEF3C7', stroke: '#F59E0B', text: '#92400E' },
-  IN_PROGRESS: { fill: '#DBEAFE', stroke: '#60A5FA', text: '#1D4ED8' },
-  DONE: { fill: '#D1FAE5', stroke: '#34D399', text: '#065F46' },
+  PENDING: { fill: '#FFFFFF', stroke: '#CBD5E1', text: '#334155' },
+  IN_PROGRESS: { fill: '#FB923C', stroke: '#EA580C', text: '#FFFFFF' },
+  DONE: { fill: '#22C55E', stroke: '#15803D', text: '#FFFFFF' },
 }
 
 function roomCode(floor: number, roomNumber: number) {
@@ -71,6 +71,7 @@ export default function RoomProjectsPage() {
   const [loadedKey, setLoadedKey] = useState('')
   const [selectedRoom, setSelectedRoom] = useState<string | null>(null)
   const [draft, setDraft] = useState<RoomDraft>(defaultRecord())
+  const [selectedStatus, setSelectedStatus] = useState<RoomStatus>('IN_PROGRESS')
   const [filter, setFilter] = useState<'ALL' | RoomStatus>('ALL')
   const [configuring, setConfiguring] = useState(false)
   const [notice, setNotice] = useState('')
@@ -118,6 +119,19 @@ export default function RoomProjectsPage() {
   useEffect(() => {
     if (selectedRoom) setDraft({ ...(records[selectedRoom] ?? defaultRecord()) })
   }, [records, selectedRoom])
+
+  function setRoomStatus(code: string, status: RoomStatus) {
+    const existing = records[code] ?? defaultRecord()
+    setRecords((current) => ({
+      ...current,
+      [code]: {
+        ...existing,
+        status,
+        completedAt: status === 'DONE' ? (existing.completedAt || localDate()) : '',
+      },
+    }))
+    setNotice(`Habitación ${code}: ${STATUS_LABELS[status].toLowerCase()}.`)
+  }
 
   function toggleRoom(code: string) {
     setActiveRooms((current) =>
@@ -174,14 +188,10 @@ export default function RoomProjectsPage() {
     context.fillStyle = '#475569'
     context.font = '14px Arial, sans-serif'
     context.fillText(hotel?.name ? `Hotel: ${hotel.name}` : 'Seguimiento de habitaciones', padding, 67)
-    context.fillText(`Actualizado: ${new Date().toLocaleDateString('es-ES')}`, padding, 89)
+    context.fillText(`Estado a fecha de ${new Date().toLocaleDateString('es-ES')}`, padding, 89)
     context.font = 'bold 13px Arial, sans-serif'
-    context.fillStyle = '#065F46'
-    context.fillText(`Terminadas: ${totals.done}`, padding, 119)
-    context.fillStyle = '#92400E'
-    context.fillText(`Pendientes: ${totals.pending}`, padding + 145, 119)
-    context.fillStyle = '#1D4ED8'
-    context.fillText(`En curso: ${totals.inProgress}`, padding + 280, 119)
+    context.fillStyle = '#475569'
+    context.fillText('Pulsa cada habitación en la aplicación para cambiar su estado', padding, 119)
 
     const legendY = 143
     const legend = [
@@ -255,8 +265,8 @@ export default function RoomProjectsPage() {
             <div className="flex min-w-0 items-center gap-3">
               <BrandLogo onActivate={() => navigate('/')} className="h-9 w-auto shrink-0 object-contain sm:h-11" />
               <div className="min-w-0">
-                <h1 className="text-xl font-bold leading-tight text-slate-900 sm:text-2xl">Trabajos por habitaciones</h1>
-                <p className="mt-0.5 text-xs text-slate-500 sm:text-sm">LED de armario</p>
+                <h1 className="text-xl font-bold leading-tight text-slate-900 sm:text-2xl">LED de armario</h1>
+                <p className="mt-0.5 text-[10px] text-slate-400 sm:text-xs">Control visual de habitaciones · Datos provisionales</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -279,18 +289,11 @@ export default function RoomProjectsPage() {
             </div>
           </section>
 
-          <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <SummaryCard label="Habitaciones configuradas" value={totals.total} icon={<Home size={19} />} />
-            <SummaryCard label="Terminadas" value={totals.done} icon={<CheckCircle2 size={19} />} color="green" />
-            <SummaryCard label="Pendientes" value={totals.pending} icon={<Clock3 size={19} />} color="amber" />
-            <SummaryCard label="En curso" value={totals.inProgress} icon={<Wrench size={19} />} color="blue" />
-          </section>
-
           <section className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <h2 className="text-base font-bold text-slate-900">Edificio completo</h2>
-                <p className="mt-1 text-xs text-slate-500">Pulsa una habitación para abrir su ficha. Todas las plantas con habitaciones aparecen en la misma vista.</p>
+                <p className="mt-1 text-xs text-slate-500">Elige un estado arriba y después pulsa las habitaciones que quieras marcar. Pulsa una habitación para abrir su ficha y editar detalles.</p>
               </div>
               <div className="flex flex-wrap gap-2">
                 <button type="button" onClick={() => { setConfiguring((value) => !value); setFilter('ALL') }} className={`inline-flex min-h-10 items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold ${configuring ? 'border-slate-800 bg-slate-800 text-white' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'}`}>
@@ -303,17 +306,18 @@ export default function RoomProjectsPage() {
             </div>
 
             {!configuring && (
-              <div className="mt-4 flex flex-wrap gap-2" aria-label="Filtrar habitaciones">
+              <div className="mt-3 flex flex-wrap items-center gap-2" aria-label="Estado que se aplicará al pulsar una habitación">
+                <span className="mr-1 text-xs font-semibold text-slate-500">Marcar habitaciones:</span>
                 {([
-                  ['ALL', 'Todas'],
-                  ['PENDING', 'Pendientes'],
+                  ['DONE', 'Terminado'],
                   ['IN_PROGRESS', 'En curso'],
-                  ['DONE', 'Terminadas'],
-                ] as Array<[typeof filter, string]>).map(([value, label]) => (
-                  <button key={value} type="button" onClick={() => setFilter(value)} className={`rounded-full px-3 py-1.5 text-xs font-semibold ${filter === value ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+                  ['PENDING', 'Pendiente'],
+                ] as Array<[RoomStatus, string]>).map(([value, label]) => (
+                  <button key={value} type="button" onClick={() => setSelectedStatus(value)} aria-pressed={selectedStatus === value} className={`min-h-10 rounded-xl border px-4 py-2 text-sm font-bold transition ${selectedStatus === value ? 'ring-2 ring-slate-900 ring-offset-2' : ''} ${STATUS_CLASSES[value]}`}>
                     {label}
                   </button>
                 ))}
+                <span className="text-[10px] text-slate-400">Habitaciones: {totals.total}</span>
               </div>
             )}
 
@@ -340,7 +344,7 @@ export default function RoomProjectsPage() {
                           )
                         }
                         return (
-                          <button key={code} type="button" onClick={() => { setSelectedRoom(code); setNotice('') }} title={`${code} · ${STATUS_LABELS[record.status]}`} aria-label={`Habitación ${code}: ${STATUS_LABELS[record.status]}`} className={`h-9 min-w-8 flex-1 rounded-md border text-[11px] font-bold transition focus:outline-none focus:ring-2 focus:ring-slate-500 ${STATUS_CLASSES[record.status]}`}>
+                          <button key={code} type="button" onClick={() => { setRoomStatus(code, selectedStatus); setNotice('') }} onDoubleClick={() => { setSelectedRoom(code); setNotice('') }} title={`${code} · ${STATUS_LABELS[record.status]}. Pulsa para aplicar “${STATUS_LABELS[selectedStatus]}”; doble toque para abrir ficha.`} aria-label={`Habitación ${code}: ${STATUS_LABELS[record.status]}. Aplicar ${STATUS_LABELS[selectedStatus]}. Doble toque para editar detalles.`} className={`h-9 min-w-8 flex-1 rounded-md border text-[11px] font-bold transition focus:outline-none focus:ring-2 focus:ring-slate-500 ${STATUS_CLASSES[record.status]}`}>
                             {code.split('-')[1]}
                           </button>
                         )
@@ -353,9 +357,9 @@ export default function RoomProjectsPage() {
             </div>
 
             <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 border-t border-slate-100 pt-3 text-xs text-slate-600">
-              <Legend color="bg-emerald-100 border-emerald-300" label="Terminada" />
-              <Legend color="bg-amber-100 border-amber-300" label="Pendiente" />
-              <Legend color="bg-blue-100 border-blue-300" label="En curso" />
+              <Legend color="bg-emerald-500 border-emerald-600" label="Terminada" />
+              <Legend color="bg-white border-slate-300" label="Pendiente" />
+              <Legend color="bg-orange-400 border-orange-600" label="En curso" />
               {configuring && <span className="text-slate-500">En configuración: toca una celda para incluir/retirar la habitación.</span>}
             </div>
             {notice && <p role="status" className="mt-3 rounded-lg bg-slate-100 px-3 py-2 text-xs text-slate-700">{notice}</p>}
@@ -407,24 +411,6 @@ export default function RoomProjectsPage() {
           </section>
         </div>
       )}
-    </div>
-  )
-}
-
-function SummaryCard({ label, value, icon, color = 'slate' }: { label: string; value: number; icon: ReactNode; color?: 'slate' | 'green' | 'amber' | 'blue' }) {
-  const styles = {
-    slate: 'bg-slate-100 text-slate-700',
-    green: 'bg-emerald-100 text-emerald-700',
-    amber: 'bg-amber-100 text-amber-700',
-    blue: 'bg-blue-100 text-blue-700',
-  }
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="flex items-center justify-between gap-3">
-        <div className="text-xs font-semibold text-slate-500">{label}</div>
-        <div className={`rounded-xl p-2 ${styles[color]}`}>{icon}</div>
-      </div>
-      <div className="mt-3 text-3xl font-bold tracking-tight text-slate-900">{value}</div>
     </div>
   )
 }

@@ -209,7 +209,7 @@ export default function ApparatusRegistryPage() {
             </div>
 
             <GridToolbar
-              className="grid w-full grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end"
+              className="flex w-full flex-wrap items-center justify-end gap-1"
               actions={[
                 { key: 'new', label: 'Nuevo', icon: Plus, tone: 'primary', onClick: openNew },
                 { key: 'modify', label: 'Modificar', icon: Pencil, tone: 'warning', onClick: openModify, disabled: !selected || loading },

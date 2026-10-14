@@ -226,8 +226,44 @@ export default function RoomProjectsPage() {
         return
       }
 
+      // Create an initial database row for each configured room, preserving rows already stored.
+      const configuredRooms = safeRead<string[]>(`${storageKey}:rooms`, DEFAULT_ROOM_CODES)
+      const storedCodes = new Set((data ?? []).map((row) => row.room_code))
+      const initialRows = configuredRooms
+        .filter((room_code) => !storedCodes.has(room_code))
+        .map((room_code) => {
+          const initial = DEFAULT_DONE_CODES.has(room_code) ? 'DONE' : 'PENDING'
+          return {
+            hotel_id: hotel.id,
+            room_code,
+            status: initial,
+            completed_at: null,
+            technician: '',
+            notes: '',
+          }
+        })
+
+      let persistedData = data ?? []
+      if (initialRows.length) {
+        const { error: seedError } = await supabase
+          .from('maintenance_room_led_tracking')
+          .upsert(initialRows, { onConflict: 'hotel_id,room_code', ignoreDuplicates: true })
+
+        if (cancelled) return
+        if (seedError) {
+          setNotice('No se han podido inicializar todas las habitaciones en la base de datos. Comprueba tus permisos de mantenimiento.')
+        } else {
+          const { data: refreshed, error: refreshError } = await supabase
+            .from('maintenance_room_led_tracking')
+            .select('room_code, status, completed_at, technician, notes')
+            .eq('hotel_id', hotel.id)
+          if (cancelled) return
+          if (!refreshError && refreshed) persistedData = refreshed
+        }
+      }
+
       const savedRecords: Record<string, RoomRecord> = Object.fromEntries(
-        (data ?? []).map((row) => [row.room_code, {
+        persistedData.map((row) => [row.room_code, {
           status: row.status as RoomStatus,
           completedAt: row.completed_at ?? '',
           technician: row.technician ?? '',

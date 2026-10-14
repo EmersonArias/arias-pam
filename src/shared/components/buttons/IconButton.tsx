@@ -20,12 +20,12 @@ interface IconButtonProps {
   variant?: 'raised' | 'flat'
 }
 
-const toneClasses: Record<IconButtonTone, string> = {
-  default: 'border-slate-200 bg-slate-100 text-slate-700 hover:bg-slate-200 active:bg-slate-300',
-  primary: 'border-blue-700 bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800',
-  success: 'border-emerald-700 bg-emerald-600 text-white hover:bg-emerald-700 active:bg-emerald-800',
-  warning: 'border-amber-300 bg-amber-100 text-amber-950 hover:bg-amber-200 active:bg-amber-300',
-  danger: 'border-red-700 bg-red-600 text-white hover:bg-red-700 active:bg-red-800',
+const rippleClasses: Record<IconButtonTone, string> = {
+  default: 'hover:bg-slate-100 active:bg-slate-200 active:ring-4 active:ring-slate-200/70',
+  primary: 'hover:bg-blue-50 active:bg-blue-100 active:ring-4 active:ring-blue-200/70',
+  success: 'hover:bg-emerald-50 active:bg-emerald-100 active:ring-4 active:ring-emerald-200/70',
+  warning: 'hover:bg-amber-50 active:bg-amber-100 active:ring-4 active:ring-amber-200/70',
+  danger: 'hover:bg-red-50 active:bg-red-100 active:ring-4 active:ring-red-200/70',
 }
 
 export default function IconButton({
@@ -38,12 +38,8 @@ export default function IconButton({
   title,
   className = '',
   size = 'default',
-  variant = 'raised',
 }: IconButtonProps) {
-  const dimensions = size === 'compact' ? 'h-9 w-9' : 'h-11 w-11'
-  const visualStyle = variant === 'flat'
-    ? 'rounded-xl border border-transparent bg-transparent text-slate-600 hover:bg-slate-100 active:bg-slate-200'
-    : `rounded-xl border shadow-sm ${toneClasses[tone]}`
+  const dimensions = size === 'compact' ? 'h-8 w-8' : 'h-9 w-9'
 
   return (
     <button
@@ -53,12 +49,13 @@ export default function IconButton({
       aria-label={label}
       title={title ?? label}
       className={[
-        'arias-icon-button inline-flex shrink-0 items-center justify-center',
+        'arias-icon-button inline-flex shrink-0 items-center justify-center rounded-full',
         dimensions,
-        visualStyle,
-        'transition-colors duration-150 active:scale-[0.97]',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2',
-        'disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none disabled:active:scale-100',
+        'text-slate-700 transition-[background-color,box-shadow,transform] duration-150',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-1',
+        'active:scale-95',
+        rippleClasses[tone],
+        'disabled:cursor-not-allowed disabled:text-slate-300 disabled:hover:bg-transparent disabled:active:scale-100 disabled:active:ring-0',
         className,
       ].join(' ')}
     >

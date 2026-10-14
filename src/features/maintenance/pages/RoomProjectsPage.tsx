@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Download, Settings2, X } from 'lucide-react'
+import { Download, FileText, Settings2, X } from 'lucide-react'
+import { jsPDF } from 'jspdf'
+import autoTable from 'jspdf-autotable'
 import { useNavigate } from 'react-router-dom'
 import BrandLogo from '../../../shared/components/branding/BrandLogo'
 import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
@@ -402,6 +404,61 @@ export default function RoomProjectsPage() {
     setNotice('Guardado')
   }
 
+  function exportRoomListPdf() {
+    const rows = activeRooms
+      .map((code) => {
+        const record = records[code] ?? (DEFAULT_DONE_CODES.has(code) ? { ...defaultRecord(), status: 'DONE' as RoomStatus } : defaultRecord())
+        return { code, floor: Number(code.split('-')[0]), record }
+      })
+      .filter(({ record }) => filter === 'ALL' || record.status === filter)
+      .sort((a, b) => a.floor - b.floor || a.code.localeCompare(b.code, 'es', { numeric: true }))
+
+    if (!rows.length) {
+      setNotice('No hay habitaciones en este filtro para exportar.')
+      return
+    }
+
+    const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
+    const filterLabel = filter === 'ALL' ? 'Todos los estados' : STATUS_LABELS[filter]
+    const dateLabel = new Date().toLocaleDateString('es-ES')
+    pdf.setFontSize(17)
+    pdf.text('LED DE ARMARIO · Listado de habitaciones', 14, 16)
+    pdf.setFontSize(10)
+    pdf.text(`Hotel: ${hotel?.name || 'No especificado'}`, 14, 23)
+    pdf.text(`Filtro: ${filterLabel} · Fecha de emisión: ${dateLabel} · Habitaciones: ${rows.length}`, 14, 29)
+
+    autoTable(pdf, {
+      startY: 34,
+      head: [['Habitación', 'Planta', 'Estado', 'Fecha de sustitución', 'Realizado por', 'Observaciones']],
+      body: rows.map(({ code, floor, record }) => [
+        code,
+        String(floor),
+        STATUS_LABELS[record.status],
+        record.completedAt ? new Date(`${record.completedAt}T12:00:00`).toLocaleDateString('es-ES') : '—',
+        record.technician || '—',
+        record.notes || '—',
+      ]),
+      styles: { fontSize: 8, cellPadding: 2.2, overflow: 'linebreak' },
+      headStyles: { fillColor: [30, 41, 59] },
+      columnStyles: {
+        0: { cellWidth: 24 },
+        1: { cellWidth: 18 },
+        2: { cellWidth: 28 },
+        3: { cellWidth: 36 },
+        4: { cellWidth: 43 },
+      },
+      margin: { left: 14, right: 14, bottom: 14 },
+      didDrawPage: () => {
+        const pageCount = pdf.getNumberOfPages()
+        pdf.setFontSize(8)
+        pdf.text(`Arias Suite · Página ${pageCount}`, pdf.internal.pageSize.getWidth() - 14, pdf.internal.pageSize.getHeight() - 7, { align: 'right' })
+      },
+    })
+
+    pdf.save(`led-armario-listado-${filter === 'ALL' ? 'todos' : filter.toLowerCase()}-${localDate()}.pdf`)
+    setNotice('PDF del listado descargado.')
+  }
+
   function exportBuildingImage() {
     const rows = FLOOR_ROOM_LIMITS.map(({ floor, maxRoom }) => ({
       floor,
@@ -539,11 +596,27 @@ export default function RoomProjectsPage() {
                 <button type="button" onClick={() => { setConfiguring((value) => !value); setFilter('ALL') }} className={`inline-flex min-h-10 items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold ${configuring ? 'border-slate-800 bg-slate-800 text-white' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'}`}>
                   <Settings2 size={17} /> {configuring ? 'Terminar configuración' : 'Configurar habitaciones'}
                 </button>
+                <button type="button" onClick={exportRoomListPdf} disabled={configuring} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50">
+                  <FileText size={17} /> Exportar listado PDF
+                </button>
                 <button type="button" onClick={exportBuildingImage} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-700">
                   <Download size={17} /> Descargar imagen
                 </button>
               </div>
             </div>
+
+            {!configuring && (
+              <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 p-2">
+                <label htmlFor="room-list-filter" className="text-xs font-semibold text-slate-600">Filtrar listado:</label>
+                <select id="room-list-filter" value={filter} onChange={(event) => setFilter(event.target.value as 'ALL' | RoomStatus)} className="min-h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-800">
+                  <option value="ALL">Todos los estados</option>
+                  <option value="IN_PROGRESS">En curso</option>
+                  <option value="PENDING">Pendientes</option>
+                  <option value="DONE">Terminadas</option>
+                </select>
+                <span className="text-xs text-slate-500">El PDF incluirá solo las habitaciones visibles según este filtro.</span>
+              </div>
+            )}
 
             {!configuring && (
               <div className="mt-2 flex flex-wrap items-center gap-2" aria-label="Estado que se aplicará al pulsar una habitación">

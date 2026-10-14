@@ -106,27 +106,25 @@ export default function ApparatusRegistryReportPage() {
   return (
     <div className="arias-report-page min-h-screen bg-white text-slate-900 print:bg-white">
       <div className="mx-auto max-w-6xl p-4 sm:p-6 print:max-w-none print:p-0">
-        <div className="mb-3 flex items-start justify-between border-b pb-2 print:mb-2">
-          <div className="flex items-center gap-3">
+        <div className="mb-3 flex flex-col gap-2 border-b pb-2 print:mb-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
             <BrandLogo
               onActivate={() => navigate('/')}
-              className="h-10 w-auto object-contain"
+              className="h-9 w-auto shrink-0 object-contain sm:h-10"
             />
-            <div>
-              <div>
-              <h1 className="text-2xl font-bold">Equipos e instalaciones</h1>
-              <p className="text-xs text-slate-400">
+            <div className="min-w-0">
+              <h1 className="text-xl font-bold leading-tight sm:text-2xl">Equipos e instalaciones</h1>
+              <p className="text-xs text-slate-500">Informe</p>
+              <p className="text-[11px] text-slate-400">
                 Generado por: {session?.user.fullName || session?.user.email || 'Usuario'}
               </p>
             </div>
-              <p className="text-sm text-slate-500">Informe</p>
-            </div>
           </div>
 
-          <div className="flex gap-2 print:hidden">
+          <div className="arias-grid-toolbar flex w-full flex-nowrap items-start justify-start gap-1 overflow-x-auto print:hidden sm:w-auto sm:justify-end">
             <ActionButton
               icon={Printer}
-              label="Imprimir / PDF"
+              label="PDF"
               tone="dark"
               onClick={printReport}
             />

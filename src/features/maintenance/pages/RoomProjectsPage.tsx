@@ -615,7 +615,7 @@ export default function RoomProjectsPage() {
                       {row.rooms.map((code) => {
                         const record = records[code] ?? (DEFAULT_DONE_CODES.has(code) ? { ...defaultRecord(), status: 'DONE' as RoomStatus } : defaultRecord())
                         return (
-                          <button key={code} type="button" onClick={() => { setPendingConfirmation({ kind: 'status', code, status: selectedStatus }); setNotice('') }} onDoubleClick={() => { setSelectedRoom(code); setNotice('') }} aria-label={`Habitación ${code}: ${STATUS_LABELS[record.status]}`} className={`h-9 min-w-8 flex-1 rounded-md border text-[11px] font-bold transition focus:outline-none focus:ring-2 focus:ring-slate-500 ${STATUS_CLASSES[record.status]}`}>
+                          <button key={code} type="button" onClick={() => { const currentStatus = records[code]?.status ?? (DEFAULT_DONE_CODES.has(code) ? 'DONE' : 'PENDING'); setNotice(''); if (currentStatus === selectedStatus) { setPendingConfirmation(null); return }; setPendingConfirmation({ kind: 'status', code, status: selectedStatus }) }} onDoubleClick={() => { setSelectedRoom(code); setNotice('') }} aria-label={`Habitación ${code}: ${STATUS_LABELS[record.status]}`} className={`h-9 min-w-8 flex-1 rounded-md border text-[11px] font-bold transition focus:outline-none focus:ring-2 focus:ring-slate-500 ${STATUS_CLASSES[record.status]}`}>
                             {code.split('-')[1]}
                           </button>
                         )

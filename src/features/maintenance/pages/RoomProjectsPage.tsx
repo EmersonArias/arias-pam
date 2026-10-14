@@ -169,6 +169,25 @@ export default function RoomProjectsPage() {
         return
       }
 
+      // Migrate any older browser-only room records once, without overwriting rows already saved in Supabase.
+      const legacyRecords = safeRead<Record<string, RoomRecord>>(`${storageKey}:records`, {})
+      const legacyRows = Object.entries(legacyRecords).map(([room_code, record]) => ({
+        hotel_id: hotel.id,
+        room_code,
+        status: record.status,
+        completed_at: record.completedAt || null,
+        technician: record.technician ?? '',
+        notes: record.notes ?? '',
+      }))
+      if (legacyRows.length) {
+        const { error: migrationError } = await supabase
+          .from('maintenance_room_led_tracking')
+          .upsert(legacyRows, { onConflict: 'hotel_id,room_code', ignoreDuplicates: true })
+        if (migrationError && !cancelled) {
+          setNotice('No se han podido importar los estados guardados anteriormente en este navegador.')
+        }
+      }
+
       const { data, error } = await supabase
         .from('maintenance_room_led_tracking')
         .select('room_code, status, completed_at, technician, notes')
@@ -190,6 +209,9 @@ export default function RoomProjectsPage() {
         }]),
       )
       setRecords({ ...DEFAULT_DONE_RECORDS, ...savedRecords })
+      if (legacyRows.length && !cancelled) {
+        setNotice('Se han recuperado los estados anteriores y se han sincronizado con la base de datos.')
+      }
     }
 
     void loadRoomData()
@@ -243,7 +265,6 @@ export default function RoomProjectsPage() {
       status,
       completedAt: status === 'DONE' ? (existing.completedAt || localDate()) : '',
     }
-    setRecords((current) => ({ ...current, [code]: updated }))
 
     const { error } = await supabase.from('maintenance_room_led_tracking').upsert({
       hotel_id: hotel.id,
@@ -258,6 +279,7 @@ export default function RoomProjectsPage() {
       setNotice(`No se ha podido guardar la habitación ${code} en la base de datos. Comprueba tus permisos e inténtalo de nuevo.`)
       return
     }
+    setRecords((current) => ({ ...current, [code]: updated }))
     setNotice(`Habitación ${code}: ${STATUS_LABELS[status].toLowerCase()} y guardada.`)
   }
 

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Download, Settings2, Wrench, X } from 'lucide-react'
+import { Download, Settings2, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import BrandLogo from '../../../shared/components/branding/BrandLogo'
 import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
@@ -513,18 +513,6 @@ export default function RoomProjectsPage() {
         </header>
 
         <main className="space-y-3">
-          <section className="rounded-2xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-950 sm:p-4">
-            <div className="flex items-start gap-2">
-              <Wrench className="mt-0.5 shrink-0" size={19} />
-              <div>
-                <p className="font-semibold">Seguimiento de habitaciones</p>
-                <p className="mt-1 text-xs leading-5 text-blue-900 sm:text-sm">
-                  Los estados, fechas, técnicos y observaciones se guardan en la base de datos del hotel y se comparten entre dispositivos con acceso autorizado. Puedes descargar la imagen para compartir el avance con recepción.
-                </p>
-              </div>
-            </div>
-          </section>
-
           <section className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div>

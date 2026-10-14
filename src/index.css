@@ -216,3 +216,29 @@ svg {
     justify-self: auto !important;
   }
 }
+
+
+/* Etiquetas compactas bajo los iconos de acción, en negro y en una sola línea. */
+.arias-suite-app .arias-toolbar-action {
+  width: 2.75rem;
+  flex: 0 0 2.75rem;
+  min-width: 0;
+}
+.arias-suite-app .arias-toolbar-action > .arias-action-button,
+.arias-suite-app .arias-toolbar-action > .arias-icon-button {
+  width: 2.25rem !important;
+  min-width: 2.25rem !important;
+  height: 2.25rem !important;
+  min-height: 2.25rem !important;
+  padding: 0 !important;
+}
+.arias-suite-app .arias-toolbar-action > span {
+  color: #000 !important;
+  font-size: 10px;
+  line-height: 12px;
+  white-space: nowrap;
+}
+.arias-suite-app .arias-grid-toolbar {
+  align-items: flex-start !important;
+  gap: 0.125rem !important;
+}

@@ -127,8 +127,8 @@ export default function MaintenanceLandingPage() {
           : `${counts.pendingTickets} pendientes · ${counts.inManagementTickets} en gestión · ${counts.inProgressTickets} en curso`,
     },
     {
-      title: 'Trabajos por habitaciones',
-      description: 'Seguimiento temporal de trabajos por habitación y exportación de una imagen para recepción.',
+      title: 'LED de armario',
+      description: 'Control de luces LED de armario por habitación, con seguimiento y plano visual para recepción.',
       icon: Lightbulb,
       href: '/maintenance/room-projects',
     },

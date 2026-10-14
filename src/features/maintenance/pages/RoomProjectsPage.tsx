@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Download, FileText, Settings2, X } from 'lucide-react'
+import { Download, FileText, X } from 'lucide-react'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { useNavigate } from 'react-router-dom'
@@ -154,7 +154,6 @@ export default function RoomProjectsPage() {
   const [draft, setDraft] = useState<RoomDraft>(defaultRecord())
   const [selectedStatus, setSelectedStatus] = useState<RoomStatus>('IN_PROGRESS')
   const [filter, setFilter] = useState<'ALL' | RoomStatus>('ALL')
-  const [configuring, setConfiguring] = useState(false)
   const [notice, setNotice] = useState('')
   const [loggedInTechnician, setLoggedInTechnician] = useState('')
   const [pendingConfirmation, setPendingConfirmation] = useState<
@@ -308,12 +307,11 @@ export default function RoomProjectsPage() {
       rooms: Array.from({ length: maxRoom }, (_, index) => roomCode(floor, index + 1))
         .filter((code) => activeRooms.includes(code))
         .filter((code) => {
-          if (configuring || filter === 'ALL') return true
+          if (filter === 'ALL') return true
           return (records[code]?.status ?? (DEFAULT_DONE_CODES.has(code) ? 'DONE' : 'PENDING')) === filter
         }),
-      configurableRooms: Array.from({ length: maxRoom }, (_, index) => roomCode(floor, index + 1)),
-    })).filter((row) => configuring || row.rooms.length > 0),
-    [activeRooms, configuring, filter, records],
+    })).filter((row) => row.rooms.length > 0),
+    [activeRooms, filter, records],
   )
 
   const totals = useMemo(() => {
@@ -370,12 +368,6 @@ export default function RoomProjectsPage() {
     await saveRoom()
   }
 
-  function toggleRoom(code: string) {
-    setActiveRooms((current) =>
-      current.includes(code) ? current.filter((item) => item !== code) : [...current, code],
-    )
-  }
-
   async function saveRoom() {
     if (!selectedRoom) return
     if (!hotel?.id) {
@@ -429,7 +421,7 @@ export default function RoomProjectsPage() {
 
     autoTable(pdf, {
       startY: 34,
-      head: [['Habitación', 'Planta', 'Estado', 'Fecha de sustitución', 'Realizado por', 'Observaciones']],
+      head: [['Habitación', 'Planta', 'Estado', 'Fecha de sustitución', 'Técnico', 'Observaciones']],
       body: rows.map(({ code, floor, record }) => [
         code,
         String(floor),
@@ -445,7 +437,7 @@ export default function RoomProjectsPage() {
         1: { cellWidth: 18 },
         2: { cellWidth: 28 },
         3: { cellWidth: 36 },
-        4: { cellWidth: 43 },
+        4: { cellWidth: 48 },
       },
       margin: { left: 14, right: 14, bottom: 14 },
       didDrawPage: () => {
@@ -500,7 +492,6 @@ export default function RoomProjectsPage() {
     context.fillText(`Estado a fecha de ${new Date().toLocaleDateString('es-ES')}`, padding, 89)
     context.font = 'bold 13px Arial, sans-serif'
     context.fillStyle = '#475569'
-    context.fillText('Pulsa cada habitación en la aplicación para cambiar su estado', padding, 119)
 
     const legendY = 143
     const legend = [
@@ -590,13 +581,9 @@ export default function RoomProjectsPage() {
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <h2 className="text-base font-bold text-slate-900">Edificio completo</h2>
-                <p className="mt-1 text-xs text-slate-500">Selecciona un estado y toca las habitaciones para marcarlo. Doble toque en una habitación para editar su ficha.</p>
               </div>
               <div className="flex flex-wrap gap-2">
-                <button type="button" onClick={() => { setConfiguring((value) => !value); setFilter('ALL') }} className={`inline-flex min-h-10 items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold ${configuring ? 'border-slate-800 bg-slate-800 text-white' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'}`}>
-                  <Settings2 size={17} /> {configuring ? 'Terminar configuración' : 'Configurar habitaciones'}
-                </button>
-                <button type="button" onClick={exportRoomListPdf} disabled={configuring} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50">
+                <button type="button" onClick={exportRoomListPdf} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50">
                   <FileText size={17} /> Exportar listado PDF
                 </button>
                 <button type="button" onClick={exportBuildingImage} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-700">
@@ -605,8 +592,7 @@ export default function RoomProjectsPage() {
               </div>
             </div>
 
-            {!configuring && (
-              <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 p-2">
+            <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 p-2">
                 <label htmlFor="room-list-filter" className="text-xs font-semibold text-slate-600">Filtrar listado:</label>
                 <select id="room-list-filter" value={filter} onChange={(event) => setFilter(event.target.value as 'ALL' | RoomStatus)} className="min-h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-800">
                   <option value="ALL">Todos los estados</option>
@@ -614,12 +600,9 @@ export default function RoomProjectsPage() {
                   <option value="PENDING">Pendientes</option>
                   <option value="DONE">Terminadas</option>
                 </select>
-                <span className="text-xs text-slate-500">El PDF incluirá solo las habitaciones visibles según este filtro.</span>
               </div>
-            )}
 
-            {!configuring && (
-              <div className="mt-2 flex flex-wrap items-center gap-2" aria-label="Estado que se aplicará al pulsar una habitación">
+            <div className="mt-2 flex flex-wrap items-center gap-2" aria-label="Estado que se aplicará al pulsar una habitación">
                 <span className="text-[11px] text-slate-500">Marcar:</span>
                 {([
                   ['DONE', 'Terminado'],
@@ -632,13 +615,6 @@ export default function RoomProjectsPage() {
                 ))}
                 <span className="ml-auto text-[10px] text-slate-500">Hechas <strong className="text-emerald-700">{totals.done}</strong> · Pendientes <strong>{totals.pending}</strong></span>
               </div>
-            )}
-
-            {configuring && (
-              <p className="mt-4 rounded-xl bg-amber-50 p-3 text-xs leading-5 text-amber-900">
-                Inventario según tus indicaciones: planta 2 (17 habitaciones); plantas 3–11 (23 por planta); plantas 12–14 (12 por planta); planta 15 (solo 15-01 y 15-02).
-              </p>
-            )}
 
             <div className="mt-4 overflow-x-auto pb-2">
               <div className="min-w-[930px] space-y-1.5">
@@ -646,23 +622,14 @@ export default function RoomProjectsPage() {
                   <div key={row.floor} className="flex items-center gap-2">
                     <div className="w-[104px] shrink-0 rounded-lg bg-slate-100 px-2 py-2 text-xs font-bold text-slate-700">PLANTA {row.floor}</div>
                     <div className="flex min-w-0 flex-1 gap-1">
-                      {(configuring ? row.configurableRooms : row.rooms).map((code) => {
-                        const isActive = activeRooms.includes(code)
+                      {row.rooms.map((code) => {
                         const record = records[code] ?? (DEFAULT_DONE_CODES.has(code) ? { ...defaultRecord(), status: 'DONE' as RoomStatus } : defaultRecord())
-                        if (configuring) {
-                          return (
-                            <button key={code} type="button" onClick={() => toggleRoom(code)} aria-label={`${isActive ? 'Retirar' : 'Incluir'} habitación ${code}`} aria-pressed={isActive} className={`h-9 min-w-8 flex-1 rounded-md border text-[11px] font-semibold transition ${isActive ? 'border-slate-300 bg-slate-700 text-white hover:bg-rose-700' : 'border-dashed border-slate-300 bg-white text-slate-300 hover:border-emerald-400 hover:text-emerald-700'}`}>
-                              {code.split('-')[1]}
-                            </button>
-                          )
-                        }
                         return (
-                          <button key={code} type="button" onClick={() => { setPendingConfirmation({ kind: 'status', code, status: selectedStatus }); setNotice('') }} onDoubleClick={() => { setSelectedRoom(code); setNotice('') }} title={`${code} · ${STATUS_LABELS[record.status]}. Pulsa para aplicar “${STATUS_LABELS[selectedStatus]}”; doble toque para abrir ficha.`} aria-label={`Habitación ${code}: ${STATUS_LABELS[record.status]}. Aplicar ${STATUS_LABELS[selectedStatus]}. Doble toque para editar detalles.`} className={`h-9 min-w-8 flex-1 rounded-md border text-[11px] font-bold transition focus:outline-none focus:ring-2 focus:ring-slate-500 ${STATUS_CLASSES[record.status]}`}>
+                          <button key={code} type="button" onClick={() => { setPendingConfirmation({ kind: 'status', code, status: selectedStatus }); setNotice('') }} onDoubleClick={() => { setSelectedRoom(code); setNotice('') }} aria-label={`Habitación ${code}: ${STATUS_LABELS[record.status]}`} className={`h-9 min-w-8 flex-1 rounded-md border text-[11px] font-bold transition focus:outline-none focus:ring-2 focus:ring-slate-500 ${STATUS_CLASSES[record.status]}`}>
                             {code.split('-')[1]}
                           </button>
                         )
                       })}
-                      {!configuring && row.rooms.length === 0 && <span className="py-2 text-xs text-slate-400">Sin habitaciones configuradas</span>}
                     </div>
                   </div>
                 ))}
@@ -673,7 +640,6 @@ export default function RoomProjectsPage() {
               <Legend color="bg-emerald-500 border-emerald-600" label="Terminada" />
               <Legend color="bg-white border-slate-300" label="Pendiente" />
               <Legend color="bg-orange-400 border-orange-600" label="En curso" />
-              {configuring && <span className="text-slate-500">En configuración: toca una celda para incluir/retirar la habitación.</span>}
             </div>
             {notice && (notice === 'Guardado'
               ? <p role="status" aria-live="polite" className="mt-2 text-xs text-emerald-700">Guardado</p>

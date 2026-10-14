@@ -366,7 +366,7 @@ export default function RoomProjectsPage() {
     }
     const roomCodeToSave = selectedRoom
     const completedAt = draft.status === 'DONE' ? (draft.completedAt || localDate()) : ''
-    const updated = { ...draft, completedAt, technician: loggedInTechnician || draft.technician }
+    const updated = { ...draft, completedAt, technician: draft.technician.trim() || loggedInTechnician }
     const { error } = await supabase.from('maintenance_room_led_tracking').upsert({
       hotel_id: hotel.id,
       room_code: roomCodeToSave,

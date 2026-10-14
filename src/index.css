@@ -215,3 +215,27 @@ svg {
 .arias-grid-viewport::-webkit-scrollbar-thumb:hover {
   background: #64748b;
 }
+
+
+/* Ajuste final de la barra de acciones: prevalece sobre las reglas móviles heredadas. */
+@media (max-width: 640px) {
+  .arias-suite-app .arias-grid-toolbar {
+    display: flex !important;
+    flex-flow: row nowrap !important;
+    align-items: center;
+    justify-content: space-around;
+    gap: 0.25rem !important;
+    width: 100%;
+  }
+
+  .arias-suite-app .arias-grid-toolbar > .arias-action-button,
+  .arias-suite-app .arias-grid-toolbar > .arias-icon-button {
+    flex: 0 0 2.25rem !important;
+    width: 2.25rem !important;
+    min-width: 2.25rem !important;
+    height: 2.25rem;
+    min-height: 2.25rem !important;
+    padding: 0 !important;
+    justify-self: auto !important;
+  }
+}

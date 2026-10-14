@@ -281,6 +281,12 @@ export default function RoomProjectsPage() {
   }, [hotel?.id, storageKey])
 
   useEffect(() => {
+    if (notice !== 'Guardado') return
+    const timeout = window.setTimeout(() => setNotice(''), 500)
+    return () => window.clearTimeout(timeout)
+  }, [notice])
+
+  useEffect(() => {
     if (loadedKey !== storageKey) return
     try {
       localStorage.setItem(`${storageKey}:rooms`, JSON.stringify(activeRooms))
@@ -343,7 +349,7 @@ export default function RoomProjectsPage() {
       return
     }
     setRecords((current) => ({ ...current, [code]: { ...updated, technician } }))
-    setNotice(`Habitación ${code}: ${STATUS_LABELS[status].toLowerCase()} y guardada.`)
+    setNotice('Guardado')
   }
 
   function toggleRoom(code: string) {
@@ -377,7 +383,7 @@ export default function RoomProjectsPage() {
 
     setRecords((current) => ({ ...current, [roomCodeToSave]: updated }))
     setSelectedRoom(null)
-    setNotice(`Habitación ${roomCodeToSave} guardada en la base de datos.`)
+    setNotice('Guardado')
   }
 
   function exportBuildingImage() {
@@ -487,31 +493,8 @@ export default function RoomProjectsPage() {
     }, 'image/png')
   }
 
-  const noticeIsError = /no se ha|no se han|comprueba|selecciona|no ha podido|inténtalo/i.test(notice)
-  const noticeIsSuccess = /guardada|guardado|sincronizado/i.test(notice)
-
   return (
     <div className="min-h-screen bg-slate-100 px-3 py-3 text-slate-900 sm:px-5 sm:py-5">
-      {notice && (
-        <div className="fixed inset-x-3 top-3 z-[300] mx-auto max-w-xl sm:top-5" role={noticeIsError ? 'alert' : 'status'} aria-live="polite">
-          <div className={`flex items-start gap-3 rounded-2xl border p-4 shadow-2xl ring-1 ring-black/5 sm:p-5 ${
-            noticeIsError
-              ? 'border-rose-300 bg-rose-50 text-rose-950'
-              : noticeIsSuccess
-                ? 'border-emerald-300 bg-emerald-50 text-emerald-950'
-                : 'border-blue-300 bg-blue-50 text-blue-950'
-          }`}>
-            <span className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-lg font-black ${
-              noticeIsError ? 'bg-rose-200 text-rose-800' : noticeIsSuccess ? 'bg-emerald-200 text-emerald-800' : 'bg-blue-200 text-blue-800'
-            }`} aria-hidden="true">{noticeIsError ? '!' : noticeIsSuccess ? '✓' : 'i'}</span>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-extrabold sm:text-base">{noticeIsError ? 'No se ha podido guardar' : noticeIsSuccess ? 'Guardado correctamente' : 'Información'}</p>
-              <p className="mt-1 text-sm leading-5 sm:text-base">{notice}</p>
-            </div>
-            <button type="button" onClick={() => setNotice('')} aria-label="Cerrar aviso" className="rounded-lg px-2 py-1 text-lg font-bold opacity-70 hover:bg-black/5 hover:opacity-100">×</button>
-          </div>
-        </div>
-      )}
       <div className="mx-auto max-w-[1600px]">
         <header className="mb-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
           <div className="flex items-center justify-between gap-3">
@@ -615,7 +598,10 @@ export default function RoomProjectsPage() {
               <Legend color="bg-orange-400 border-orange-600" label="En curso" />
               {configuring && <span className="text-slate-500">En configuración: toca una celda para incluir/retirar la habitación.</span>}
             </div>
-            {notice && <p role="status" className="mt-3 rounded-lg bg-slate-100 px-3 py-2 text-xs text-slate-700">{notice}</p>}
+            {notice && (notice === 'Guardado'
+              ? <p role="status" aria-live="polite" className="mt-2 text-xs text-emerald-700">Guardado</p>
+              : <p role="status" className="mt-3 rounded-lg bg-slate-100 px-3 py-2 text-xs text-slate-700">{notice}</p>
+            )}
           </section>
         </main>
       </div>

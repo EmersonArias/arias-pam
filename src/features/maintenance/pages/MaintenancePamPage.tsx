@@ -656,23 +656,21 @@ export default function MaintenancePamPage() {
     <div className="min-h-screen bg-slate-100 px-3 py-3 text-slate-900 sm:px-5 sm:py-5">
       <div className="mx-auto max-w-[1400px]">
         <header className="mb-3 rounded-2xl border border-slate-200 bg-white p-2.5 shadow-lg sm:p-3">
-          <div className="grid items-center gap-3 lg:grid-cols-[1fr_auto_1fr]">
-            <div className="flex min-w-0 items-center gap-2.5">
+          <div className="flex min-w-0 flex-col gap-2">
+            <div className="flex min-w-0 items-center gap-2">
               <BrandLogo onActivate={() => navigate('/')} className="h-8 w-auto shrink-0 object-contain sm:h-10" />
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <h1 className="text-xl font-bold leading-none sm:text-2xl">PAM</h1>
                 <p className="text-[11px] text-slate-500 sm:text-xs">Plan Anual de Mantenimiento</p>
               </div>
             </div>
-
+            <div className="arias-grid-toolbar flex w-full flex-nowrap items-start justify-start gap-1 overflow-x-auto">
+              <BackButton onBack={() => navigate('/maintenance')} />
+              <HomeButton onHome={() => navigate('/')} />
+            </div>
             <div className="hidden items-center justify-center gap-2 px-2 lg:flex">
               <CalendarDays className="shrink-0 text-slate-500" size={17} />
               <span className="text-sm font-semibold text-slate-800">Previsión de trabajos preventivos</span>
-            </div>
-
-            <div className="flex justify-end gap-2">
-              <BackButton onBack={() => navigate('/maintenance')} />
-              <HomeButton onHome={() => navigate('/')} />
             </div>
           </div>
 

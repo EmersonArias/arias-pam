@@ -1,0 +1,503 @@
+import { useEffect, useMemo, useState } from 'react'
+import { Download, Settings2, Wrench, X } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import BrandLogo from '../../../shared/components/branding/BrandLogo'
+import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
+import { useHotelScope } from '../../../shared/context/HotelScopeContext'
+
+type RoomStatus = 'PENDING' | 'IN_PROGRESS' | 'DONE'
+type RoomRecord = {
+  status: RoomStatus
+  completedAt: string
+  technician: string
+  notes: string
+}
+type RoomDraft = RoomRecord
+
+const FLOOR_ROOM_LIMITS: Array<{ floor: number; maxRoom: number }> = [
+  { floor: 2, maxRoom: 17 },
+  ...Array.from({ length: 9 }, (_, index) => ({ floor: index + 3, maxRoom: 23 })),
+  ...Array.from({ length: 3 }, (_, index) => ({ floor: index + 12, maxRoom: 12 })),
+  { floor: 15, maxRoom: 2 },
+]
+const DEFAULT_ROOM_CODES = FLOOR_ROOM_LIMITS.flatMap(({ floor, maxRoom }) =>
+  Array.from({ length: maxRoom }, (_, index) => roomCode(floor, index + 1)),
+)
+const DEFAULT_DONE_CODES = new Set([
+  roomCode(2, 1),
+  roomCode(2, 2),
+  roomCode(2, 3),
+  roomCode(2, 4),
+  roomCode(2, 6),
+  roomCode(2, 15),
+  roomCode(2, 16),
+  roomCode(2, 17),
+  roomCode(3, 1),
+  roomCode(3, 2),
+  roomCode(3, 4),
+  roomCode(3, 7),
+  roomCode(3, 10),
+  roomCode(3, 11),
+  roomCode(3, 12),
+  roomCode(3, 13),
+  roomCode(3, 14),
+  roomCode(3, 16),
+  roomCode(3, 18),
+  roomCode(3, 20),
+  roomCode(4, 3),
+  roomCode(4, 5),
+  roomCode(4, 7),
+  roomCode(4, 9),
+  roomCode(4, 10),
+  roomCode(4, 16),
+  roomCode(4, 18),
+  roomCode(4, 19),
+  roomCode(4, 20),
+  roomCode(5, 2),
+  roomCode(5, 11),
+  roomCode(5, 17),
+  roomCode(5, 21),
+  roomCode(5, 22),
+  roomCode(6, 4),
+  roomCode(6, 5),
+  roomCode(6, 11),
+  roomCode(6, 15),
+  roomCode(6, 17),
+  roomCode(6, 19),
+  roomCode(6, 20),
+  roomCode(7, 12),
+  roomCode(7, 20),
+  roomCode(8, 3),
+  roomCode(8, 5),
+  roomCode(8, 7),
+  roomCode(8, 13),
+  roomCode(8, 16),
+  roomCode(9, 7),
+  roomCode(9, 8),
+  roomCode(9, 13),
+  roomCode(10, 1),
+  roomCode(10, 3),
+  roomCode(10, 4),
+  roomCode(10, 5),
+  roomCode(10, 7),
+  roomCode(10, 18),
+  roomCode(10, 19),
+  roomCode(11, 2),
+  roomCode(11, 11),
+  roomCode(12, 1),
+  roomCode(12, 7),
+  roomCode(12, 11),
+  roomCode(13, 2),
+  roomCode(13, 3),
+  roomCode(13, 4),
+  roomCode(13, 6),
+  roomCode(13, 7),
+  roomCode(13, 10),
+  roomCode(13, 12),
+  roomCode(14, 8),
+  roomCode(14, 9),
+  roomCode(14, 10),
+])
+const DEFAULT_DONE_RECORDS: Record<string, RoomRecord> = Object.fromEntries(
+  [...DEFAULT_DONE_CODES].map((code) => [code, { ...defaultRecord(), status: 'DONE', completedAt: '' }]),
+)
+const STATUS_LABELS: Record<RoomStatus, string> = {
+  PENDING: 'Pendiente',
+  IN_PROGRESS: 'En curso',
+  DONE: 'Terminada',
+}
+const STATUS_CLASSES: Record<RoomStatus, string> = {
+  PENDING: 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50',
+  IN_PROGRESS: 'border-orange-300 bg-orange-400 text-white hover:bg-orange-500',
+  DONE: 'border-emerald-300 bg-emerald-500 text-white hover:bg-emerald-600',
+}
+const STATUS_COLORS: Record<RoomStatus, { fill: string; stroke: string; text: string }> = {
+  PENDING: { fill: '#FFFFFF', stroke: '#CBD5E1', text: '#334155' },
+  IN_PROGRESS: { fill: '#FB923C', stroke: '#EA580C', text: '#FFFFFF' },
+  DONE: { fill: '#22C55E', stroke: '#15803D', text: '#FFFFFF' },
+}
+
+function roomCode(floor: number, roomNumber: number) {
+  return `${floor}-${String(roomNumber).padStart(2, '0')}`
+}
+
+function localDate() {
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+}
+
+function defaultRecord(): RoomRecord {
+  return { status: 'PENDING', completedAt: '', technician: '', notes: '' }
+}
+
+function safeRead<T>(key: string, fallback: T): T {
+  try {
+    const value = localStorage.getItem(key)
+    return value ? (JSON.parse(value) as T) : fallback
+  } catch {
+    return fallback
+  }
+}
+
+export default function RoomProjectsPage() {
+  const navigate = useNavigate()
+  const { hotel } = useHotelScope()
+  const hotelKey = hotel?.id ?? 'hotel-no-seleccionado'
+  const storageKey = `arias-suite:room-led-tracker:v1:${hotelKey}`
+  const [records, setRecords] = useState<Record<string, RoomRecord>>({})
+  const [activeRooms, setActiveRooms] = useState<string[]>(DEFAULT_ROOM_CODES)
+  const [loadedKey, setLoadedKey] = useState('')
+  const [selectedRoom, setSelectedRoom] = useState<string | null>(null)
+  const [draft, setDraft] = useState<RoomDraft>(defaultRecord())
+  const [selectedStatus, setSelectedStatus] = useState<RoomStatus>('IN_PROGRESS')
+  const [filter, setFilter] = useState<'ALL' | RoomStatus>('ALL')
+  const [configuring, setConfiguring] = useState(false)
+  const [notice, setNotice] = useState('')
+
+  useEffect(() => {
+    setRecords({ ...DEFAULT_DONE_RECORDS, ...safeRead<Record<string, RoomRecord>>(`${storageKey}:records`, {}) })
+    setActiveRooms(safeRead<string[]>(`${storageKey}:rooms`, DEFAULT_ROOM_CODES))
+    setSelectedRoom(null)
+    setLoadedKey(storageKey)
+  }, [storageKey])
+
+  useEffect(() => {
+    if (loadedKey !== storageKey) return
+    try {
+      localStorage.setItem(`${storageKey}:records`, JSON.stringify(records))
+      localStorage.setItem(`${storageKey}:rooms`, JSON.stringify(activeRooms))
+    } catch {
+      setNotice('El navegador no ha podido guardar los datos localmente. Comprueba el espacio disponible.')
+    }
+  }, [activeRooms, loadedKey, records, storageKey])
+
+  const roomsByFloor = useMemo(
+    () => FLOOR_ROOM_LIMITS.map(({ floor, maxRoom }) => ({
+      floor,
+      rooms: Array.from({ length: maxRoom }, (_, index) => roomCode(floor, index + 1))
+        .filter((code) => activeRooms.includes(code))
+        .filter((code) => {
+          if (configuring || filter === 'ALL') return true
+          return (records[code]?.status ?? (DEFAULT_DONE_CODES.has(code) ? 'DONE' : 'PENDING')) === filter
+        }),
+      configurableRooms: Array.from({ length: maxRoom }, (_, index) => roomCode(floor, index + 1)),
+    })).filter((row) => configuring || row.rooms.length > 0),
+    [activeRooms, configuring, filter, records],
+  )
+
+  const totals = useMemo(() => {
+    const all = activeRooms
+    const done = all.filter((code) => (records[code]?.status ?? (DEFAULT_DONE_CODES.has(code) ? 'DONE' : 'PENDING')) === 'DONE').length
+    const inProgress = all.filter((code) => (records[code]?.status ?? (DEFAULT_DONE_CODES.has(code) ? 'DONE' : 'PENDING')) === 'IN_PROGRESS').length
+    return { total: all.length, done, inProgress, pending: all.length - done - inProgress }
+  }, [activeRooms, records])
+
+  const selectedRecord = selectedRoom ? records[selectedRoom] ?? defaultRecord() : null
+
+  useEffect(() => {
+    if (selectedRoom) setDraft({ ...(records[selectedRoom] ?? defaultRecord()) })
+  }, [records, selectedRoom])
+
+  function setRoomStatus(code: string, status: RoomStatus) {
+    const existing = records[code] ?? (DEFAULT_DONE_CODES.has(code) ? { ...defaultRecord(), status: 'DONE' as RoomStatus } : defaultRecord())
+    setRecords((current) => ({
+      ...current,
+      [code]: {
+        ...existing,
+        status,
+        completedAt: status === 'DONE' ? (existing.completedAt || localDate()) : '',
+      },
+    }))
+    setNotice(`Habitación ${code}: ${STATUS_LABELS[status].toLowerCase()}.`)
+  }
+
+  function toggleRoom(code: string) {
+    setActiveRooms((current) =>
+      current.includes(code) ? current.filter((item) => item !== code) : [...current, code],
+    )
+  }
+
+  function saveRoom() {
+    if (!selectedRoom) return
+    const completedAt = draft.status === 'DONE' ? (draft.completedAt || localDate()) : ''
+    setRecords((current) => ({
+      ...current,
+      [selectedRoom]: { ...draft, completedAt },
+    }))
+    setSelectedRoom(null)
+    setNotice(`Habitación ${selectedRoom} guardada en este dispositivo.`)
+  }
+
+  function exportBuildingImage() {
+    const rows = FLOOR_ROOM_LIMITS.map(({ floor, maxRoom }) => ({
+      floor,
+      rooms: Array.from({ length: maxRoom }, (_, index) => roomCode(floor, index + 1))
+        .filter((code) => activeRooms.includes(code)),
+    })).filter((row) => row.rooms.length > 0)
+    if (!rows.length) {
+      setNotice('No hay habitaciones configuradas para exportar.')
+      return
+    }
+
+    const maxRooms = Math.max(...rows.map((row) => row.rooms.length))
+    const padding = 34
+    const labelWidth = 142
+    const cellWidth = 43
+    const cellHeight = 34
+    const rowHeight = 43
+    const headerHeight = 160
+    const width = padding * 2 + labelWidth + maxRooms * cellWidth
+    const height = headerHeight + rows.length * rowHeight + 74
+    const canvas = document.createElement('canvas')
+    const scale = 2
+    canvas.width = width * scale
+    canvas.height = height * scale
+    const context = canvas.getContext('2d')
+    if (!context) {
+      setNotice('No se ha podido generar la imagen en este navegador.')
+      return
+    }
+    context.scale(scale, scale)
+    context.fillStyle = '#F8FAFC'
+    context.fillRect(0, 0, width, height)
+    context.fillStyle = '#0F172A'
+    context.font = '700 25px Arial, sans-serif'
+    context.fillText('LED DE ARMARIO', padding, 42)
+    context.fillStyle = '#475569'
+    context.font = '14px Arial, sans-serif'
+    context.fillText(hotel?.name ? `Hotel: ${hotel.name}` : 'Seguimiento de habitaciones', padding, 67)
+    context.fillText(`Estado a fecha de ${new Date().toLocaleDateString('es-ES')}`, padding, 89)
+    context.font = 'bold 13px Arial, sans-serif'
+    context.fillStyle = '#475569'
+    context.fillText('Pulsa cada habitación en la aplicación para cambiar su estado', padding, 119)
+
+    const legendY = 143
+    const legend = [
+      { label: 'Terminada', status: 'DONE' as RoomStatus, x: padding },
+      { label: 'Pendiente', status: 'PENDING' as RoomStatus, x: padding + 126 },
+      { label: 'En curso', status: 'IN_PROGRESS' as RoomStatus, x: padding + 252 },
+    ]
+    context.font = '11px Arial, sans-serif'
+    legend.forEach((item) => {
+      context.fillStyle = STATUS_COLORS[item.status].fill
+      context.strokeStyle = STATUS_COLORS[item.status].stroke
+      context.lineWidth = 1
+      context.fillRect(item.x, legendY - 10, 13, 13)
+      context.strokeRect(item.x, legendY - 10, 13, 13)
+      context.fillStyle = '#334155'
+      context.fillText(item.label, item.x + 19, legendY)
+    })
+
+    const startY = headerHeight
+    rows.forEach((row, rowIndex) => {
+      const y = startY + rowIndex * rowHeight
+      context.fillStyle = '#E2E8F0'
+      context.fillRect(padding, y, labelWidth - 10, cellHeight)
+      context.fillStyle = '#1E293B'
+      context.font = 'bold 12px Arial, sans-serif'
+      context.textBaseline = 'middle'
+      context.fillText(`PLANTA ${row.floor}`, padding + 8, y + cellHeight / 2)
+      row.rooms.forEach((code, roomIndex) => {
+        const status = records[code]?.status ?? (DEFAULT_DONE_CODES.has(code) ? 'DONE' : 'PENDING')
+        const colors = STATUS_COLORS[status]
+        const x = padding + labelWidth + roomIndex * cellWidth
+        context.fillStyle = colors.fill
+        context.strokeStyle = colors.stroke
+        context.lineWidth = 1
+        context.fillRect(x, y, cellWidth - 4, cellHeight)
+        context.strokeRect(x, y, cellWidth - 4, cellHeight)
+        context.fillStyle = colors.text
+        context.font = 'bold 10px Arial, sans-serif'
+        context.textAlign = 'center'
+        context.fillText(code.split('-')[1], x + (cellWidth - 4) / 2, y + cellHeight / 2)
+        context.textAlign = 'left'
+      })
+    })
+    context.textBaseline = 'alphabetic'
+    context.fillStyle = '#64748B'
+    context.font = '11px Arial, sans-serif'
+    context.fillText('Arias Suite · Control de trabajos por habitación', padding, height - 22)
+
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        setNotice('No se ha podido crear la imagen. Inténtalo de nuevo.')
+        return
+      }
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `led-de-armario-${localDate()}.png`
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(url)
+      setNotice('Imagen del edificio descargada.')
+    }, 'image/png')
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-100 px-3 py-3 text-slate-900 sm:px-5 sm:py-5">
+      <div className="mx-auto max-w-[1600px]">
+        <header className="mb-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-3">
+              <BrandLogo onActivate={() => navigate('/')} className="h-9 w-auto shrink-0 object-contain sm:h-11" />
+              <div className="min-w-0">
+                <h1 className="text-xl font-bold leading-tight text-slate-900 sm:text-2xl">LED de armario</h1>
+                <p className="mt-0.5 text-[10px] text-slate-400 sm:text-xs">Control visual de habitaciones · Datos provisionales</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <BackButton onBack={() => navigate('/maintenance')} />
+              <HomeButton onHome={() => navigate('/')} />
+            </div>
+          </div>
+        </header>
+
+        <main className="space-y-3">
+          <section className="rounded-2xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-950 sm:p-4">
+            <div className="flex items-start gap-2">
+              <Wrench className="mt-0.5 shrink-0" size={19} />
+              <div>
+                <p className="font-semibold">Modo de pruebas sin coste</p>
+                <p className="mt-1 text-xs leading-5 text-blue-900 sm:text-sm">
+                  Este módulo guarda los estados y observaciones solo en el almacenamiento local de este navegador. No escribe en las tablas de mantenimiento de Supabase y no sincroniza los datos entre dispositivos. Puedes descargar la imagen para compartir el avance con recepción.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <h2 className="text-base font-bold text-slate-900">Edificio completo</h2>
+                <p className="mt-1 text-xs text-slate-500">Selecciona un estado y toca las habitaciones para marcarlo. Doble toque en una habitación para editar su ficha.</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button type="button" onClick={() => { setConfiguring((value) => !value); setFilter('ALL') }} className={`inline-flex min-h-10 items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold ${configuring ? 'border-slate-800 bg-slate-800 text-white' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'}`}>
+                  <Settings2 size={17} /> {configuring ? 'Terminar configuración' : 'Configurar habitaciones'}
+                </button>
+                <button type="button" onClick={exportBuildingImage} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-700">
+                  <Download size={17} /> Descargar imagen
+                </button>
+              </div>
+            </div>
+
+            {!configuring && (
+              <div className="mt-2 flex flex-wrap items-center gap-2" aria-label="Estado que se aplicará al pulsar una habitación">
+                <span className="text-[11px] text-slate-500">Marcar:</span>
+                {([
+                  ['DONE', 'Terminado'],
+                  ['IN_PROGRESS', 'En curso'],
+                  ['PENDING', 'Pendiente'],
+                ] as Array<[RoomStatus, string]>).map(([value, label]) => (
+                  <button key={value} type="button" onClick={() => setSelectedStatus(value)} aria-pressed={selectedStatus === value} className={`rounded-md border px-2 py-1 text-[11px] font-medium transition ${selectedStatus === value ? 'ring-1 ring-slate-500 ring-offset-1' : ''} ${STATUS_CLASSES[value]}`}>
+                    {label}
+                  </button>
+                ))}
+                <span className="ml-auto text-[10px] text-slate-500">Hechas <strong className="text-emerald-700">{totals.done}</strong> · Pendientes <strong>{totals.pending}</strong></span>
+              </div>
+            )}
+
+            {configuring && (
+              <p className="mt-4 rounded-xl bg-amber-50 p-3 text-xs leading-5 text-amber-900">
+                Inventario según tus indicaciones: planta 2 (17 habitaciones); plantas 3–11 (23 por planta); plantas 12–14 (12 por planta); planta 15 (solo 15-01 y 15-02).
+              </p>
+            )}
+
+            <div className="mt-4 overflow-x-auto pb-2">
+              <div className="min-w-[930px] space-y-1.5">
+                {roomsByFloor.map((row) => (
+                  <div key={row.floor} className="flex items-center gap-2">
+                    <div className="w-[104px] shrink-0 rounded-lg bg-slate-100 px-2 py-2 text-xs font-bold text-slate-700">PLANTA {row.floor}</div>
+                    <div className="flex min-w-0 flex-1 gap-1">
+                      {(configuring ? row.configurableRooms : row.rooms).map((code) => {
+                        const isActive = activeRooms.includes(code)
+                        const record = records[code] ?? (DEFAULT_DONE_CODES.has(code) ? { ...defaultRecord(), status: 'DONE' as RoomStatus } : defaultRecord())
+                        if (configuring) {
+                          return (
+                            <button key={code} type="button" onClick={() => toggleRoom(code)} aria-label={`${isActive ? 'Retirar' : 'Incluir'} habitación ${code}`} aria-pressed={isActive} className={`h-9 min-w-8 flex-1 rounded-md border text-[11px] font-semibold transition ${isActive ? 'border-slate-300 bg-slate-700 text-white hover:bg-rose-700' : 'border-dashed border-slate-300 bg-white text-slate-300 hover:border-emerald-400 hover:text-emerald-700'}`}>
+                              {code.split('-')[1]}
+                            </button>
+                          )
+                        }
+                        return (
+                          <button key={code} type="button" onClick={() => { setRoomStatus(code, selectedStatus); setNotice('') }} onDoubleClick={() => { setSelectedRoom(code); setNotice('') }} title={`${code} · ${STATUS_LABELS[record.status]}. Pulsa para aplicar “${STATUS_LABELS[selectedStatus]}”; doble toque para abrir ficha.`} aria-label={`Habitación ${code}: ${STATUS_LABELS[record.status]}. Aplicar ${STATUS_LABELS[selectedStatus]}. Doble toque para editar detalles.`} className={`h-9 min-w-8 flex-1 rounded-md border text-[11px] font-bold transition focus:outline-none focus:ring-2 focus:ring-slate-500 ${STATUS_CLASSES[record.status]}`}>
+                            {code.split('-')[1]}
+                          </button>
+                        )
+                      })}
+                      {!configuring && row.rooms.length === 0 && <span className="py-2 text-xs text-slate-400">Sin habitaciones configuradas</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 border-t border-slate-100 pt-3 text-xs text-slate-600">
+              <Legend color="bg-emerald-500 border-emerald-600" label="Terminada" />
+              <Legend color="bg-white border-slate-300" label="Pendiente" />
+              <Legend color="bg-orange-400 border-orange-600" label="En curso" />
+              {configuring && <span className="text-slate-500">En configuración: toca una celda para incluir/retirar la habitación.</span>}
+            </div>
+            {notice && <p role="status" className="mt-3 rounded-lg bg-slate-100 px-3 py-2 text-xs text-slate-700">{notice}</p>}
+          </section>
+        </main>
+      </div>
+
+      {selectedRoom && selectedRecord && (
+        <div className="fixed inset-0 z-[200] flex items-end justify-center bg-slate-950/45 p-0 sm:items-center sm:p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelectedRoom(null) }}>
+          <section role="dialog" aria-modal="true" aria-labelledby="room-detail-title" className="max-h-[92vh] w-full overflow-y-auto rounded-t-3xl bg-white p-4 shadow-2xl sm:max-w-xl sm:rounded-3xl sm:p-6">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Ficha de habitación</p>
+                <h2 id="room-detail-title" className="mt-1 text-xl font-bold text-slate-900">Habitación {selectedRoom}</h2>
+                <p className="mt-1 text-sm text-slate-500">LED de armario</p>
+              </div>
+              <button type="button" onClick={() => setSelectedRoom(null)} className="rounded-xl p-2 text-slate-500 hover:bg-slate-100" aria-label="Cerrar ficha"><X size={20} /></button>
+            </div>
+
+            <div className="mt-5 space-y-4">
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-semibold text-slate-700">Estado del trabajo</span>
+                <select value={draft.status} onChange={(event) => setDraft((current) => ({ ...current, status: event.target.value as RoomStatus }))} className="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-200">
+                  <option value="PENDING">Pendiente</option>
+                  <option value="IN_PROGRESS">En curso</option>
+                  <option value="DONE">Terminada</option>
+                </select>
+              </label>
+              {draft.status === 'DONE' && (
+                <label className="block">
+                  <span className="mb-1.5 block text-sm font-semibold text-slate-700">Fecha de sustitución</span>
+                  <input type="date" value={draft.completedAt || localDate()} onChange={(event) => setDraft((current) => ({ ...current, completedAt: event.target.value }))} className="min-h-11 w-full rounded-xl border border-slate-300 px-3 text-sm outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-200" />
+                </label>
+              )}
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-semibold text-slate-700">Realizado por</span>
+                <input value={draft.technician} onChange={(event) => setDraft((current) => ({ ...current, technician: event.target.value }))} placeholder="Nombre del técnico (opcional)" className="min-h-11 w-full rounded-xl border border-slate-300 px-3 text-sm outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-200" />
+              </label>
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-semibold text-slate-700">Observaciones</span>
+                <textarea value={draft.notes} onChange={(event) => setDraft((current) => ({ ...current, notes: event.target.value }))} rows={3} placeholder="Material, incidencias o detalles del trabajo..." className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-200" />
+              </label>
+            </div>
+
+            <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <button type="button" onClick={() => setSelectedRoom(null)} className="min-h-11 rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Cancelar</button>
+              <button type="button" onClick={saveRoom} className="min-h-11 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700">Guardar habitación</button>
+            </div>
+          </section>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function Legend({ color, label }: { color: string; label: string }) {
+  return (
+    <span className="inline-flex items-center gap-2">
+      <span className={`h-3.5 w-3.5 rounded-sm border ${color}`} />
+      <span>{label}</span>
+    </span>
+  )
+}

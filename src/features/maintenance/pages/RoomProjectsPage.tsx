@@ -155,6 +155,11 @@ export default function RoomProjectsPage() {
   const [configuring, setConfiguring] = useState(false)
   const [notice, setNotice] = useState('')
   const [loggedInTechnician, setLoggedInTechnician] = useState('')
+  const [pendingConfirmation, setPendingConfirmation] = useState<
+    | { kind: 'status'; code: string; status: RoomStatus }
+    | { kind: 'save' }
+    | null
+  >(null)
 
   useEffect(() => {
     let cancelled = false
@@ -350,6 +355,17 @@ export default function RoomProjectsPage() {
     }
     setRecords((current) => ({ ...current, [code]: { ...updated, technician } }))
     setNotice('Guardado')
+  }
+
+  async function confirmPendingChange() {
+    const confirmation = pendingConfirmation
+    setPendingConfirmation(null)
+    if (!confirmation) return
+    if (confirmation.kind === 'status') {
+      await setRoomStatus(confirmation.code, confirmation.status)
+      return
+    }
+    await saveRoom()
   }
 
   function toggleRoom(code: string) {
@@ -568,7 +584,7 @@ export default function RoomProjectsPage() {
                           )
                         }
                         return (
-                          <button key={code} type="button" onClick={() => { setRoomStatus(code, selectedStatus); setNotice('') }} onDoubleClick={() => { setSelectedRoom(code); setNotice('') }} title={`${code} · ${STATUS_LABELS[record.status]}. Pulsa para aplicar “${STATUS_LABELS[selectedStatus]}”; doble toque para abrir ficha.`} aria-label={`Habitación ${code}: ${STATUS_LABELS[record.status]}. Aplicar ${STATUS_LABELS[selectedStatus]}. Doble toque para editar detalles.`} className={`h-9 min-w-8 flex-1 rounded-md border text-[11px] font-bold transition focus:outline-none focus:ring-2 focus:ring-slate-500 ${STATUS_CLASSES[record.status]}`}>
+                          <button key={code} type="button" onClick={() => { setPendingConfirmation({ kind: 'status', code, status: selectedStatus }); setNotice('') }} onDoubleClick={() => { setSelectedRoom(code); setNotice('') }} title={`${code} · ${STATUS_LABELS[record.status]}. Pulsa para aplicar “${STATUS_LABELS[selectedStatus]}”; doble toque para abrir ficha.`} aria-label={`Habitación ${code}: ${STATUS_LABELS[record.status]}. Aplicar ${STATUS_LABELS[selectedStatus]}. Doble toque para editar detalles.`} className={`h-9 min-w-8 flex-1 rounded-md border text-[11px] font-bold transition focus:outline-none focus:ring-2 focus:ring-slate-500 ${STATUS_CLASSES[record.status]}`}>
                             {code.split('-')[1]}
                           </button>
                         )
@@ -593,6 +609,23 @@ export default function RoomProjectsPage() {
           </section>
         </main>
       </div>
+
+      {pendingConfirmation && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-slate-950/45 p-4">
+          <section role="alertdialog" aria-modal="true" aria-labelledby="change-confirmation-title" className="w-full max-w-xs rounded-2xl bg-white p-4 shadow-2xl">
+            <h2 id="change-confirmation-title" className="text-base font-bold text-slate-900">Confirmar cambio</h2>
+            <p className="mt-2 text-sm leading-5 text-slate-600">
+              {pendingConfirmation.kind === 'status'
+                ? `¿Cambiar la habitación ${pendingConfirmation.code} a «${STATUS_LABELS[pendingConfirmation.status]}»?`
+                : `¿Guardar los cambios de la habitación ${selectedRoom ?? ''}?`}
+            </p>
+            <div className="mt-4 flex gap-2">
+              <button type="button" onClick={() => setPendingConfirmation(null)} className="min-h-10 flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Cancelar</button>
+              <button type="button" onClick={() => { void confirmPendingChange() }} className="min-h-10 flex-1 rounded-xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-700">Aceptar</button>
+            </div>
+          </section>
+        </div>
+      )}
 
       {selectedRoom && selectedRecord && (
         <div className="fixed inset-0 z-[200] flex items-end justify-center bg-slate-950/45 p-0 sm:items-center sm:p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelectedRoom(null) }}>
@@ -633,7 +666,7 @@ export default function RoomProjectsPage() {
 
             <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <button type="button" onClick={() => setSelectedRoom(null)} className="min-h-11 rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Cancelar</button>
-              <button type="button" onClick={saveRoom} className="min-h-11 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700">Guardar habitación</button>
+              <button type="button" onClick={() => setPendingConfirmation({ kind: 'save' })} className="min-h-11 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700">Guardar habitación</button>
             </div>
           </section>
         </div>

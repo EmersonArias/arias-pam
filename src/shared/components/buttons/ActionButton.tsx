@@ -40,6 +40,27 @@ export default function ActionButton({
   className = '',
   showLabel = true,
 }: ActionButtonProps) {
+  if (!Icon) {
+    return (
+      <button
+        type={type}
+        onClick={onClick}
+        disabled={disabled}
+        aria-label={label}
+        title={label}
+        className={[
+          'arias-action-button rounded-lg px-2.5 py-2 text-sm font-medium text-slate-700',
+          'transition-colors duration-150 hover:bg-slate-100 active:bg-slate-200',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500',
+          'disabled:cursor-not-allowed disabled:text-slate-300',
+          className,
+        ].join(' ')}
+      >
+        {label}
+      </button>
+    )
+  }
+
   const button = (
     <button
       type={type}
@@ -57,9 +78,7 @@ export default function ActionButton({
         className,
       ].join(' ')}
     >
-      {Icon ? <Icon size={19} strokeWidth={2} aria-hidden="true" /> : (
-        <span className="text-xs font-medium">{getActionCaption(label)}</span>
-      )}
+      <Icon size={19} strokeWidth={2} aria-hidden="true" />
     </button>
   )
 

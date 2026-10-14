@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import BrandLogo from '../../../shared/components/branding/BrandLogo'
 import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
 import { useHotelScope } from '../../../shared/context/HotelScopeContext'
+import { supabase } from '../../../lib/supabase'
 
 type RoomStatus = 'PENDING' | 'IN_PROGRESS' | 'DONE'
 type RoomRecord = {
@@ -155,21 +156,54 @@ export default function RoomProjectsPage() {
   const [notice, setNotice] = useState('')
 
   useEffect(() => {
-    setRecords({ ...DEFAULT_DONE_RECORDS, ...safeRead<Record<string, RoomRecord>>(`${storageKey}:records`, {}) })
-    setActiveRooms(safeRead<string[]>(`${storageKey}:rooms`, DEFAULT_ROOM_CODES))
-    setSelectedRoom(null)
-    setLoadedKey(storageKey)
-  }, [storageKey])
+    let cancelled = false
+
+    async function loadRoomData() {
+      setActiveRooms(safeRead<string[]>(`${storageKey}:rooms`, DEFAULT_ROOM_CODES))
+      setSelectedRoom(null)
+      setLoadedKey(storageKey)
+
+      if (!hotel?.id) {
+        setRecords({ ...DEFAULT_DONE_RECORDS })
+        setNotice('Selecciona un hotel para guardar los estados de las habitaciones.')
+        return
+      }
+
+      const { data, error } = await supabase
+        .from('maintenance_room_led_tracking')
+        .select('room_code, status, completed_at, technician, notes')
+        .eq('hotel_id', hotel.id)
+
+      if (cancelled) return
+      if (error) {
+        setRecords({ ...DEFAULT_DONE_RECORDS })
+        setNotice('No se han podido cargar los estados guardados. Comprueba tus permisos de mantenimiento.')
+        return
+      }
+
+      const savedRecords: Record<string, RoomRecord> = Object.fromEntries(
+        (data ?? []).map((row) => [row.room_code, {
+          status: row.status as RoomStatus,
+          completedAt: row.completed_at ?? '',
+          technician: row.technician ?? '',
+          notes: row.notes ?? '',
+        }]),
+      )
+      setRecords({ ...DEFAULT_DONE_RECORDS, ...savedRecords })
+    }
+
+    void loadRoomData()
+    return () => { cancelled = true }
+  }, [hotel?.id, storageKey])
 
   useEffect(() => {
     if (loadedKey !== storageKey) return
     try {
-      localStorage.setItem(`${storageKey}:records`, JSON.stringify(records))
       localStorage.setItem(`${storageKey}:rooms`, JSON.stringify(activeRooms))
     } catch {
-      setNotice('El navegador no ha podido guardar los datos localmente. Comprueba el espacio disponible.')
+      setNotice('El navegador no ha podido guardar la configuración de habitaciones.')
     }
-  }, [activeRooms, loadedKey, records, storageKey])
+  }, [activeRooms, loadedKey, storageKey])
 
   const roomsByFloor = useMemo(
     () => FLOOR_ROOM_LIMITS.map(({ floor, maxRoom }) => ({
@@ -198,17 +232,33 @@ export default function RoomProjectsPage() {
     if (selectedRoom) setDraft({ ...(records[selectedRoom] ?? defaultRecord()) })
   }, [records, selectedRoom])
 
-  function setRoomStatus(code: string, status: RoomStatus) {
+  async function setRoomStatus(code: string, status: RoomStatus) {
+    if (!hotel?.id) {
+      setNotice('Selecciona un hotel antes de guardar los cambios.')
+      return
+    }
     const existing = records[code] ?? (DEFAULT_DONE_CODES.has(code) ? { ...defaultRecord(), status: 'DONE' as RoomStatus } : defaultRecord())
-    setRecords((current) => ({
-      ...current,
-      [code]: {
-        ...existing,
-        status,
-        completedAt: status === 'DONE' ? (existing.completedAt || localDate()) : '',
-      },
-    }))
-    setNotice(`Habitación ${code}: ${STATUS_LABELS[status].toLowerCase()}.`)
+    const updated: RoomRecord = {
+      ...existing,
+      status,
+      completedAt: status === 'DONE' ? (existing.completedAt || localDate()) : '',
+    }
+    setRecords((current) => ({ ...current, [code]: updated }))
+
+    const { error } = await supabase.from('maintenance_room_led_tracking').upsert({
+      hotel_id: hotel.id,
+      room_code: code,
+      status: updated.status,
+      completed_at: updated.completedAt || null,
+      technician: updated.technician,
+      notes: updated.notes,
+    }, { onConflict: 'hotel_id,room_code' })
+
+    if (error) {
+      setNotice(`No se ha podido guardar la habitación ${code} en la base de datos. Comprueba tus permisos e inténtalo de nuevo.`)
+      return
+    }
+    setNotice(`Habitación ${code}: ${STATUS_LABELS[status].toLowerCase()} y guardada.`)
   }
 
   function toggleRoom(code: string) {
@@ -217,15 +267,32 @@ export default function RoomProjectsPage() {
     )
   }
 
-  function saveRoom() {
+  async function saveRoom() {
     if (!selectedRoom) return
+    if (!hotel?.id) {
+      setNotice('Selecciona un hotel antes de guardar los cambios.')
+      return
+    }
+    const roomCodeToSave = selectedRoom
     const completedAt = draft.status === 'DONE' ? (draft.completedAt || localDate()) : ''
-    setRecords((current) => ({
-      ...current,
-      [selectedRoom]: { ...draft, completedAt },
-    }))
+    const updated = { ...draft, completedAt }
+    const { error } = await supabase.from('maintenance_room_led_tracking').upsert({
+      hotel_id: hotel.id,
+      room_code: roomCodeToSave,
+      status: updated.status,
+      completed_at: updated.completedAt || null,
+      technician: updated.technician,
+      notes: updated.notes,
+    }, { onConflict: 'hotel_id,room_code' })
+
+    if (error) {
+      setNotice(`No se ha podido guardar la habitación ${roomCodeToSave}. Comprueba tus permisos e inténtalo de nuevo.`)
+      return
+    }
+
+    setRecords((current) => ({ ...current, [roomCodeToSave]: updated }))
     setSelectedRoom(null)
-    setNotice(`Habitación ${selectedRoom} guardada en este dispositivo.`)
+    setNotice(`Habitación ${roomCodeToSave} guardada en la base de datos.`)
   }
 
   function exportBuildingImage() {
@@ -359,9 +426,9 @@ export default function RoomProjectsPage() {
             <div className="flex items-start gap-2">
               <Wrench className="mt-0.5 shrink-0" size={19} />
               <div>
-                <p className="font-semibold">Modo de pruebas sin coste</p>
+                <p className="font-semibold">Seguimiento de habitaciones</p>
                 <p className="mt-1 text-xs leading-5 text-blue-900 sm:text-sm">
-                  Este módulo guarda los estados y observaciones solo en el almacenamiento local de este navegador. No escribe en las tablas de mantenimiento de Supabase y no sincroniza los datos entre dispositivos. Puedes descargar la imagen para compartir el avance con recepción.
+                  Los estados, fechas, técnicos y observaciones se guardan en la base de datos del hotel y se comparten entre dispositivos con acceso autorizado. Puedes descargar la imagen para compartir el avance con recepción.
                 </p>
               </div>
             </div>

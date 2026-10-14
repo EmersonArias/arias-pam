@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { CalendarClock, ClipboardList, FileCheck2, ListChecks, Settings2, Wrench, Building2 } from 'lucide-react'
+import { CalendarClock, ClipboardList, FileCheck2, ListChecks, Settings2, Wrench, Building2, Lightbulb } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import BrandLogo from '../../../shared/components/branding/BrandLogo'
 import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
@@ -127,6 +127,12 @@ export default function MaintenanceLandingPage() {
           : `${counts.pendingTickets} pendientes · ${counts.inManagementTickets} en gestión · ${counts.inProgressTickets} en curso`,
     },
     {
+      title: 'Trabajos por habitaciones',
+      description: 'Seguimiento temporal de trabajos por habitación y exportación de una imagen para recepción.',
+      icon: Lightbulb,
+      href: '/maintenance/room-projects',
+    },
+    {
       title: 'Trabajos programados',
       description: 'Calendario operativo de los trabajos derivados del PAM.',
       icon: CalendarClock,
@@ -188,7 +194,7 @@ export default function MaintenanceLandingPage() {
             </p>
           </section>
 
-          <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-7">
+          <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {cards.map((card) => {
               const Icon = card.icon
               return (

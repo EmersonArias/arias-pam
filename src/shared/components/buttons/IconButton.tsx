@@ -1,4 +1,5 @@
 import type { LucideIcon } from 'lucide-react'
+import { getActionCaption } from './actionLabels'
 
 export type IconButtonTone =
   | 'default'
@@ -18,6 +19,8 @@ interface IconButtonProps {
   className?: string
   size?: 'default' | 'compact'
   variant?: 'raised' | 'flat'
+  /** Hide the caption when a surrounding toolbar supplies its own caption. */
+  showLabel?: boolean
 }
 
 const rippleClasses: Record<IconButtonTone, string> = {
@@ -38,10 +41,10 @@ export default function IconButton({
   title,
   className = '',
   size = 'default',
+  showLabel = true,
 }: IconButtonProps) {
   const dimensions = size === 'compact' ? 'h-8 w-8' : 'h-9 w-9'
-
-  return (
+  const button = (
     <button
       type={type}
       onClick={onClick}
@@ -52,7 +55,7 @@ export default function IconButton({
         'arias-icon-button inline-flex shrink-0 items-center justify-center rounded-full',
         dimensions,
         'text-[#294b70] transition-[background-color,box-shadow,transform] duration-150',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-1',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1',
         'active:scale-95',
         rippleClasses[tone],
         'disabled:cursor-not-allowed disabled:text-slate-300 disabled:hover:bg-transparent disabled:active:scale-100 disabled:active:ring-0',
@@ -61,5 +64,14 @@ export default function IconButton({
     >
       <Icon size={size === 'compact' ? 17 : 19} strokeWidth={2} aria-hidden="true" />
     </button>
+  )
+
+  if (!showLabel) return button
+
+  return (
+    <span className={['arias-icon-action', size === 'compact' ? 'arias-icon-action-compact' : ''].filter(Boolean).join(' ')} title={title ?? label}>
+      {button}
+      <span className="arias-action-caption" aria-hidden="true">{getActionCaption(label)}</span>
+    </span>
   )
 }

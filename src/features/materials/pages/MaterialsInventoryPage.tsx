@@ -316,8 +316,8 @@ export default function MaterialsInventoryPage() {
   }, [emailTarget, providerById])
   const activeMaterials = useMemo(() => materials.filter((material) => material.active), [materials])
   const lowStockMaterials = useMemo(
-    () => activeMaterials.filter((material) => Number(material.stock_quantity) <= Number(material.minimum_stock)),
-    [activeMaterials],
+    () => moduleReady ? activeMaterials.filter((material) => Number(material.stock_quantity) <= Number(material.minimum_stock)) : [],
+    [activeMaterials, moduleReady],
   )
   const inventoryFiltered = useMemo(() => {
     const q = normalize(globalSearch)
@@ -826,9 +826,9 @@ export default function MaterialsInventoryPage() {
         <section className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
           {[
             { label: 'Artículos activos', value: activeMaterials.length, icon: Package },
-            { label: 'Bajo mínimo', value: lowStockMaterials.length, icon: AlertTriangle },
-            { label: 'Peticiones guardadas', value: requests.length, icon: ClipboardList },
-            { label: 'Movimientos recientes', value: movements.length, icon: RefreshCw },
+            { label: 'Bajo mínimo', value: moduleReady ? lowStockMaterials.length : '—', icon: AlertTriangle },
+            { label: 'Peticiones guardadas', value: moduleReady ? requests.length : '—', icon: ClipboardList },
+            { label: 'Movimientos recientes', value: moduleReady ? movements.length : '—', icon: RefreshCw },
           ].map((metric) => {
             const MetricIcon = metric.icon
             return (
@@ -933,7 +933,7 @@ export default function MaterialsInventoryPage() {
                             <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-slate-500">
                               <span>Proveedor: <strong className="text-slate-700">{provider?.label ?? 'Sin proveedor'}</strong></span>
                               <span>Código: <strong className="text-slate-700">{material.order_code}</strong></span>
-                              <span>Stock actual: <strong className={Number(material.stock_quantity) <= Number(material.minimum_stock) ? 'text-rose-700' : 'text-slate-700'}>{formatQuantity(material.stock_quantity)} {material.unit_of_measure}</strong></span>
+                              <span>Stock actual: <strong className={moduleReady && Number(material.stock_quantity) <= Number(material.minimum_stock) ? 'text-rose-700' : 'text-slate-700'}>{moduleReady ? formatQuantity(material.stock_quantity) : '—'} {moduleReady ? material.unit_of_measure : ''}</strong></span>
                               {material.purchase_url && <button type="button" onClick={() => openLinePurchaseLink(material.purchase_url)} className="inline-flex items-center gap-1 font-semibold text-blue-700 hover:underline"><ExternalLink size={11}/> Enlace de compra</button>}
                             </div>
                           )}
@@ -985,13 +985,13 @@ export default function MaterialsInventoryPage() {
                 <tbody>
                   {inventoryFiltered.map((material) => {
                     const provider = providerById.get(material.provider_id)
-                    const low = Number(material.stock_quantity) <= Number(material.minimum_stock)
+                    const low = moduleReady && Number(material.stock_quantity) <= Number(material.minimum_stock)
                     return <tr key={material.id} className="border-b border-slate-100 hover:bg-slate-50">
                       <td className="px-3 py-3"><div className="font-semibold text-slate-800">{material.description}</div><div className="mt-0.5 text-[10px] text-slate-500">{material.order_code}{material.reference_code ? ' · ' + material.reference_code : ''}</div></td>
                       <td className="px-3 py-3 text-slate-600">{provider?.label ?? '—'}</td>
                       <td className="px-3 py-3 text-slate-500">{material.storage_location || '—'}</td>
-                      <td className="px-3 py-3"><span className={'font-bold tabular-nums ' + (low ? 'text-rose-700' : 'text-slate-800')}>{formatQuantity(material.stock_quantity)} {material.unit_of_measure}</span></td>
-                      <td className="px-3 py-3 text-slate-600">{formatQuantity(material.minimum_stock)} {material.unit_of_measure}</td>
+                      <td className="px-3 py-3"><span className={'font-bold tabular-nums ' + (low ? 'text-rose-700' : 'text-slate-800')}>{moduleReady ? formatQuantity(material.stock_quantity) : '—'} {moduleReady ? material.unit_of_measure : ''}</span></td>
+                      <td className="px-3 py-3 text-slate-600">{moduleReady ? formatQuantity(material.minimum_stock) : '—'} {moduleReady ? material.unit_of_measure : ''}</td>
                       <td className="px-3 py-3">{material.purchase_url ? <button type="button" onClick={() => openLinePurchaseLink(material.purchase_url)} className="inline-flex items-center gap-1 font-semibold text-blue-700 hover:underline"><ExternalLink size={13}/>Abrir</button> : '—'}</td>
                       <td className="px-3 py-3"><div className="flex gap-1.5">
                         <button type="button" title="Registrar entrada" onClick={() => openMovement(material, 'RECEIVE')} disabled={!moduleReady} className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-200 text-emerald-700 hover:bg-emerald-50"><ArrowDownToLine size={14}/></button>
@@ -1006,14 +1006,14 @@ export default function MaterialsInventoryPage() {
             <div className="space-y-2 p-3 md:hidden">
               {inventoryFiltered.map((material) => {
                 const provider = providerById.get(material.provider_id)
-                const low = Number(material.stock_quantity) <= Number(material.minimum_stock)
+                const low = moduleReady && Number(material.stock_quantity) <= Number(material.minimum_stock)
                 return <div key={material.id} className="rounded-xl border border-slate-200 p-3">
-                  <div className="flex items-start justify-between gap-3"><div className="min-w-0"><div className="text-sm font-semibold text-slate-800">{material.description}</div><div className="mt-1 text-[10px] text-slate-500">{material.order_code} · {provider?.label ?? 'Sin proveedor'}</div></div><div className={'shrink-0 text-right text-sm font-bold ' + (low ? 'text-rose-700' : 'text-slate-800')}>{formatQuantity(material.stock_quantity)}<div className="text-[9px] font-medium text-slate-400">{material.unit_of_measure}</div></div></div>
+                  <div className="flex items-start justify-between gap-3"><div className="min-w-0"><div className="text-sm font-semibold text-slate-800">{material.description}</div><div className="mt-1 text-[10px] text-slate-500">{material.order_code} · {provider?.label ?? 'Sin proveedor'}</div></div><div className={'shrink-0 text-right text-sm font-bold ' + (low ? 'text-rose-700' : 'text-slate-800')}>{moduleReady ? formatQuantity(material.stock_quantity) : '—'}<div className="text-[9px] font-medium text-slate-400">{moduleReady ? material.unit_of_measure : ''}</div></div></div>
                   <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-2">
                     <div className="flex gap-1.5">
                       <button type="button" onClick={() => openMovement(material, 'RECEIVE')} disabled={!moduleReady} className="inline-flex min-h-9 items-center gap-1 rounded-lg border border-emerald-200 px-2.5 text-[10px] font-semibold text-emerald-700"><ArrowDownToLine size={13}/>Entrada</button>
                       <button type="button" onClick={() => openMovement(material, 'ISSUE')} disabled={!moduleReady} className="inline-flex min-h-9 items-center gap-1 rounded-lg border border-amber-200 px-2.5 text-[10px] font-semibold text-amber-700"><ArrowUpFromLine size={13}/>Salida</button>
-                      <button type="button" onClick={() => openMovement(material, 'ADJUSTMENT')} className="inline-flex min-h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600" aria-label="Ajustar"><SlidersHorizontal size={13}/></button>
+                      <button type="button" onClick={() => openMovement(material, 'ADJUSTMENT')} disabled={!moduleReady} className="inline-flex min-h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600" aria-label="Ajustar"><SlidersHorizontal size={13}/></button>
                     </div>
                     {material.purchase_url && <button type="button" onClick={() => openLinePurchaseLink(material.purchase_url)} className="inline-flex items-center gap-1 text-[10px] font-semibold text-blue-700"><ExternalLink size={12}/>Comprar</button>}
                   </div>
@@ -1036,7 +1036,7 @@ export default function MaterialsInventoryPage() {
             <div className="grid gap-2 p-3 sm:grid-cols-2 xl:grid-cols-3">
               {catalogFiltered.map((material) => {
                 const provider = providerById.get(material.provider_id)
-                const low = Number(material.stock_quantity) <= Number(material.minimum_stock)
+                const low = moduleReady && Number(material.stock_quantity) <= Number(material.minimum_stock)
                 return <article key={material.id} className={'rounded-xl border p-3 ' + (material.active ? 'border-slate-200' : 'border-dashed border-slate-300 bg-slate-50 opacity-70')}>
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0"><h3 className="text-sm font-semibold text-slate-800">{material.description}</h3><p className="mt-1 text-[10px] text-slate-500">{material.order_code}{material.reference_code ? ' · Ref. ' + material.reference_code : ''}</p></div>
@@ -1044,11 +1044,11 @@ export default function MaterialsInventoryPage() {
                   </div>
                   <div className="mt-3 grid grid-cols-2 gap-2 text-[10px]">
                     <div className="rounded-lg bg-slate-50 p-2"><span className="block text-slate-400">Proveedor</span><strong className="mt-0.5 block text-slate-700">{provider?.label ?? '—'}</strong></div>
-                    <div className="rounded-lg bg-slate-50 p-2"><span className="block text-slate-400">Stock actual</span><strong className={'mt-0.5 block ' + (low ? 'text-rose-700' : 'text-slate-700')}>{formatQuantity(material.stock_quantity)} {material.unit_of_measure}</strong></div>
+                    <div className="rounded-lg bg-slate-50 p-2"><span className="block text-slate-400">Stock actual</span><strong className={'mt-0.5 block ' + (low ? 'text-rose-700' : 'text-slate-700')}>{moduleReady ? formatQuantity(material.stock_quantity) : '—'} {moduleReady ? material.unit_of_measure : ''}</strong></div>
                   </div>
                   {material.purchase_url && <button type="button" onClick={() => openLinePurchaseLink(material.purchase_url)} className="mt-3 inline-flex items-center gap-1.5 text-[11px] font-semibold text-blue-700 hover:underline"><ExternalLink size={13}/>Enlace / portal de compra</button>}
                   <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2">
-                    <span className="text-[10px] text-slate-400">Mínimo {formatQuantity(material.minimum_stock)} {material.unit_of_measure}</span>
+                    <span className="text-[10px] text-slate-400">Mínimo {moduleReady ? formatQuantity(material.minimum_stock) : '—'} {moduleReady ? material.unit_of_measure : ''}</span>
                     <div className="flex gap-1.5">
                       <button type="button" onClick={() => openEditMaterial(material)} disabled={!moduleReady} className="inline-flex min-h-8 items-center gap-1 rounded-lg border border-slate-200 px-2 text-[10px] font-semibold text-slate-600 hover:bg-slate-50"><Pencil size={12}/>Editar</button>
                       <button type="button" onClick={async () => {

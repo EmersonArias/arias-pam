@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, Archive, CheckCircle2, ChevronDown, ChevronUp, Clock3, FileText, Image, Plus, RefreshCw, UserRound, Wrench, X } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { AlertTriangle, Archive, Camera, CheckCircle2, ChevronDown, ChevronUp, Clock3, FileText, Image, Plus, RefreshCw, Upload, UserRound, Wrench, X } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import BrandLogo from '../../../shared/components/branding/BrandLogo'
 import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
@@ -212,6 +212,9 @@ export default function MaintenanceWorkOrdersPage() {
   const [ticketScheduledDate, setTicketScheduledDate] = useState(new Date().toISOString().slice(0, 10))
   const [ticketPriority, setTicketPriority] = useState<'LOW' | 'NORMAL' | 'HIGH' | 'CRITICAL'>('NORMAL')
   const [ticketAssigneeId, setTicketAssigneeId] = useState('')
+  const [ticketPhotos, setTicketPhotos] = useState<File[]>([])
+  const galleryInputRef = useRef<HTMLInputElement | null>(null)
+  const cameraInputRef = useRef<HTMLInputElement | null>(null)
 
   async function loadData() {
     if (!hotel?.id) {
@@ -357,6 +360,7 @@ export default function MaintenanceWorkOrdersPage() {
     setTicketScheduledDate(new Date().toISOString().slice(0, 10))
     setTicketPriority('NORMAL')
     setTicketAssigneeId('')
+    setTicketPhotos([])
     setError('')
     setTicketOpen(true)
     setSearchParams({}, { replace: true })
@@ -553,7 +557,7 @@ export default function MaintenanceWorkOrdersPage() {
     <div className="min-h-screen bg-slate-100 px-3 py-3 text-slate-900 sm:px-5 sm:py-5">
       <div className="mx-auto max-w-[1500px]">
         <header className="mb-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-lg sm:p-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="maintenance-tickets-header-layout flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex min-w-0 items-center gap-3">
               <BrandLogo onActivate={() => navigate('/')} className="h-9 w-auto shrink-0 object-contain sm:h-11" />
               <div className="min-w-0">
@@ -561,7 +565,7 @@ export default function MaintenanceWorkOrdersPage() {
                 <p className="text-xs text-slate-500 sm:text-sm">Incidencias correctivas y actuaciones · {hotel?.name ?? 'hotel actual'}</p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex w-full min-w-0 items-start gap-1 overflow-x-auto pb-1 sm:w-auto sm:justify-end sm:overflow-visible">
               <ActionButton icon={Plus} label="Nuevo ticket" onClick={() => {
                 setTicketTitle('')
                 setTicketDescription('')
@@ -571,6 +575,7 @@ export default function MaintenanceWorkOrdersPage() {
                 setTicketScheduledDate(new Date().toISOString().slice(0, 10))
                 setTicketPriority('NORMAL')
                 setTicketAssigneeId('')
+                setTicketPhotos([])
                 setError('')
                 setTicketOpen(true)
               }} />
@@ -1083,6 +1088,35 @@ export default function MaintenanceWorkOrdersPage() {
                   </div>
                 )}
 
+                <section className="sm:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 text-sm font-semibold text-slate-800"><Image size={17}/>Fotografías de la incidencia</div>
+                      <p className="mt-1 text-xs leading-5 text-slate-500">Haz una foto con la cámara del móvil o adjunta varias imágenes de la galería. Se guardarán asociadas al ticket.</p>
+                    </div>
+                    <div className="flex shrink-0 gap-2">
+                      <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={(event) => { const files = Array.from(event.target.files ?? []).filter((file) => file.type.startsWith('image/')); if (files.length) setTicketPhotos((current) => [...current, ...files]); event.target.value = '' }} />
+                      <input ref={galleryInputRef} type="file" accept="image/*" multiple className="hidden" onChange={(event) => { const files = Array.from(event.target.files ?? []).filter((file) => file.type.startsWith('image/')); if (files.length) setTicketPhotos((current) => [...current, ...files]); event.target.value = '' }} />
+                      <button type="button" onClick={() => cameraInputRef.current?.click()} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"><Camera size={15}/>Hacer foto</button>
+                      <button type="button" onClick={() => galleryInputRef.current?.click()} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"><Upload size={15}/>Galería</button>
+                    </div>
+                  </div>
+                  {ticketPhotos.length > 0 && (
+                    <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      {ticketPhotos.map((file, index) => (
+                        <div key={file.name + file.size + index} className="flex min-w-0 items-center gap-2 rounded-lg border border-slate-200 bg-white p-2">
+                          <Image size={16} className="shrink-0 text-slate-400"/>
+                          <div className="min-w-0 flex-1">
+                            <div className="truncate text-xs font-medium text-slate-700">{file.name}</div>
+                            <div className="text-[10px] text-slate-400">{Math.max(1, Math.round(file.size / 1024))} KB</div>
+                          </div>
+                          <button type="button" onClick={() => setTicketPhotos((current) => current.filter((_, photoIndex) => photoIndex !== index))} className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100" aria-label={'Quitar ' + file.name} title="Quitar fotografía"><X size={14}/></button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </section>
+
                 <label className="block sm:col-span-2">
                   <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Descripción</span>
                   <textarea
@@ -1153,9 +1187,33 @@ export default function MaintenanceWorkOrdersPage() {
                       setTicketAssetId('')
                       setTicketLocationId('')
                       setTicketAssigneeId('')
+                      let photoWarning = ''
+                      for (const file of ticketPhotos) {
+                        const safeName = file.name.replace(/[^a-zA-Z0-9._-]+/g, '_')
+                        const storagePath = hotel.id + '/' + created.id + '/' + crypto.randomUUID() + '-' + safeName
+                        const upload = await supabase.storage.from('maintenance-evidence').upload(storagePath, file, { contentType: file.type, upsert: false })
+                        if (upload.error) {
+                          photoWarning = 'El ticket se creó, pero no se pudieron subir todas las fotos. Puedes adjuntarlas desde la ficha del ticket.'
+                          break
+                        }
+                        const evidenceInsert = await supabase.from('maintenance_work_order_evidence').insert({
+                          hotel_id: hotel.id,
+                          work_order_id: created.id,
+                          storage_path: storagePath,
+                          file_name: file.name,
+                          mime_type: file.type,
+                          file_size: file.size,
+                          uploaded_by: session?.user.id ?? null,
+                        })
+                        if (evidenceInsert.error) {
+                          photoWarning = 'El ticket se creó, pero no se pudo registrar una foto. Puedes adjuntarla desde la ficha del ticket.'
+                          break
+                        }
+                      }
+                      setTicketPhotos([])
                       await loadData()
                       setSelectedId(created.id)
-                      navigate('/maintenance/tickets/' + created.id)
+                      navigate('/maintenance/tickets/' + created.id, photoWarning ? { state: { flashMessage: photoWarning } } : undefined)
                     } catch (error) {
                       setError(error instanceof Error ? error.message : 'No se ha podido crear el ticket.')
                     } finally {

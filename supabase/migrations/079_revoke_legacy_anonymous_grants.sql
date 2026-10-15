@@ -62,8 +62,9 @@ BEGIN
 
   SELECT count(*)
     INTO remaining_sequence_grants
-  FROM information_schema.sequence_privileges
-  WHERE sequence_schema = 'public'
+  FROM information_schema.role_usage_grants
+  WHERE object_schema = 'public'
+    AND object_type = 'SEQUENCE'
     AND grantee = 'anon';
 
   SELECT count(*)

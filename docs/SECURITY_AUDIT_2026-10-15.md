@@ -18,7 +18,7 @@
 
 ## Cambios preparados en la rama aislada
 
-- La migración 079 revoca a `anon` concesiones de tablas/vistas, columnas, secuencias y funciones en `public`, y hace rollback si el recuento posterior no es cero. Se corrigió el uso de `sequence_schema` en la consulta de verificación de secuencias.
+- La migración 079 revoca a `anon` concesiones de tablas/vistas, columnas, secuencias y funciones en `public`, y hace rollback si el recuento posterior no es cero. Se corrigió la consulta de secuencias para usar `information_schema.role_usage_grants` (`object_schema` + `object_type='SEQUENCE'`), la vista disponible en PostgreSQL del proyecto. La migración no se ha aplicado y este fallo está corregido en la rama.
 - La migración 081 corrige las seis políticas de Storage para fotos/documentos de equipo y retira el permiso de invocación directa a la función usada solo por el trigger LED.
 - No revoca permisos explícitos de `authenticated` ni `service_role`.
 - La migración 078 diferencia el stock no inventariado, habilita el conteo físico y bloquea los movimientos hasta que exista inventario verificado.

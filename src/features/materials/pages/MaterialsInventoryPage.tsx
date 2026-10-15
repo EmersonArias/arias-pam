@@ -390,7 +390,6 @@ export default function MaterialsInventoryPage() {
     setSuccess('')
     let savedSuccessfully = false
     const payload = {
-      hotel_id: hotel.id,
       description: materialForm.description.trim(),
       order_code: materialForm.order_code.trim(),
       reference_code: materialForm.reference_code.trim() || null,
@@ -410,7 +409,7 @@ export default function MaterialsInventoryPage() {
       if (result.error) setError('No se pudo guardar el artículo: ' + result.error.message)
       else { savedSuccessfully = true; setSuccess('Artículo actualizado.') }
     } else {
-      const result = await supabase.from('maintenance_material_catalog').insert({ ...payload, stock_quantity: 0 }).select('id').single()
+      const result = await supabase.from('maintenance_material_catalog').insert({ ...payload, hotel_id: hotel.id }).select('id').single()
       if (result.error) setError('No se pudo crear el artículo: ' + result.error.message)
       else {
         savedSuccessfully = true
@@ -523,7 +522,8 @@ export default function MaterialsInventoryPage() {
           const url = lines[data.row.index]?.purchase_url
           if (url) {
             doc.setTextColor(30, 90, 170)
-            doc.textWithLink('Abrir enlace', data.cell.x + 2, data.cell.y + data.cell.height / 2 + 1, { url })
+            doc.text('Abrir enlace', data.cell.x + 2, data.cell.y + data.cell.height / 2 + 1)
+            doc.link(data.cell.x + 2, data.cell.y + 1, Math.max(12, data.cell.width - 4), Math.max(4, data.cell.height - 2), { url })
           }
         }
       },

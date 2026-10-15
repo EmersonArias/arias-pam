@@ -17,6 +17,10 @@ function escapeHtml(value: unknown) {
   })[character] ?? character)
 }
 
+function isValidEmail(value: string | null | undefined) {
+  return /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test((value ?? '').trim())
+}
+
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
   if (request.method !== 'POST') return json({ error: 'Método no permitido.' }, 405)
@@ -46,6 +50,24 @@ Deno.serve(async (request) => {
   const { data: userResult, error: authError } = await supabase.auth.getUser(token)
   if (authError || !userResult.user) return json({ error: 'No se pudo validar la sesión.' }, 401)
 
+  // El usuario autenticado es el destino de las respuestas. Nunca se acepta esta
+  // dirección desde el payload del navegador. Si la sesión usa un correo interno,
+  // se recurre al correo de contacto del perfil propio protegido por RLS.
+  let replyToEmail = (userResult.user.email ?? '').trim().toLowerCase()
+  if (replyToEmail.startsWith('internal+') || !isValidEmail(replyToEmail)) replyToEmail = ''
+  if (!replyToEmail) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('email')
+      .eq('id', userResult.user.id)
+      .maybeSingle()
+    const profileEmail = profile?.email?.trim().toLowerCase() ?? ''
+    if (isValidEmail(profileEmail)) replyToEmail = profileEmail
+  }
+  if (!isValidEmail(replyToEmail)) {
+    return json({ error: 'La cuenta activa no tiene un correo de contacto válido. Revisa el correo del perfil antes de enviar.' }, 422)
+  }
+
   // Solo se usa el cliente administrativo en el servidor para registrar el resultado
   // de un envío después de que la autorización del usuario ya ha sido comprobada.
   const admin = createClient(supabaseUrl, serviceRoleKey, {
@@ -74,6 +96,7 @@ Deno.serve(async (request) => {
   if (requestError || !materialRequest) return json({ error: 'No se encuentra la petición o no tienes permiso para consultarla.' }, 404)
   if (materialRequest.status !== 'CONFIRMED') return json({ error: 'Solo se pueden enviar peticiones confirmadas.' }, 409)
   if (materialRequest.email_status === 'SENT') return json({ error: 'Esta petición ya consta como enviada. No se volverá a enviar automáticamente.' }, 409)
+  if (materialRequest.email_status === 'SENDING') return json({ error: 'Esta petición ya tiene un envío en curso.' }, 409)
 
   const { data: lines, error: linesError } = await supabase
     .from('maintenance_material_request_lines')
@@ -82,15 +105,16 @@ Deno.serve(async (request) => {
     .order('created_at', { ascending: true })
   if (linesError || !lines?.length) return json({ error: 'No se han podido cargar las líneas de la petición.' }, 400)
 
-  // La política RLS de UPDATE exige maintenance.update; la consulta sola no permite enviar.
-  const { data: sendingRecord, error: claimError } = await supabase
-    .from('maintenance_material_requests')
-    .update({ email_status: 'SENDING', recipient_email: recipientEmail, email_error: null, updated_at: new Date().toISOString() })
-    .eq('id', requestId)
-    .in('email_status', ['NOT_SENT', 'FAILED'])
-    .select('id')
-    .maybeSingle()
-  if (claimError || !sendingRecord) return json({ error: 'No tienes permiso para enviar la petición o ya se ha procesado.' }, 403)
+  // La función SQL comprueba maintenance.update y bloquea la fila para impedir
+  // que dos peticiones concurrentes envíen el mismo documento.
+  const { data: claimResult, error: claimError } = await supabase.rpc(
+    'claim_maintenance_material_request_email_send',
+    { target_request_id: requestId, target_recipient_email: recipientEmail },
+  )
+  if (claimError || !claimResult) {
+    const message = claimError?.message ?? 'La petición ya se ha procesado o no tienes permiso para enviarla.'
+    return json({ error: message }, claimError ? 403 : 409)
+  }
 
   const lineHtml = lines.map((line) => {
     const link = line.purchase_url
@@ -125,6 +149,7 @@ Deno.serve(async (request) => {
       body: JSON.stringify({
         from: fromEmail,
         to: [recipientEmail],
+        reply_to: replyToEmail,
         subject: materialRequest.request_number + ' · Petición de material',
         html,
         attachments: [{ filename: pdfFilename, content: pdfBase64 }],
@@ -150,7 +175,7 @@ Deno.serve(async (request) => {
       })
       .eq('id', requestId)
     if (updateError) return json({ ok: true, warning: 'El correo se aceptó, pero no se pudo guardar el estado. Revisa el historial antes de volver a enviarlo.' })
-    return json({ ok: true, recipient_email: recipientEmail, request_number: materialRequest.request_number })
+    return json({ ok: true, recipient_email: recipientEmail, reply_to: replyToEmail, request_number: materialRequest.request_number })
   } catch (error) {
     const message = (error instanceof Error ? error.message : 'Error de red al enviar el correo.').slice(0, 1000)
     await admin.from('maintenance_material_requests').update({

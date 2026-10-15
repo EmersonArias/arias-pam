@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Archive, CheckCircle2, ChevronDown, ChevronUp, ChevronsDown, ChevronsUp, CornerUpLeft, Eraser, FilterX, House, Lock, Pencil, Plus, RefreshCw, RotateCcw, Search, SlidersHorizontal, Trash2, Unlock, X } from 'lucide-react'
+import { Archive, CheckCircle2, ChevronDown, ChevronUp, ChevronsDown, ChevronsUp, CornerUpLeft, Eraser, FileText, FilterX, House, Lock, Pencil, Plus, RefreshCw, RotateCcw, Search, SlidersHorizontal, Trash2, Unlock, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import BrandLogo from '../../../shared/components/branding/BrandLogo'
 import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
@@ -101,6 +101,7 @@ export default function MaintenancePendingPage() {
   const [blockedRooms, setBlockedRooms] = useState<Set<string>>(new Set())
   const [updatingRoom, setUpdatingRoom] = useState<string | null>(null)
   const [showHistory, setShowHistory] = useState(false)
+  const [reportScope, setReportScope] = useState<'FILTERED' | 'ALL'>('FILTERED')
   const [mobileDetailOpen, setMobileDetailOpen] = useState(false)
   const [showMobileFilters, setShowMobileFilters] = useState(false)
   const [editing, setEditing] = useState(false)
@@ -349,6 +350,19 @@ export default function MaintenancePendingPage() {
     },
     autoFocusFirst: true,
   })
+
+  function openReport() {
+    const params = new URLSearchParams()
+    params.set('scope', reportScope)
+    params.set('search', search)
+    params.set('category', category)
+    params.set('priority', priority)
+    params.set('assigned', assigned)
+    params.set('status', status)
+    params.set('blocked', blockedFilter)
+    params.set('history', showHistory ? '1' : '0')
+    navigate(`/maintenance/pending/report?${params.toString()}`)
+  }
 
   function clearFilters() {
     setSearch('')
@@ -648,6 +662,7 @@ export default function MaintenancePendingPage() {
                 onClick={() => setShowHistory((current) => !current)}
               />
               <IconButton icon={RefreshCw} label="Actualizar" title="Actualizar" onClick={() => void loadItems()} disabled={loading} />
+              <ActionButton icon={FileText} label="PDF" tone="dark" onClick={openReport} disabled={loading || filtered.length === 0} />
               <BackButton onBack={() => navigate('/maintenance')} />
               <HomeButton onHome={() => navigate('/')} />
             </div>
@@ -669,6 +684,7 @@ export default function MaintenancePendingPage() {
                 className="h-10 w-10"
               />
               <IconButton icon={RefreshCw} label="Actualizar" title="Actualizar" onClick={() => void loadItems()} disabled={loading} className="h-10 w-10" />
+              <IconButton icon={FileText} label="PDF" title="PDF" onClick={openReport} disabled={loading || filtered.length === 0} className="h-10 w-10" />
               <IconButton icon={CornerUpLeft} label="Volver" title="Volver" onClick={() => navigate('/maintenance')} className="h-10 w-10" />
               <IconButton icon={House} label="Inicio" title="Inicio" onClick={() => navigate('/')} className="h-10 w-10" />
             </div>
@@ -839,15 +855,15 @@ export default function MaintenancePendingPage() {
               <table className="min-w-[1080px] w-full border-collapse text-sm">
                 <thead className="sticky top-0 z-10 bg-slate-50">
                   <tr className="border-b text-left text-[11px] uppercase tracking-wide text-slate-500">
-                    <th className="px-3 py-2.5">Ubicación</th>
-                    <th className="px-3 py-2.5">Categoría</th>
-                    <th className="px-3 py-2.5">Pendiente</th>
-                    <th className="px-3 py-2.5">Estado</th>
-                    <th className="px-3 py-2.5">Asignado a</th>
-                    <th className="px-3 py-2.5">Prioridad</th>
-                    <th className="px-3 py-2.5">Bloqueada</th>
-                    <th className="px-3 py-2.5">Fecha</th>
-                    <th className="px-3 py-2.5 text-right">Acciones</th>
+                    <th className="px-2 py-1.5">Ubicación</th>
+                    <th className="px-2 py-1.5">Categoría</th>
+                    <th className="px-2 py-1.5">Pendiente</th>
+                    <th className="px-2 py-1.5">Estado</th>
+                    <th className="px-2 py-1.5">Asignado a</th>
+                    <th className="px-2 py-1.5">Prioridad</th>
+                    <th className="px-2 py-1.5">Bloqueada</th>
+                    <th className="px-2 py-1.5">Fecha</th>
+                    <th className="px-2 py-1.5 text-right">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -856,16 +872,16 @@ export default function MaintenancePendingPage() {
                     const rowProps = getRowProps(item.id)
                     return (
                       <tr key={item.id} {...rowProps} onClick={() => setSelectedId(item.id)} className={`border-b last:border-b-0 ${selectedRow ? 'bg-blue-50' : 'hover:bg-slate-50'}`}>
-                        <td className="px-3 py-3 font-semibold text-slate-800">{item.location ?? '—'}</td>
-                        <td className="px-3 py-3 text-slate-600">{item.category ?? '—'}</td>
-                        <td className="px-3 py-3 text-slate-800">
+                        <td className="px-2 py-1.5 font-semibold text-slate-800">{item.location ?? '—'}</td>
+                        <td className="px-2 py-1.5 text-slate-600">{item.category ?? '—'}</td>
+                        <td className="px-2 py-1.5 text-slate-800">
                           <div className="font-semibold">{item.pending}</div>
                           {item.observation && <div className="mt-0.5 max-w-[360px] truncate text-xs text-slate-400">{item.observation}</div>}
                         </td>
-                        <td className="px-3 py-3"><span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${statusClass(item.status)}`}>{statusLabels[item.status]}</span></td>
-                        <td className="px-3 py-3 text-slate-600">{item.assigned_to ?? 'Sin asignar'}</td>
-                        <td className="px-3 py-3"><span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${priorityClass(item.priority)}`}>{priorityLabels[item.priority]}</span></td>
-                        <td className="px-3 py-3">
+                        <td className="px-2 py-1.5"><span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${statusClass(item.status)}`}>{statusLabels[item.status]}</span></td>
+                        <td className="px-2 py-1.5 text-slate-600">{item.assigned_to ?? 'Sin asignar'}</td>
+                        <td className="px-2 py-1.5"><span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${priorityClass(item.priority)}`}>{priorityLabels[item.priority]}</span></td>
+                        <td className="px-2 py-1.5">
                           {isRoomLocation(item.location) ? (
                             <div className="flex items-center gap-2">
                               <IconButton
@@ -884,8 +900,8 @@ export default function MaintenancePendingPage() {
                             <span className="text-xs text-slate-400">—</span>
                           )}
                         </td>
-                        <td className="px-3 py-3 text-slate-600">{formatDate(item.source_date)}</td>
-                        <td className="px-3 py-3 text-right">
+                        <td className="px-2 py-1.5 text-slate-600">{formatDate(item.source_date)}</td>
+                        <td className="px-2 py-1.5 text-right">
                           <div className="flex justify-end gap-1">
                             {showHistory ? (
                               <IconButton
@@ -893,7 +909,7 @@ export default function MaintenancePendingPage() {
                                 label="Restaurar pendiente"
                                 title="Restaurar"
                                 onClick={() => void restoreItem(item)}
-                                className="h-9 w-9"
+                                className="h-8 w-8"
                               />
                             ) : (
                               <>
@@ -902,14 +918,14 @@ export default function MaintenancePendingPage() {
                                   label="Modificar pendiente"
                                   title="Modificar"
                                   onClick={() => openEdit(item)}
-                                  className="h-9 w-9"
+                                  className="h-8 w-8"
                                 />
                                 <IconButton
                                   icon={Trash2}
                                   label="Eliminar pendiente"
                                   title="Eliminar (desactivar)"
                                   onClick={() => void deactivateItem(item)}
-                                  className="h-9 w-9"
+                                  className="h-8 w-8"
                                 />
                               </>
                             )}

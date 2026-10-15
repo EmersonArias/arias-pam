@@ -97,6 +97,17 @@ type WorkOrder = {
   priority: 'LOW' | 'NORMAL' | 'HIGH' | 'CRITICAL'
 }
 
+const priorityLabels: Record<WorkOrder['priority'], string> = {
+  LOW: 'Baja', NORMAL: 'Media', HIGH: 'Alta', CRITICAL: 'Crítica',
+}
+
+function priorityClass(priority: WorkOrder['priority']) {
+  if (priority === 'CRITICAL') return 'bg-rose-100 text-rose-800 ring-1 ring-rose-200'
+  if (priority === 'HIGH') return 'bg-orange-100 text-orange-800 ring-1 ring-orange-200'
+  if (priority === 'NORMAL') return 'bg-slate-100 text-slate-600'
+  return 'bg-sky-50 text-sky-700'
+}
+
 const statusLabels: Record<WorkOrder['status'], string> = {
   PENDING: 'Pendiente',
   IN_MANAGEMENT: 'En gestión',
@@ -180,13 +191,11 @@ export default function MaintenanceWorkOrdersPage() {
   const [selectedId, setSelectedId] = useState('')
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'IN_MANAGEMENT' | 'IN_PROGRESS'>('ALL')
   const [typeFilter, setTypeFilter] = useState<'ALL' | WorkOrder['work_type']>('ALL')
-  const [priorityFilter, setPriorityFilter] = useState<'ALL' | WorkOrder['priority']>('ALL')
+  const [priorityFilter, setPriorityFilter] = useState<'ALL' | WorkOrder['priority'] | 'HIGH_OR_CRITICAL'>('ALL')
   const [assigneeFilter, setAssigneeFilter] = useState('ALL')
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [generationMode, setGenerationMode] = useState<'AUTO' | 'MANUAL'>('MANUAL')
-  const [generationLeadDays, setGenerationLeadDays] = useState(0)
   const [evidence, setEvidence] = useState<WorkOrderEvidence[]>([])
   const [evidenceLoading, setEvidenceLoading] = useState(false)
   const [assets, setAssets] = useState<TicketAsset[]>([])
@@ -216,21 +225,14 @@ export default function MaintenanceWorkOrdersPage() {
     setLoading(true)
     setError('')
 
-    const [result, configResult] = await Promise.all([
-      supabase
-        .from('maintenance_work_orders_resolved')
-        .select('*')
-        .eq('hotel_id', hotel.id)
-        .neq('work_type', 'PREVENTIVE')
-        .not('status', 'in', '(COMPLETED,REJECTED)')
-        .order('scheduled_date', { ascending: true, nullsFirst: false })
-        .order('created_at', { ascending: false }),
-      supabase
-        .from('maintenance_hotel_config')
-        .select('ot_generation_mode, ot_generation_lead_days')
-        .eq('hotel_id', hotel.id)
-        .maybeSingle(),
-    ])
+    const result = await supabase
+      .from('maintenance_work_orders_resolved')
+      .select('*')
+      .eq('hotel_id', hotel.id)
+      .neq('work_type', 'PREVENTIVE')
+      .not('status', 'in', '(COMPLETED,REJECTED)')
+      .order('scheduled_date', { ascending: true, nullsFirst: false })
+      .order('created_at', { ascending: false })
 
     const assetsResult = await supabase
       .from('apparatus_registry')
@@ -334,9 +336,6 @@ export default function MaintenanceWorkOrdersPage() {
       return
     }
 
-    setGenerationMode(configResult.data?.ot_generation_mode === 'AUTO' ? 'AUTO' : 'MANUAL')
-    setGenerationLeadDays(Number(configResult.data?.ot_generation_lead_days ?? 0))
-
     const loaded = (result.data ?? []) as WorkOrder[]
     setRecords(loaded)
     setSelectedId((current) => loaded.some((item) => item.id === current) ? current : (loaded[0]?.id ?? ''))
@@ -413,7 +412,8 @@ export default function MaintenanceWorkOrdersPage() {
     return records.filter((item) => {
       if (statusFilter !== 'ALL' && item.status !== statusFilter) return false
       if (typeFilter !== 'ALL' && item.work_type !== typeFilter) return false
-      if (priorityFilter !== 'ALL' && item.priority !== priorityFilter) return false
+      if (priorityFilter === 'HIGH_OR_CRITICAL' && item.priority !== 'HIGH' && item.priority !== 'CRITICAL') return false
+      if (priorityFilter !== 'ALL' && priorityFilter !== 'HIGH_OR_CRITICAL' && item.priority !== priorityFilter) return false
       if (assigneeFilter !== 'ALL' && (item.assigned_user_id ?? 'UNASSIGNED') !== assigneeFilter) return false
       if (!query) return true
 
@@ -438,6 +438,18 @@ export default function MaintenanceWorkOrdersPage() {
   }, [records, search, statusFilter, typeFilter, priorityFilter, assigneeFilter])
 
   const selected = records.find((item) => item.id === selectedId) ?? null
+  const pendingCount = records.filter((item) => item.status === 'PENDING').length
+  const urgentCount = records.filter((item) => item.priority === 'HIGH' || item.priority === 'CRITICAL').length
+  const unassignedCount = records.filter((item) => !item.assigned_user_id).length
+  const inProgressCount = records.filter((item) => item.status === 'IN_PROGRESS' || item.status === 'IN_MANAGEMENT').length
+
+  function applyTicketSummaryFilter(kind: 'PENDING' | 'URGENT' | 'UNASSIGNED' | 'IN_PROGRESS') {
+    setTypeFilter('ALL')
+    setSearch('')
+    setStatusFilter(kind === 'PENDING' ? 'PENDING' : kind === 'IN_PROGRESS' ? 'IN_PROGRESS' : 'ALL')
+    setPriorityFilter(kind === 'URGENT' ? 'HIGH_OR_CRITICAL' : 'ALL')
+    setAssigneeFilter(kind === 'UNASSIGNED' ? 'UNASSIGNED' : 'ALL')
+  }
 
   const gridIds = useMemo(
     () => filteredRecords.map((item) => item.id),
@@ -581,15 +593,27 @@ export default function MaintenanceWorkOrdersPage() {
           </div>
         )}
 
-        <div className={
-          generationMode === 'AUTO'
-            ? 'mb-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-xs text-emerald-800'
-            : 'mb-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-800'
-        }>
-          {generationMode === 'AUTO'
-            ? `Generación automática de tickets preventivos: activa · anticipación ${generationLeadDays} día${generationLeadDays === 1 ? '' : 's'}.`
-            : 'Generación automática de tickets preventivos: desactivada para este hotel. Los tickets preventivos no se crearán automáticamente mientras esté en modo Manual.'}
-        </div>
+
+        <section className="mb-3 grid grid-cols-2 gap-2 xl:grid-cols-4" aria-label="Resumen de tickets correctivos">
+          {[
+            { key: 'PENDING' as const, label: 'Pendientes', count: pendingCount, detail: 'Por atender', icon: Clock3, tone: 'text-amber-700 bg-amber-50' },
+            { key: 'URGENT' as const, label: 'Alta / crítica', count: urgentCount, detail: 'Prioridad alta o crítica', icon: AlertTriangle, tone: 'text-rose-700 bg-rose-50' },
+            { key: 'IN_PROGRESS' as const, label: 'En gestión / curso', count: inProgressCount, detail: 'Ya atendidos', icon: CheckCircle2, tone: 'text-blue-700 bg-blue-50' },
+            { key: 'UNASSIGNED' as const, label: 'Sin asignar', count: unassignedCount, detail: 'Requieren responsable', icon: UserRound, tone: 'text-slate-700 bg-slate-100' },
+          ].map((metric) => {
+            const MetricIcon = metric.icon
+            return (
+              <button key={metric.key} type="button" onClick={() => applyTicketSummaryFilter(metric.key)} className="min-w-0 rounded-xl border border-slate-200 bg-white p-3 text-left shadow-sm transition hover:border-slate-300 hover:shadow-md active:scale-[0.99] sm:p-4">
+                <div className="flex items-center gap-2">
+                  <span className={'flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ' + metric.tone}><MetricIcon size={18}/></span>
+                  <span className="truncate text-xs font-semibold text-slate-600 sm:text-sm">{metric.label}</span>
+                </div>
+                <div className="mt-2 text-2xl font-bold tabular-nums text-slate-900 sm:text-3xl">{metric.count}</div>
+                <div className="mt-0.5 hidden text-xs text-slate-500 sm:block">{metric.detail}</div>
+              </button>
+            )
+          })}
+        </section>
 
         <section className="mb-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_repeat(4,minmax(150px,1fr))]">
@@ -635,6 +659,7 @@ export default function MaintenanceWorkOrdersPage() {
                 className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2"
               >
                 <option value="ALL">Todas</option>
+                <option value="HIGH_OR_CRITICAL">Alta y crítica</option>
                 <option value="CRITICAL">Crítica</option>
                 <option value="HIGH">Alta</option>
                 <option value="NORMAL">Normal</option>
@@ -696,7 +721,10 @@ export default function MaintenanceWorkOrdersPage() {
                         <div className="text-sm font-bold text-slate-800">{item.ot_number}</div>
                         <div className="mt-1 text-xs font-semibold text-slate-700">{getMaintenanceDisplay(item)}</div>
                       </div>
-                      <span className={'shrink-0 rounded-full px-2 py-1 text-[10px] font-semibold ' + displayStatusClass(item)}>{displayStatusLabel(item)}</span>
+                      <div className="flex shrink-0 flex-col items-end gap-1">
+                        <span className={'rounded-full px-2 py-1 text-[10px] font-semibold ' + priorityClass(item.priority)}>{priorityLabels[item.priority]}</span>
+                        <span className={'rounded-full px-2 py-1 text-[10px] font-semibold ' + displayStatusClass(item)}>{displayStatusLabel(item)}</span>
+                      </div>
                     </div>
                     <div className="mt-2 text-[10px] text-slate-500">
                       {item.apparatus_code ?? '—'} · {item.apparatus_name ?? 'Equipo no disponible'}
@@ -718,7 +746,7 @@ export default function MaintenanceWorkOrdersPage() {
             <div className="hidden md:block">
               <div {...getGridProps()} className="outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-200">
                 <GridViewport className="max-h-[calc(100vh-300px)]">
-              <table className="w-full min-w-[960px] border-collapse text-xs">
+              <table className="w-full min-w-[1020px] border-collapse text-xs">
                 <thead>
                   <tr className="sticky top-0 z-10 border-b bg-slate-50 text-left text-[10px] uppercase tracking-wide text-slate-500">
                     <th className="px-3 py-2.5 font-semibold">Ticket</th>
@@ -727,6 +755,7 @@ export default function MaintenanceWorkOrdersPage() {
                     <th className="px-3 py-2.5 font-semibold">Ubicación</th>
                     <th className="px-3 py-2.5 font-semibold">Fecha prevista</th>
                     <th className="px-3 py-2.5 font-semibold">Asignado</th>
+                    <th className="px-3 py-2.5 font-semibold">Criticidad</th>
                     <th className="px-3 py-2.5 font-semibold">Estado</th>
                     <th className="px-3 py-2.5 font-semibold">Acciones</th>
                   </tr>
@@ -758,6 +787,7 @@ export default function MaintenanceWorkOrdersPage() {
                         {item.scheduled_date ? new Date(item.scheduled_date + 'T12:00:00').toLocaleDateString('es-ES') : '—'}
                       </td>
                       <td className="px-3 py-3 text-slate-600">{item.assigned_user_name ?? 'Sin asignar'}</td>
+                      <td className="whitespace-nowrap px-3 py-3"><span className={'inline-flex rounded-full px-2 py-1 text-[10px] font-semibold ' + priorityClass(item.priority)}>{priorityLabels[item.priority]}</span></td>
                       <td className="whitespace-nowrap px-3 py-3">
                         <span className={'inline-flex rounded-full px-2 py-1 text-[10px] font-semibold ' + displayStatusClass(item)}>{displayStatusLabel(item)}</span>
                       </td>
@@ -788,7 +818,7 @@ export default function MaintenanceWorkOrdersPage() {
                     </tr>
                   ))}
                   {!loading && filteredRecords.length === 0 && (
-                    <tr><td colSpan={8} className="px-3 py-10 text-center text-sm text-slate-500">No hay tickets para mostrar.</td></tr>
+                    <tr><td colSpan={9} className="px-3 py-10 text-center text-sm text-slate-500">No hay tickets para mostrar.</td></tr>
                   )}
                 </tbody>
               </table>
@@ -820,7 +850,7 @@ export default function MaintenanceWorkOrdersPage() {
             </div>
           </section>
 
-          <aside className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <aside className="hidden rounded-2xl border border-slate-200 bg-white shadow-sm xl:block">
             <div className="border-b px-4 py-3 text-sm font-semibold">Detalle del ticket</div>
             {selected ? (
               <div className="space-y-4 p-4">
@@ -834,6 +864,7 @@ export default function MaintenanceWorkOrdersPage() {
                   <div className="flex items-center gap-2"><Wrench size={16} /><span><strong>Equipo:</strong> {selected.apparatus_code ?? '—'} · {selected.apparatus_name ?? '—'}</span></div>
                   <div className="flex items-center gap-2"><Clock3 size={16} /><span><strong>Fecha prevista:</strong> {selected.scheduled_date ? new Date(selected.scheduled_date + 'T12:00:00').toLocaleDateString('es-ES') : '—'}</span></div>
                   <div className="flex items-center gap-2"><UserRound size={16} /><span><strong>Asignado:</strong> {selected.assigned_user_name ?? 'Sin asignar'}</span></div>
+                  <div className="flex items-center gap-2"><AlertTriangle size={16} /><span><strong>Criticidad:</strong> <span className={'inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ' + priorityClass(selected.priority)}>{priorityLabels[selected.priority]}</span></span></div>
                   <div className="flex items-center gap-2"><FileText size={16} /><span><strong>Tipo:</strong> {typeLabels[selected.work_type]}</span></div>
                 </div>
 

@@ -380,7 +380,7 @@ export default function MaintenanceWorkOrderDetailPage(){
             <BrandLogo onActivate={()=>navigate('/')} className="h-9 w-auto shrink-0 object-contain sm:h-11"/>
             <div><div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Ticket</div><h1 className="text-xl font-bold sm:text-2xl">{order.ot_number}</h1><p className="text-xs text-slate-500 sm:text-sm">{hotel?.name??'Hotel'} · {typeLabels[order.work_type]}</p></div>
           </div>
-          <div className="arias-mobile-header-actions flex items-center gap-2"><button type="button" onClick={()=>navigate('/maintenance/tickets')} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50"><ArrowLeft size={17}/>Volver</button><HomeButton onHome={()=>navigate('/')}/></div>
+          <div className="arias-mobile-header-actions flex items-center gap-2"><button type="button" onClick={()=>{const returnTo=(location.state as {returnTo?:string}|null)?.returnTo;navigate(returnTo||'/maintenance/tickets')}} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50"><ArrowLeft size={17}/>Volver</button><HomeButton onHome={()=>navigate('/')}/></div>
         </div>
       </header>
 

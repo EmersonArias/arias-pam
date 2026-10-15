@@ -2,7 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-api-version',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Content-Type': 'application/json',
 }
@@ -23,10 +23,11 @@ Deno.serve(async (request) => {
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')
   const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? Deno.env.get('SUPABASE_PUBLISHABLE_KEY')
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
   const resendKey = Deno.env.get('RESEND_API_KEY')
   const fromEmail = Deno.env.get('MATERIAL_REQUEST_FROM_EMAIL') ?? Deno.env.get('RESEND_FROM_EMAIL')
 
-  if (!supabaseUrl || !anonKey) return json({ error: 'Configuración de Supabase incompleta en la función.' }, 500)
+  if (!supabaseUrl || !anonKey || !serviceRoleKey) return json({ error: 'Configuración de Supabase incompleta en la función.' }, 500)
   if (!resendKey || !fromEmail) {
     return json({
       error: 'Falta configurar RESEND_API_KEY y MATERIAL_REQUEST_FROM_EMAIL en los secretos de Supabase Edge Functions.',
@@ -44,6 +45,12 @@ Deno.serve(async (request) => {
   })
   const { data: userResult, error: authError } = await supabase.auth.getUser(token)
   if (authError || !userResult.user) return json({ error: 'No se pudo validar la sesión.' }, 401)
+
+  // Solo se usa el cliente administrativo en el servidor para registrar el resultado
+  // de un envío después de que la autorización del usuario ya ha sido comprobada.
+  const admin = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  })
 
   let payload: { request_id?: string; recipient_email?: string; pdf_base64?: string; pdf_filename?: string }
   try { payload = await request.json() } catch { return json({ error: 'El contenido enviado no es válido.' }, 400) }
@@ -126,13 +133,13 @@ Deno.serve(async (request) => {
     const emailPayload = await emailResponse.json().catch(() => ({})) as Record<string, unknown>
     if (!emailResponse.ok) {
       const message = String(emailPayload.message ?? emailPayload.error ?? ('Proveedor de correo respondió ' + emailResponse.status)).slice(0, 1000)
-      await supabase.from('maintenance_material_requests').update({
+      await admin.from('maintenance_material_requests').update({
         email_status: 'FAILED', email_error: message, updated_at: new Date().toISOString(),
       }).eq('id', requestId)
       return json({ error: 'El proveedor de correo rechazó el envío: ' + message }, 502)
     }
 
-    const { error: updateError } = await supabase
+    const { error: updateError } = await admin
       .from('maintenance_material_requests')
       .update({
         email_status: 'SENT',
@@ -146,7 +153,7 @@ Deno.serve(async (request) => {
     return json({ ok: true, recipient_email: recipientEmail, request_number: materialRequest.request_number })
   } catch (error) {
     const message = (error instanceof Error ? error.message : 'Error de red al enviar el correo.').slice(0, 1000)
-    await supabase.from('maintenance_material_requests').update({
+    await admin.from('maintenance_material_requests').update({
       email_status: 'FAILED', email_error: message, updated_at: new Date().toISOString(),
     }).eq('id', requestId)
     return json({ error: 'No se pudo contactar con el servicio de correo: ' + message }, 502)

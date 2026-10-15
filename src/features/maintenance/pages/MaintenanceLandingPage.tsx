@@ -18,6 +18,8 @@ type Counts = {
   assets: number | null
   pendingTickets: number | null
   urgentTickets: number | null
+  pendingPreventives: number | null
+  overduePreventives: number | null
   inProgressTickets: number | null
   inManagementTickets: number | null
   scheduledJobs: number | null
@@ -29,11 +31,18 @@ const EMPTY_COUNTS: Counts = {
   assets: null,
   pendingTickets: null,
   urgentTickets: null,
+  pendingPreventives: null,
+  overduePreventives: null,
   inProgressTickets: null,
   inManagementTickets: null,
   scheduledJobs: null,
   interventions: null,
   pam: null,
+}
+
+function localTodayISO() {
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
 }
 
 export default function MaintenanceLandingPage() {
@@ -50,7 +59,7 @@ export default function MaintenanceLandingPage() {
         return
       }
 
-      const [assets, pending, urgentTickets, inProgress, inManagement, scheduledJobs, interventions, pam] = await Promise.all([
+      const [assets, pending, urgentTickets, inProgress, inManagement, scheduledJobs, pendingPreventives, overduePreventives, interventions, pam] = await Promise.all([
         supabase
           .from('apparatus_registry')
           .select('id', { count: 'exact', head: true })
@@ -87,6 +96,19 @@ export default function MaintenanceLandingPage() {
           .select('id', { count: 'exact', head: true })
           .eq('hotel_id', hotel.id),
         supabase
+          .from('maintenance_work_orders')
+          .select('id', { count: 'exact', head: true })
+          .eq('hotel_id', hotel.id)
+          .eq('work_type', 'PREVENTIVE')
+          .eq('status', 'PENDING'),
+        supabase
+          .from('maintenance_work_orders')
+          .select('id', { count: 'exact', head: true })
+          .eq('hotel_id', hotel.id)
+          .eq('work_type', 'PREVENTIVE')
+          .eq('status', 'PENDING')
+          .lt('scheduled_date', localTodayISO()),
+        supabase
           .from('maintenance_actions')
           .select('id', { count: 'exact', head: true })
           .eq('hotel_id', hotel.id)
@@ -104,6 +126,8 @@ export default function MaintenanceLandingPage() {
         assets: assets.error ? null : assets.count ?? 0,
         pendingTickets: pending.error ? null : pending.count ?? 0,
         urgentTickets: urgentTickets.error ? null : urgentTickets.count ?? 0,
+        pendingPreventives: pendingPreventives.error ? null : pendingPreventives.count ?? 0,
+        overduePreventives: overduePreventives.error ? null : overduePreventives.count ?? 0,
         inProgressTickets: inProgress.error ? null : inProgress.count ?? 0,
         inManagementTickets: inManagement.error ? null : inManagement.count ?? 0,
         scheduledJobs: scheduledJobs.error ? null : scheduledJobs.count ?? 0,
@@ -151,11 +175,13 @@ export default function MaintenanceLandingPage() {
       href: '/maintenance/room-projects',
     },
     {
-      title: 'Trabajos programados',
-      description: 'Calendario operativo de los trabajos derivados del PAM.',
+      title: 'Preventivos',
+      description: 'Seguimiento del PAM por separado de los tickets correctivos.',
       icon: CalendarClock,
       href: '/maintenance/planning',
-      metric: counts.scheduledJobs == null ? undefined : `${counts.scheduledJobs} programados`,
+      metric: counts.pendingPreventives == null || counts.overduePreventives == null
+        ? undefined
+        : `${counts.pendingPreventives} pendientes · ${counts.overduePreventives} atrasados`,
     },
     {
       title: 'Intervenciones',

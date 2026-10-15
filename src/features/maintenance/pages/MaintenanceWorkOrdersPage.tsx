@@ -354,7 +354,11 @@ export default function MaintenanceWorkOrdersPage() {
 
     const summaryFilter = searchParams.get('summary')
     if (summaryFilter === 'PENDING' || summaryFilter === 'URGENT' || summaryFilter === 'UNASSIGNED' || summaryFilter === 'IN_PROGRESS') {
-      applyTicketSummaryFilter(summaryFilter)
+      setTypeFilter('ALL')
+      setSearch('')
+      setStatusFilter(summaryFilter === 'PENDING' ? 'PENDING' : summaryFilter === 'IN_PROGRESS' ? 'IN_PROGRESS' : 'ALL')
+      setPriorityFilter(summaryFilter === 'URGENT' ? 'HIGH_OR_CRITICAL' : 'ALL')
+      setAssigneeFilter(summaryFilter === 'UNASSIGNED' ? 'UNASSIGNED' : 'ALL')
       setSearchParams({}, { replace: true })
       return
     }
@@ -1140,7 +1144,7 @@ export default function MaintenanceWorkOrdersPage() {
               <div className="flex justify-end gap-2 border-t pt-4">
                 <button
                   type="button"
-                  onClick={() => setTicketOpen(false)}
+                  onClick={() => { if (!ticketSaving) { setTicketOpen(false); setTicketPhotos([]) } }}
                   disabled={ticketSaving}
                   className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
                 >
@@ -1189,7 +1193,6 @@ export default function MaintenanceWorkOrdersPage() {
                         }
                       }
 
-                      setTicketOpen(false)
                       setTicketTitle('')
                       setTicketDescription('')
                       setTicketAssetId('')
@@ -1214,11 +1217,13 @@ export default function MaintenanceWorkOrdersPage() {
                           uploaded_by: session?.user.id ?? null,
                         })
                         if (evidenceInsert.error) {
+                          await supabase.storage.from('maintenance-evidence').remove([storagePath])
                           photoWarning = 'El ticket se creó, pero no se pudo registrar una foto. Puedes adjuntarla desde la ficha del ticket.'
                           break
                         }
                       }
                       setTicketPhotos([])
+                      setTicketOpen(false)
                       await loadData()
                       setSelectedId(created.id)
                       navigate('/maintenance/tickets/' + created.id, photoWarning ? { state: { flashMessage: photoWarning } } : undefined)
@@ -1232,7 +1237,7 @@ export default function MaintenanceWorkOrdersPage() {
                   className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <Plus size={16} />
-                  {ticketSaving ? 'Creando…' : 'Crear ticket'}
+                  {ticketSaving ? (ticketPhotos.length ? 'Guardando ticket y fotos…' : 'Creando ticket…') : 'Crear ticket'}
                 </button>
               </div>
             </div>

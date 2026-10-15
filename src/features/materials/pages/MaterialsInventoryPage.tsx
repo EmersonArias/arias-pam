@@ -688,12 +688,13 @@ export default function MaterialsInventoryPage() {
       })
       if (response.error) throw new Error(response.error.message)
       if (response.data?.error) throw new Error(String(response.data.error))
+      const deliveryStateWarning = response.data?.warning ? String(response.data.warning) : ''
       const updatedRequest = { ...emailTarget.request, email_status: 'SENT' as const, recipient_email: recipient, email_sent_at: new Date().toISOString(), email_error: null }
       setRequests((current) => current.map((request) => request.id === updatedRequest.id ? updatedRequest : request))
       setLastRequest((current) => current?.request.id === updatedRequest.id ? { ...current, request: updatedRequest } : current)
       setHistorySelected((current) => current?.request.id === updatedRequest.id ? { ...current, request: updatedRequest } : current)
       setEmailTarget(null)
-      setSuccess('Correo enviado correctamente a ' + recipient + '.')
+      setSuccess(deliveryStateWarning ? 'El proveedor aceptó el correo a ' + recipient + ', pero el historial no confirmó el estado: ' + deliveryStateWarning : 'Correo enviado correctamente a ' + recipient + '.')
       await loadData()
     } catch (e) {
       const message = e instanceof Error ? e.message : 'No se ha podido enviar el correo.'

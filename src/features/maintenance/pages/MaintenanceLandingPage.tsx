@@ -106,7 +106,7 @@ export default function MaintenanceLandingPage() {
           .select('id', { count: 'exact', head: true })
           .eq('hotel_id', hotel.id)
           .eq('work_type', 'PREVENTIVE')
-          .eq('status', 'PENDING')
+          .in('status', ['PENDING', 'IN_MANAGEMENT', 'IN_PROGRESS'])
           .lt('scheduled_date', localTodayISO()),
         supabase
           .from('maintenance_actions')

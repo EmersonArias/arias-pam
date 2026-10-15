@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import {
   Bell,
   CircleHelp,
-  ClipboardList,
+  CalendarClock,
   Maximize2,
+  X,
   Minimize2,
   Search,
   Settings,
@@ -100,8 +101,8 @@ export default function BooksPage() {
   const [adminMenuOpen, setAdminMenuOpen] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
   const [maintenanceAlerts, setMaintenanceAlerts] = useState<MaintenanceAlert[]>([])
-  const alertsGridRef = useRef<HTMLElement | null>(null)
   const [notificationsLoading, setNotificationsLoading] = useState(false)
+  const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [pendingCount, setPendingCount] = useState<number | null>(null)
   const [isFullscreen, setIsFullscreen] = useState(false)
 
@@ -347,14 +348,14 @@ export default function BooksPage() {
                 onClick={() => {
                   setUserMenuOpen(false)
                   setAdminMenuOpen(false)
-                  alertsGridRef.current?.scrollIntoView({
-                    behavior: 'smooth',
-                    block: 'center',
-                  })
+                  const opening = !notificationsOpen
+                  setNotificationsOpen(opening)
+                  if (opening) void refreshNotifications()
                 }}
                 className="relative inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md active:translate-y-0"
-                title="Avisos"
-                aria-label="Avisos"
+                title="Centro de avisos"
+                aria-label="Centro de avisos"
+                aria-expanded={notificationsOpen}
               >
                 <Bell size={18} />
                 {maintenanceAlerts.length > 0 && (
@@ -532,145 +533,67 @@ export default function BooksPage() {
               No se encontraron módulos para «{search}».
             </div>
           )}
-          <div className="mx-auto mt-2 w-full px-2 sm:mt-3 sm:px-3 md:px-5 lg:px-[clamp(48px,5.5vw,90px)]">
-            <section
-              ref={alertsGridRef}
-              className="flex min-h-0 flex-1 flex-col scroll-mt-4 rounded-2xl border border-slate-200 bg-white shadow-lg"
-              aria-label="Avisos"
-            >
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-4 py-2.5">
-              <div>
-                <h2 className="text-sm font-semibold text-slate-800">Avisos</h2>
-                <p className="text-[11px] text-slate-500">
-                  Alertas activas de mantenimiento
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => navigate('/maintenance/tickets?new=1')}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-slate-700 transition hover:bg-slate-50"
-                >
-                  <ClipboardList size={14} />
-                  Nuevo ticket
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void refreshNotifications()}
-                  disabled={notificationsLoading}
-                  className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-[11px] text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {notificationsLoading ? 'Actualizando…' : 'Actualizar'}
-                </button>
-              </div>
-            </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto p-2 md:hidden">
-              <div className="space-y-2">
-                {maintenanceAlerts.map((alert) => {
-                  const statusView = alertStatusView(alert)
-
-                  return (
-                    <button
-                      key={alert.id}
-                      type="button"
-                      onClick={() => navigate(alert.apparatus_registry_id ? `/maintenance/pam/${alert.apparatus_registry_id}?planId=${alert.maintenance_plan_id}` : '/maintenance')}
-                      className="w-full rounded-xl border border-slate-200 bg-white p-3 text-left shadow-sm"
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <div className="truncate text-xs font-semibold text-slate-800">{alert.title}</div>
-                          <div className="mt-0.5 truncate text-[10px] font-semibold text-slate-600">
-                            {alert.apparatus_code ? alert.apparatus_code + ' · ' : ''}{alert.apparatus_name ?? 'Equipo no identificado'}
-                          </div>
-                        </div>
-                        <span className={`shrink-0 rounded-full px-2 py-1 text-[9px] font-semibold ${statusView.className}`}>{statusView.label}</span>
-                      </div>
-                      <div className="mt-2 flex gap-3 text-[9px] text-slate-400">
-                        <span>Prevista: {alert.due_date ? new Date(alert.due_date + 'T12:00:00').toLocaleDateString('es-ES') : '—'}</span>
-                        <span>Generado: {new Date(alert.triggered_at).toLocaleDateString('es-ES')}</span>
-                      </div>
-                    </button>
-                  )
-                })}
-
-                {!notificationsLoading && maintenanceAlerts.length === 0 && (
-                  <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-xs text-slate-400">
-                    No hay avisos activos.
+          {notificationsOpen && (
+            <>
+              <button type="button" aria-label="Cerrar centro de avisos" onClick={() => setNotificationsOpen(false)} className="fixed inset-0 z-40 cursor-default bg-slate-950/10" />
+              <section aria-label="Centro de avisos" className="fixed right-3 top-[4.5rem] z-50 flex max-h-[min(78vh,680px)] w-[min(94vw,440px)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl sm:right-5">
+                <header className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-700"><Bell size={19}/></span>
+                    <div>
+                      <h2 className="text-sm font-bold text-slate-900">Centro de avisos</h2>
+                      <p className="text-[11px] text-slate-500">{maintenanceAlerts.length} avisos activos · {hotel?.name ?? 'Hotel seleccionado'}</p>
+                    </div>
                   </div>
-                )}
-
-                {notificationsLoading && (
-                  <div className="p-8 text-center text-xs text-slate-400">Cargando avisos…</div>
-                )}
-              </div>
-            </div>
-
-            <div className="hidden min-h-0 flex-1 overflow-y-auto md:block">
-              <table className="w-full min-w-[720px] border-collapse text-xs">
-                <thead>
-                  <tr className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50 text-left text-[10px] uppercase tracking-wide text-slate-500">
-                    <th className="px-3 py-2 font-semibold">Estado</th>
-                    <th className="px-3 py-2 font-semibold">Aviso</th>
-                    <th className="px-3 py-2 font-semibold">Fecha prevista</th>
-                    <th className="px-3 py-2 font-semibold">Generado</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {maintenanceAlerts.map((alert) => {
-                    const statusView = alertStatusView(alert)
-
-                    return (
-                      <tr
-                        key={alert.id}
-                        onClick={() => navigate(alert.apparatus_registry_id ? `/maintenance/pam/${alert.apparatus_registry_id}?planId=${alert.maintenance_plan_id}` : '/maintenance')}
-                        className="cursor-pointer border-b border-slate-100 transition hover:bg-slate-50"
-                      >
-                        <td className="whitespace-nowrap px-3 py-2">
-                          <span className={`inline-flex rounded-full px-2 py-1 text-[10px] font-semibold ${statusView.className}`}>
-                            {statusView.label}
-                          </span>
-                        </td>
-                        <td className="max-w-[520px] px-3 py-2">
-                          <div className="truncate font-semibold text-slate-800">
-                            {alert.title}
-                          </div>
-                          <div className="truncate text-[10px] font-semibold text-slate-600">
-                            {alert.apparatus_code ? alert.apparatus_code + ' · ' : ''}{alert.apparatus_name ?? 'Equipo no identificado'}
-                          </div>
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-2 text-slate-600">
-                          {alert.due_date
-                            ? new Date(alert.due_date + 'T12:00:00').toLocaleDateString('es-ES')
-                            : '—'}
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-2 text-slate-400">
-                          {new Date(alert.triggered_at).toLocaleString('es-ES')}
-                        </td>
-                      </tr>
-                    )
-                  })}
-
+                  <div className="flex shrink-0 items-center gap-1">
+                    <button type="button" onClick={() => void refreshNotifications()} disabled={notificationsLoading} className="rounded-lg border border-slate-200 px-2.5 py-2 text-[11px] font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50">{notificationsLoading ? 'Actualizando…' : 'Actualizar'}</button>
+                    <button type="button" onClick={() => setNotificationsOpen(false)} aria-label="Cerrar" className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100"><X size={17}/></button>
+                  </div>
+                </header>
+                <div className="min-h-0 flex-1 overflow-y-auto p-3">
+                  {notificationsLoading && <div className="p-8 text-center text-xs text-slate-400">Actualizando avisos…</div>}
                   {!notificationsLoading && maintenanceAlerts.length === 0 && (
-                    <tr>
-                      <td colSpan={4} className="px-3 py-5 text-center text-xs text-slate-400">
-                        No hay avisos activos.
-                      </td>
-                    </tr>
+                    <div className="rounded-xl border border-dashed border-slate-300 px-4 py-8 text-center">
+                      <Bell size={22} className="mx-auto text-slate-300"/>
+                      <p className="mt-2 text-sm font-semibold text-slate-700">No hay avisos activos</p>
+                      <p className="mt-1 text-xs text-slate-500">Aquí aparecerán las alertas de mantenimiento que requieran atención.</p>
+                    </div>
                   )}
-
-                  {notificationsLoading && (
-                    <tr>
-                      <td colSpan={4} className="px-3 py-5 text-center text-xs text-slate-400">
-                        Cargando avisos…
-                      </td>
-                    </tr>
+                  {!notificationsLoading && maintenanceAlerts.length > 0 && (
+                    <div className="space-y-2">
+                      {maintenanceAlerts.map((alert) => {
+                        const statusView = alertStatusView(alert)
+                        return (
+                          <button key={alert.id} type="button" onClick={() => {
+                            setNotificationsOpen(false)
+                            navigate(alert.apparatus_registry_id ? `/maintenance/pam/${alert.apparatus_registry_id}?planId=${alert.maintenance_plan_id}` : '/maintenance')
+                          }} className="w-full rounded-xl border border-slate-200 p-3 text-left transition hover:border-slate-300 hover:bg-slate-50">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <div className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500"><CalendarClock size={12}/>Preventivo · PAM</div>
+                                <div className="text-sm font-semibold leading-5 text-slate-900">{alert.title}</div>
+                                <div className="mt-1 text-xs font-medium text-slate-600">{alert.apparatus_code ? alert.apparatus_code + ' · ' : ''}{alert.apparatus_name ?? 'Equipo no identificado'}</div>
+                              </div>
+                              <span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-semibold ${statusView.className}`}>{statusView.label}</span>
+                            </div>
+                            <p className="mt-2 text-xs leading-5 text-slate-500">{alert.message}</p>
+                            <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-2 text-[10px] text-slate-400">
+                              <span>Prevista: {alert.due_date ? new Date(alert.due_date + 'T12:00:00').toLocaleDateString('es-ES') : 'Sin fecha'}</span>
+                              <span className="font-semibold text-slate-600">Abrir plan →</span>
+                            </div>
+                          </button>
+                        )
+                      })}
+                    </div>
                   )}
-                </tbody>
-              </table>
-            </div>
-            </section>
-          </div>
+                </div>
+                <footer className="border-t border-slate-100 px-4 py-2.5">
+                  <button type="button" onClick={() => { setNotificationsOpen(false); navigate('/maintenance/planning?summary=OVERDUE') }} className="w-full rounded-lg bg-slate-900 px-3 py-2.5 text-xs font-semibold text-white hover:bg-slate-800">Ver planificación preventiva</button>
+                </footer>
+              </section>
+            </>
+          )}
 
         </main>
       </div>

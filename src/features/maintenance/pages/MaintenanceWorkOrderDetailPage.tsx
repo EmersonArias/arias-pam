@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { AlertTriangle, ArrowLeft, Camera, CheckCircle2, FileText, Image, Save, Upload, UserRound, Wrench, X } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, Camera, CheckCircle2, FileText, Image, Package, Plus, Save, Upload, UserRound, Wrench, X } from 'lucide-react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import BrandLogo from '../../../shared/components/branding/BrandLogo'
 import { HomeButton } from '../../../shared/components/navigation/NavigationButtons'
@@ -42,6 +42,15 @@ function ticketLocationPath(locationId: string, locations: TicketLocation[]) {
   return path.join(' / ')
 }
 type Evidence = { id:string; storage_path:string; file_name:string; mime_type:string; file_size:number; uploaded_by:string|null; uploaded_at:string; url:string }
+type WorkOrderMaterialOption = {
+  id: string; description: string; order_code: string; reference_code: string | null
+  unit_of_measure: string; stock_quantity: number; stock_verified: boolean
+}
+type WorkOrderMaterialConsumption = {
+  id: string; material_id: string; material_description: string; material_order_code: string
+  material_reference_code: string | null; unit_of_measure: string; quantity: number
+  reason: string; created_at: string; stock_movement_id: string
+}
 
 const typeLabels = { PREVENTIVE:'Preventiva', CORRECTIVE:'Correctiva', ACTUATION:'Actuación' } as const
 const priorityLabels = { LOW:'Baja', NORMAL:'Normal', HIGH:'Alta', CRITICAL:'Crítica' } as const
@@ -98,8 +107,39 @@ export default function MaintenanceWorkOrderDetailPage(){
   const [assignees,setAssignees]=useState<Array<{id:string;name:string}>>([])
   const [canAssign,setCanAssign]=useState(false)
   const [assignmentSaving,setAssignmentSaving]=useState(false)
+  const [workOrderMaterials,setWorkOrderMaterials]=useState<WorkOrderMaterialOption[]>([])
+  const [materialConsumptions,setMaterialConsumptions]=useState<WorkOrderMaterialConsumption[]>([])
+  const [materialsFeatureReady,setMaterialsFeatureReady]=useState(false)
+  const [materialsFeatureMessage,setMaterialsFeatureMessage]=useState('')
+  const [consumptionMaterialId,setConsumptionMaterialId]=useState('')
+  const [consumptionQuantity,setConsumptionQuantity]=useState('1')
+  const [consumptionReason,setConsumptionReason]=useState('')
+  const [consumptionSaving,setConsumptionSaving]=useState(false)
+  const consumptionKeyRef=useRef<string>('')
   const galleryRef=useRef<HTMLInputElement|null>(null)
   const canEdit = order?.status !== 'COMPLETED' && order?.status !== 'REJECTED'
+
+  async function loadMaterialFeature(targetWorkOrderId: string, targetHotelId: string) {
+    const [catalogResult, consumptionResult] = await Promise.all([
+      supabase.from('maintenance_material_catalog')
+        .select('id, description, order_code, reference_code, unit_of_measure, stock_quantity, stock_verified, active')
+        .eq('hotel_id', targetHotelId).eq('active', true).order('description', { ascending: true }),
+      supabase.from('maintenance_work_order_material_consumptions')
+        .select('id, material_id, material_description, material_order_code, material_reference_code, unit_of_measure, quantity, reason, created_at, stock_movement_id')
+        .eq('hotel_id', targetHotelId).eq('work_order_id', targetWorkOrderId)
+        .order('created_at', { ascending: false }).limit(100),
+    ])
+    if (catalogResult.error || consumptionResult.error) {
+      setMaterialsFeatureReady(false); setWorkOrderMaterials([]); setMaterialConsumptions([])
+      setMaterialsFeatureMessage('El registro de consumos necesita el esquema de stock validado (migraciones 078 y 080). El resto del ticket sigue disponible; no se ha descontado material.')
+      return
+    }
+    const options = (catalogResult.data ?? []) as WorkOrderMaterialOption[]
+    setWorkOrderMaterials(options)
+    setMaterialConsumptions((consumptionResult.data ?? []) as WorkOrderMaterialConsumption[])
+    setConsumptionMaterialId((current) => current && options.some((item) => item.id === current) ? current : (options.find((item) => item.stock_verified)?.id ?? options[0]?.id ?? ''))
+    setMaterialsFeatureReady(true); setMaterialsFeatureMessage('')
+  }
 
   async function load(){
     if(!workOrderId) return
@@ -109,6 +149,7 @@ export default function MaintenanceWorkOrderDetailPage(){
     const item=q.data as WorkOrder
     setOrder(item); setBaseline(item)
     setExecutionLocationId(item.execution_location_id ?? '')
+    await loadMaterialFeature(item.id, item.hotel_id)
 
     const assignmentsResult = session?.user.id && hotel?.id
       ? await supabase
@@ -320,6 +361,40 @@ export default function MaintenanceWorkOrderDetailPage(){
       : 'Ticket finalizado correctamente.')
     await load()
   }
+  async function recordMaterialConsumption() {
+    if (!order || !canEdit || !materialsFeatureReady || consumptionSaving) return
+    const quantity = Number(consumptionQuantity)
+    const selectedMaterial = workOrderMaterials.find((item) => item.id === consumptionMaterialId)
+    if (!selectedMaterial) { setError('Selecciona un material del catálogo.'); return }
+    if (!selectedMaterial.stock_verified) { setError('Antes de consumir este material, registra su inventario físico en Materiales y stock.'); return }
+    if (!Number.isFinite(quantity) || quantity <= 0 || Math.round(quantity * 100) !== quantity * 100) {
+      setError('La cantidad consumida debe ser mayor que cero y tener máximo dos decimales.'); return
+    }
+    if (consumptionReason.trim().length < 2) { setError('Indica el motivo o detalle del consumo.'); return }
+    const confirmed = await confirm({
+      title: 'Registrar consumo de material',
+      message: 'Se descontarán ' + quantity + ' ' + selectedMaterial.unit_of_measure + ' de «' + selectedMaterial.description + '» y quedará vinculado al ticket ' + order.ot_number + '. Esta operación será trazable en el histórico.',
+      variant: 'warning', confirmLabel: 'Descontar y registrar', cancelLabel: 'Cancelar',
+    })
+    if (!confirmed) return
+    setConsumptionSaving(true); setError(''); setMessage('')
+    if (!consumptionKeyRef.current) {
+      consumptionKeyRef.current = typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : String(Date.now() + Math.random())
+    }
+    const q = await supabase.rpc('record_maintenance_work_order_material_consumption', {
+      target_hotel_id: order.hotel_id, target_work_order_id: order.id,
+      target_material_id: selectedMaterial.id, target_quantity: quantity,
+      target_reason: consumptionReason.trim(), target_idempotency_key: consumptionKeyRef.current,
+    })
+    setConsumptionSaving(false)
+    if (q.error) { setError('No se registró el consumo ni se descontó stock: ' + q.error.message); return }
+    const data = (Array.isArray(q.data) ? q.data[0] : q.data) as { already_recorded?: boolean } | null
+    setMessage(data?.already_recorded ? 'Este consumo ya estaba registrado. No se ha vuelto a descontar stock.' : 'Consumo registrado y stock descontado con trazabilidad.')
+    consumptionKeyRef.current = typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : String(Date.now() + Math.random())
+    setConsumptionQuantity('1'); setConsumptionReason('')
+    await loadMaterialFeature(order.id, order.hotel_id)
+  }
+
   async function uploadPhotos(files:File[]){
     if(!hotel?.id||!order||!canEdit)return
     const images=files.filter(f=>f.type.startsWith('image/'))
@@ -488,6 +563,41 @@ export default function MaintenanceWorkOrderDetailPage(){
             )}
             <div className="mt-4 grid gap-2 text-sm text-slate-600"><div><strong>Creada:</strong> {fmtDateTime(order.created_at)}</div><div><strong>Inicio:</strong> {fmtDateTime(order.started_at)}</div><div><strong>Finalización:</strong> {fmtDateTime(order.completed_at)}</div></div>
           </section>
+        </section>
+
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div><div className="flex items-center gap-2 text-sm font-semibold"><Package size={17}/>Materiales consumidos</div><p className="mt-1 text-xs text-slate-500">Solo descuenta material cuando confirmas un consumo real en esta OT. Las peticiones de compra no descuentan existencias.</p></div>
+            {materialsFeatureReady && <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-600">{materialConsumptions.length} registro(s)</span>}
+          </div>
+          {!materialsFeatureReady ? (
+            <div role="status" className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-900">{materialsFeatureMessage || 'El módulo de consumos todavía no está habilitado. No se ha realizado ningún descuento.'}</div>
+          ) : (
+            <>
+              {canEdit && (
+                <div className="mt-4 grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 sm:grid-cols-[minmax(0,1fr)_110px]">
+                  <label className="block min-w-0"><span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-500">Material del catálogo *</span>
+                    <select value={consumptionMaterialId} onChange={(event) => { consumptionKeyRef.current=''; setConsumptionMaterialId(event.target.value) }} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm">
+                      <option value="">Selecciona material…</option>
+                      {workOrderMaterials.map((material) => <option key={material.id} value={material.id} disabled={!material.stock_verified}>{material.description} · {material.stock_verified ? material.stock_quantity + ' ' + material.unit_of_measure + ' disponibles' : 'pendiente de inventario'}</option>)}
+                    </select>
+                    <span className="mt-1 block text-[10px] text-slate-500">{workOrderMaterials.length === 0 ? 'No hay artículos activos en el catálogo de este hotel.' : 'No se puede consumir un artículo cuyo inventario físico esté pendiente.'}</span>
+                  </label>
+                  <label className="block"><span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-500">Cantidad *</span><input type="number" min="0.01" step="0.01" value={consumptionQuantity} onChange={(event) => { consumptionKeyRef.current=''; setConsumptionQuantity(event.target.value) }} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"/></label>
+                  <label className="block sm:col-span-2"><span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-500">Detalle del uso *</span><input value={consumptionReason} onChange={(event) => { consumptionKeyRef.current=''; setConsumptionReason(event.target.value) }} minLength={2} placeholder="Ej. Sustitución del sifón en habitación 512" className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"/></label>
+                  {(() => { const selected = workOrderMaterials.find((item) => item.id === consumptionMaterialId); return selected && !selected.stock_verified ? <p className="text-xs text-amber-800 sm:col-span-2">Este artículo necesita un conteo físico en Materiales y stock antes de registrar consumos.</p> : null })()}
+                  <div className="flex justify-end sm:col-span-2"><button type="button" onClick={() => void recordMaterialConsumption()} disabled={consumptionSaving || !canEdit || !consumptionMaterialId || !consumptionReason.trim() || Number(consumptionQuantity) <= 0 || !workOrderMaterials.find((item) => item.id === consumptionMaterialId)?.stock_verified} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-xs font-semibold text-white disabled:opacity-40"><Plus size={15}/>{consumptionSaving ? 'Registrando…' : 'Registrar consumo y descontar stock'}</button></div>
+                </div>
+              )}
+              <div className="mt-4 space-y-2">
+                {materialConsumptions.map((item) => <div key={item.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-100 p-3">
+                  <div className="min-w-0"><div className="text-xs font-semibold text-slate-800">{item.material_description} · {item.material_order_code}</div><div className="mt-1 text-[10px] text-slate-500">{item.material_reference_code ? 'Ref. ' + item.material_reference_code + ' · ' : ''}{item.reason}</div><div className="mt-1 text-[10px] text-slate-400">{new Date(item.created_at).toLocaleString('es-ES')} · movimiento {item.stock_movement_id.slice(0, 8)}</div></div>
+                  <div className="shrink-0 text-sm font-bold tabular-nums text-rose-700">−{item.quantity} {item.unit_of_measure}</div>
+                </div>)}
+                {materialConsumptions.length === 0 && <p className="rounded-xl border border-dashed border-slate-300 px-3 py-5 text-center text-xs text-slate-400">No hay materiales consumidos registrados en esta OT.</p>}
+              </div>
+            </>
+          )}
         </section>
 
         <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">

@@ -10,6 +10,9 @@ ALTER TABLE public.maintenance_material_catalog
   ADD COLUMN IF NOT EXISTS reference_code text,
   ADD COLUMN IF NOT EXISTS unit_of_measure text NOT NULL DEFAULT 'ud',
   ADD COLUMN IF NOT EXISTS stock_quantity numeric(12,2) NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS stock_verified boolean NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS stock_counted_at timestamptz,
+  ADD COLUMN IF NOT EXISTS stock_counted_by uuid REFERENCES auth.users(id) ON DELETE SET NULL,
   ADD COLUMN IF NOT EXISTS minimum_stock numeric(12,2) NOT NULL DEFAULT 0,
   ADD COLUMN IF NOT EXISTS purchase_url text,
   ADD COLUMN IF NOT EXISTS storage_location text,
@@ -38,7 +41,7 @@ CREATE TABLE IF NOT EXISTS public.maintenance_stock_movements (
   hotel_id uuid NOT NULL REFERENCES public.hotels(id) ON DELETE RESTRICT,
   material_id uuid NOT NULL REFERENCES public.maintenance_material_catalog(id) ON DELETE RESTRICT,
   movement_type text NOT NULL CHECK (movement_type IN ('RECEIVE', 'ISSUE', 'ADJUSTMENT')),
-  quantity_delta numeric(12,2) NOT NULL CHECK (quantity_delta <> 0),
+  quantity_delta numeric(12,2) NOT NULL CHECK (quantity_delta <> 0 OR movement_type = 'ADJUSTMENT'),
   stock_before numeric(12,2) NOT NULL CHECK (stock_before >= 0),
   stock_after numeric(12,2) NOT NULL CHECK (stock_after >= 0),
   reason text NOT NULL,
@@ -133,6 +136,24 @@ CREATE POLICY maintenance_material_request_lines_select
   );
 
 REVOKE ALL ON TABLE public.maintenance_material_catalog FROM PUBLIC, anon;
+-- Remove legacy column-level grants from anon as well as table-level grants.
+DO $
+DECLARE
+  column_grant record;
+BEGIN
+  FOR column_grant IN
+    SELECT column_name, privilege_type
+    FROM information_schema.column_privileges
+    WHERE table_schema = 'public' AND table_name = 'maintenance_material_catalog'
+      AND grantee = 'anon'
+  LOOP
+    EXECUTE format(
+      'REVOKE %s (%I) ON TABLE public.maintenance_material_catalog FROM anon',
+      column_grant.privilege_type, column_grant.column_name
+    );
+  END LOOP;
+END;
+$;
 REVOKE INSERT, UPDATE, DELETE ON public.maintenance_material_catalog FROM authenticated;
 GRANT SELECT ON public.maintenance_material_catalog TO authenticated;
 GRANT INSERT (
@@ -218,6 +239,68 @@ $function$;
 REVOKE ALL ON FUNCTION public.claim_maintenance_material_request_email_send(uuid, text) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.claim_maintenance_material_request_email_send(uuid, text) TO authenticated;
 
+
+CREATE OR REPLACE FUNCTION public.count_maintenance_material_stock(
+  target_hotel_id uuid, target_material_id uuid, target_quantity numeric,
+  target_reason text, target_reference text DEFAULT NULL
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, public
+AS $function$
+DECLARE
+  material_record public.maintenance_material_catalog%ROWTYPE;
+  before_quantity numeric(12,2);
+  after_quantity numeric(12,2);
+  quantity_delta numeric(12,2);
+  movement_id uuid;
+BEGIN
+  IF auth.uid() IS NULL OR NOT public.has_hotel_permission(target_hotel_id, 'maintenance.update') THEN
+    RAISE EXCEPTION 'No tienes permiso para inventariar el stock de este hotel.';
+  END IF;
+  IF target_quantity IS NULL OR target_quantity < 0 OR round(target_quantity, 2) <> target_quantity THEN
+    RAISE EXCEPTION 'La cantidad inventariada debe ser cero o mayor y tener como máximo dos decimales.';
+  END IF;
+  IF length(btrim(coalesce(target_reason, ''))) < 2 THEN
+    RAISE EXCEPTION 'Indica el motivo del conteo físico.';
+  END IF;
+  SELECT * INTO material_record FROM public.maintenance_material_catalog
+  WHERE id = target_material_id AND hotel_id = target_hotel_id AND active = true FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'El material no existe, está inactivo o pertenece a otro hotel.';
+  END IF;
+
+  -- Unknown initial stock is not treated as a real zero; the first count establishes the baseline.
+  before_quantity := CASE WHEN material_record.stock_verified THEN material_record.stock_quantity ELSE 0 END;
+  after_quantity := target_quantity;
+  quantity_delta := after_quantity - before_quantity;
+
+  UPDATE public.maintenance_material_catalog
+  SET stock_quantity = after_quantity, stock_verified = true,
+      stock_counted_at = now(), stock_counted_by = auth.uid(),
+      updated_by = auth.uid(), updated_at = now()
+  WHERE id = material_record.id;
+
+  INSERT INTO public.maintenance_stock_movements (
+    hotel_id, material_id, movement_type, quantity_delta,
+    stock_before, stock_after, reason, reference, created_by
+  )
+  VALUES (
+    target_hotel_id, target_material_id, 'ADJUSTMENT', quantity_delta,
+    before_quantity, after_quantity, btrim(target_reason),
+    NULLIF(btrim(coalesce(target_reference, '')), ''), auth.uid()
+  )
+  RETURNING id INTO movement_id;
+
+  RETURN jsonb_build_object('movement_id', movement_id, 'stock_before', before_quantity,
+    'stock_after', after_quantity, 'stock_verified', true);
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.count_maintenance_material_stock(uuid, uuid, numeric, text, text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.count_maintenance_material_stock(uuid, uuid, numeric, text, text) TO authenticated;
+
 CREATE OR REPLACE FUNCTION public.record_maintenance_stock_movement(
   target_hotel_id uuid,
   target_material_id uuid,
@@ -266,6 +349,10 @@ BEGIN
 
   IF NOT FOUND THEN
     RAISE EXCEPTION 'El material no existe, está inactivo o pertenece a otro hotel.';
+  END IF;
+
+  IF NOT material_record.stock_verified THEN
+    RAISE EXCEPTION 'El stock no está inventariado. Registra primero un conteo físico.';
   END IF;
 
   before_quantity := material_record.stock_quantity;
@@ -409,6 +496,10 @@ GRANT EXECUTE ON FUNCTION public.create_maintenance_material_request(uuid, text,
 
 COMMENT ON TABLE public.maintenance_stock_movements IS
   'Libro de movimientos de stock. La cantidad_delta es positiva en entradas y negativa en salidas.';
+COMMENT ON COLUMN public.maintenance_material_catalog.stock_verified IS
+  'Indica si el stock es conocido por un conteo físico; false no equivale a existencia real cero.';
+COMMENT ON COLUMN public.maintenance_material_catalog.stock_counted_at IS
+  'Fecha del último conteo físico confirmado del material.';
 COMMENT ON TABLE public.maintenance_material_requests IS
   'Solicitudes de material confirmadas, con estado de correo y trazabilidad.';
 COMMENT ON TABLE public.maintenance_material_request_lines IS

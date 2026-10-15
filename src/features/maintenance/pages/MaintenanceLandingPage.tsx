@@ -118,7 +118,7 @@ export default function MaintenanceLandingPage() {
     },
     {
       title: 'Tickets',
-      description: 'Trabajos pendientes, en curso y correctivos del hotel.',
+      description: 'Incidencias correctivas y actuaciones, separadas del mantenimiento preventivo.',
       icon: ClipboardList,
       href: '/maintenance/tickets',
       metric:

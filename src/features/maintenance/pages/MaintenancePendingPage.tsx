@@ -101,7 +101,6 @@ export default function MaintenancePendingPage() {
   const [blockedRooms, setBlockedRooms] = useState<Set<string>>(new Set())
   const [updatingRoom, setUpdatingRoom] = useState<string | null>(null)
   const [showHistory, setShowHistory] = useState(false)
-  const [reportScope, setReportScope] = useState<'FILTERED' | 'ALL'>('FILTERED')
   const [mobileDetailOpen, setMobileDetailOpen] = useState(false)
   const [showMobileFilters, setShowMobileFilters] = useState(false)
   const [editing, setEditing] = useState(false)
@@ -353,7 +352,7 @@ export default function MaintenancePendingPage() {
 
   function openReport() {
     const params = new URLSearchParams()
-    params.set('scope', reportScope)
+    params.set('scope', 'FILTERED')
     params.set('search', search)
     params.set('category', category)
     params.set('priority', priority)

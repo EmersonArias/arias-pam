@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { CalendarClock, ClipboardList, FileCheck2, ListChecks, Settings2, Wrench, Building2, Lightbulb } from 'lucide-react'
+import { AlertTriangle, CalendarClock, ClipboardList, FileCheck2, ListChecks, Settings2, Wrench, Building2, Lightbulb } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import BrandLogo from '../../../shared/components/branding/BrandLogo'
 import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
@@ -17,6 +17,7 @@ type Card = {
 type Counts = {
   assets: number | null
   pendingTickets: number | null
+  urgentTickets: number | null
   inProgressTickets: number | null
   inManagementTickets: number | null
   scheduledJobs: number | null
@@ -27,6 +28,7 @@ type Counts = {
 const EMPTY_COUNTS: Counts = {
   assets: null,
   pendingTickets: null,
+  urgentTickets: null,
   inProgressTickets: null,
   inManagementTickets: null,
   scheduledJobs: null,
@@ -48,7 +50,7 @@ export default function MaintenanceLandingPage() {
         return
       }
 
-      const [assets, pending, inProgress, inManagement, scheduledJobs, interventions, pam] = await Promise.all([
+      const [assets, pending, urgentTickets, inProgress, inManagement, scheduledJobs, interventions, pam] = await Promise.all([
         supabase
           .from('apparatus_registry')
           .select('id', { count: 'exact', head: true })
@@ -59,6 +61,14 @@ export default function MaintenanceLandingPage() {
           .select('id', { count: 'exact', head: true })
           .eq('hotel_id', hotel.id)
           .eq('status', 'PENDING')
+          .neq('work_type', 'PREVENTIVE'),
+        supabase
+          .from('maintenance_work_orders')
+          .select('id', { count: 'exact', head: true })
+          .eq('hotel_id', hotel.id)
+          .in('priority', ['HIGH', 'CRITICAL'])
+          .neq('status', 'COMPLETED')
+          .neq('status', 'REJECTED')
           .neq('work_type', 'PREVENTIVE'),
         supabase
           .from('maintenance_work_orders')
@@ -93,6 +103,7 @@ export default function MaintenanceLandingPage() {
       setCounts({
         assets: assets.error ? null : assets.count ?? 0,
         pendingTickets: pending.error ? null : pending.count ?? 0,
+        urgentTickets: urgentTickets.error ? null : urgentTickets.count ?? 0,
         inProgressTickets: inProgress.error ? null : inProgress.count ?? 0,
         inManagementTickets: inManagement.error ? null : inManagement.count ?? 0,
         scheduledJobs: scheduledJobs.error ? null : scheduledJobs.count ?? 0,
@@ -125,6 +136,13 @@ export default function MaintenanceLandingPage() {
         counts.pendingTickets == null || counts.inManagementTickets == null || counts.inProgressTickets == null
           ? undefined
           : `${counts.pendingTickets} pendientes · ${counts.inManagementTickets} en gestión · ${counts.inProgressTickets} en curso`,
+    },
+    {
+      title: 'Alertas correctivas',
+      description: 'Tickets abiertos con criticidad alta o crítica. Sin tareas preventivas.',
+      icon: AlertTriangle,
+      href: '/maintenance/tickets?summary=URGENT',
+      metric: counts.urgentTickets == null ? undefined : `${counts.urgentTickets} graves`,
     },
     {
       title: 'LED de armario',

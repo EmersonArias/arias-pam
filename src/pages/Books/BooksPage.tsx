@@ -87,7 +87,7 @@ function alertStatusView(alert: MaintenanceAlert) {
 const registers: HomeRegister[] = [
   { icon: '🛠️', name: 'Mantenimiento', path: '/maintenance' },
   { icon: '📋', name: 'Pendientes', path: '/maintenance/pending' },
-  { icon: '📦', name: 'Stock', path: null, comingSoon: true },
+  { icon: '📦', name: 'Materiales y stock', path: '/materials' },
   { icon: '🗓️', name: 'Planificador horario', path: null, comingSoon: true },
   { icon: '🏢', name: 'Proveedores', path: '/providers' },
 ]

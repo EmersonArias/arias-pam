@@ -57,7 +57,6 @@ CREATE INDEX IF NOT EXISTS ix_maintenance_stock_movements_hotel_date
 CREATE INDEX IF NOT EXISTS ix_maintenance_stock_movements_material_date
   ON public.maintenance_stock_movements (material_id, created_at DESC);
 
-CREATE SEQUENCE IF NOT EXISTS public.maintenance_material_request_number_seq;
 CREATE TABLE IF NOT EXISTS public.maintenance_material_requests (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   request_number text NOT NULL UNIQUE DEFAULT (
@@ -136,11 +135,29 @@ CREATE POLICY maintenance_material_request_lines_select
     )
   );
 
-GRANT SELECT, INSERT, UPDATE ON public.maintenance_material_catalog TO authenticated;
+REVOKE INSERT, UPDATE, DELETE ON public.maintenance_material_catalog FROM authenticated;
+GRANT SELECT ON public.maintenance_material_catalog TO authenticated;
+GRANT INSERT (
+  hotel_id, description, order_code, reference_code, provider_id, active,
+  unit_of_measure, minimum_stock, purchase_url, storage_location, notes, updated_at
+) ON public.maintenance_material_catalog TO authenticated;
+GRANT UPDATE (
+  description, order_code, reference_code, provider_id, active, unit_of_measure,
+  minimum_stock, purchase_url, storage_location, notes, updated_at
+) ON public.maintenance_material_catalog TO authenticated;
+
 GRANT SELECT ON public.maintenance_stock_movements TO authenticated;
-GRANT SELECT, UPDATE ON public.maintenance_material_requests TO authenticated;
+REVOKE INSERT, UPDATE, DELETE ON public.maintenance_stock_movements FROM authenticated;
+
+REVOKE INSERT, UPDATE, DELETE ON public.maintenance_material_requests FROM authenticated;
+GRANT SELECT ON public.maintenance_material_requests TO authenticated;
+GRANT UPDATE (
+  email_status, recipient_email, email_sent_at, email_error, updated_at
+) ON public.maintenance_material_requests TO authenticated;
+
 GRANT SELECT ON public.maintenance_material_request_lines TO authenticated;
-GRANT USAGE, SELECT ON SEQUENCE public.maintenance_material_request_number_seq TO authenticated;
+REVOKE INSERT, UPDATE, DELETE ON public.maintenance_material_request_lines FROM authenticated;
+REVOKE ALL ON SEQUENCE public.maintenance_material_request_number_seq FROM PUBLIC, anon, authenticated;
 
 CREATE OR REPLACE FUNCTION public.record_maintenance_stock_movement(
   target_hotel_id uuid,

@@ -1149,9 +1149,21 @@ export default function MaterialsInventoryPage() {
                 {movements.slice(0, 12).map((movement, index) => {
                   const material = materials.find((item) => item.id === movement.material_id)
                   const delta = Number(movement.quantity_delta ?? 0)
+                  const movementType = String(movement.movement_type ?? '')
+                  const movementLabel = movementType === 'COUNT' ? 'Conteo físico'
+                    : movementType === 'RECEIVE' ? 'Entrada'
+                    : movementType === 'ISSUE' ? 'Salida / consumo'
+                    : movementType === 'ADJUSTMENT' ? 'Ajuste'
+                    : 'Movimiento'
+                  const previousStock = movement.stock_before == null ? null : Number(movement.stock_before)
+                  const currentStock = movement.stock_after == null ? null : Number(movement.stock_after)
+                  const stockSummary = movementType === 'COUNT' && previousStock === null
+                    ? 'Saldo establecido: ' + formatQuantity(currentStock ?? 0) + ' ' + (material?.unit_of_measure ?? '')
+                    : (delta > 0 ? '+' : '') + formatQuantity(delta) + ' ' + (material?.unit_of_measure ?? '')
+                  const quantityTone = delta > 0 ? 'text-emerald-700' : delta < 0 ? 'text-rose-700' : 'text-slate-600'
                   return <div key={String(movement.id ?? index)} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-100 px-3 py-2 text-[10px]">
-                    <div className="min-w-0"><span className="font-semibold text-slate-700">{material?.description ?? 'Artículo'}</span><span className="ml-2 text-slate-400">{String(movement.reason ?? '')}</span><div className="mt-0.5 text-slate-400">{new Date(String(movement.created_at)).toLocaleString('es-ES')}</div></div>
-                    <div className={'shrink-0 font-bold tabular-nums ' + (delta > 0 ? 'text-emerald-700' : 'text-rose-700')}>{delta > 0 ? '+' : ''}{formatQuantity(delta)} {material?.unit_of_measure ?? ''}</div>
+                    <div className="min-w-0"><span className="font-semibold text-slate-700">{material?.description ?? 'Artículo'}</span><span className="ml-2 text-slate-500">{movementLabel} · {String(movement.reason ?? '')}</span><div className="mt-0.5 text-slate-400">{new Date(String(movement.created_at)).toLocaleString('es-ES')}</div></div>
+                    <div className={'shrink-0 font-bold tabular-nums ' + quantityTone}>{stockSummary}</div>
                   </div>
                 })}
                 {movements.length === 0 && <p className="px-1 py-3 text-xs text-slate-400">Todavía no hay movimientos registrados.</p>}

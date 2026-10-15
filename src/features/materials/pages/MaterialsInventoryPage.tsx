@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import {
-  AlertTriangle, Archive, ArrowDownToLine, ArrowUpFromLine, Boxes, CalendarDays,
+  AlertTriangle, Archive, ArrowDownToLine, ArrowUpFromLine, Boxes,
   CheckCircle2, ChevronRight, ClipboardList, ExternalLink, FileDown, Mail, Package,
-  Pencil, Plus, RefreshCw, Search, ShoppingCart, SlidersHorizontal, Truck, X,
+  Pencil, Plus, RefreshCw, Search, ShoppingCart, SlidersHorizontal, X,
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import jsPDF from 'jspdf'
@@ -213,7 +213,6 @@ export default function MaterialsInventoryPage() {
     }
 
     setLoading(true)
-    setError('')
     const [materialResult, providerLinks, requestResult, movementResult] = await Promise.all([
       supabase.from('maintenance_material_catalog').select('*').eq('hotel_id', hotel.id).order('description', { ascending: true }),
       supabase.from('provider_hotels').select('provider_id').eq('hotel_id', hotel.id).eq('active', true),
@@ -389,6 +388,7 @@ export default function MaterialsInventoryPage() {
     setSavingMaterial(true)
     setError('')
     setSuccess('')
+    let savedSuccessfully = false
     const payload = {
       hotel_id: hotel.id,
       description: materialForm.description.trim(),
@@ -408,11 +408,12 @@ export default function MaterialsInventoryPage() {
     if (editingMaterialId) {
       const result = await supabase.from('maintenance_material_catalog').update(payload).eq('hotel_id', hotel.id).eq('id', editingMaterialId).select('id').single()
       if (result.error) setError('No se pudo guardar el artículo: ' + result.error.message)
-      else setSuccess('Artículo actualizado.')
+      else { savedSuccessfully = true; setSuccess('Artículo actualizado.') }
     } else {
       const result = await supabase.from('maintenance_material_catalog').insert({ ...payload, stock_quantity: 0 }).select('id').single()
       if (result.error) setError('No se pudo crear el artículo: ' + result.error.message)
       else {
+        savedSuccessfully = true
         savedId = result.data.id
         if (initial > 0 && savedId) {
           const movement = await supabase.rpc('record_maintenance_stock_movement', {
@@ -434,7 +435,7 @@ export default function MaterialsInventoryPage() {
       }
     }
 
-    if (!error) setMaterialEditorOpen(false)
+    if (savedSuccessfully) setMaterialEditorOpen(false)
     setSavingMaterial(false)
     await loadData()
   }
@@ -449,8 +450,8 @@ export default function MaterialsInventoryPage() {
     event.preventDefault()
     if (!hotel?.id || !movementMaterial || savingMovement) return
     const quantity = Number(movementForm.quantity)
-    if (!Number.isFinite(quantity) || quantity <= 0) {
-      setError('Introduce una cantidad mayor que cero.')
+    if (!Number.isFinite(quantity) || (movementForm.type === 'ADJUSTMENT' ? quantity === 0 : quantity <= 0)) {
+      setError(movementForm.type === 'ADJUSTMENT' ? 'Introduce una diferencia distinta de cero (positiva o negativa).' : 'Introduce una cantidad mayor que cero.')
       return
     }
     if (movementForm.reason.trim().length < 2) {
@@ -459,15 +460,6 @@ export default function MaterialsInventoryPage() {
     }
     let delta = quantity
     if (movementForm.type === 'ISSUE') delta = -quantity
-    if (movementForm.type === 'ADJUSTMENT') {
-      const adjustment = window.prompt('Introduce la diferencia de stock: positiva para sumar y negativa para restar. Stock actual: ' + formatQuantity(movementMaterial.stock_quantity), '0')
-      if (adjustment === null) return
-      delta = Number(adjustment)
-      if (!Number.isFinite(delta) || delta === 0) {
-        setError('La diferencia de ajuste debe ser distinta de cero.')
-        return
-      }
-    }
     const label = movementForm.type === 'RECEIVE' ? 'entrada' : movementForm.type === 'ISSUE' ? 'salida' : 'ajuste'
     if (!window.confirm('¿Confirmas la ' + label + ' de ' + formatQuantity(Math.abs(delta)) + ' ' + movementMaterial.unit_of_measure + ' para «' + movementMaterial.description + '»? Stock estimado: ' + formatQuantity(Number(movementMaterial.stock_quantity) + delta) + '.')) return
 
@@ -514,17 +506,27 @@ export default function MaterialsInventoryPage() {
 
     autoTable(doc, {
       startY: 82,
-      head: [['UNIDADES', 'DESCRIPCIÓN', 'CÓDIGO', 'PROVEEDOR']],
+      head: [['UNIDADES', 'DESCRIPCIÓN', 'CÓDIGO', 'PROVEEDOR', 'ENLACE']],
       body: lines.map((line) => [
         formatQuantity(line.quantity) + ' ' + line.unit_of_measure,
         line.description,
         line.order_code || line.reference_code || '—',
         line.provider_name || '—',
+        line.purchase_url ? ' ' : '—',
       ]),
       theme: 'grid',
       styles: { font: 'helvetica', fontSize: 8, cellPadding: 2.2, overflow: 'linebreak', textColor: [45, 55, 65] },
       headStyles: { fillColor: [238, 241, 244], textColor: [35, 45, 55], fontStyle: 'bold', halign: 'center' },
-      columnStyles: { 0: { cellWidth: 25, halign: 'center' }, 1: { cellWidth: 85 }, 2: { cellWidth: 32 }, 3: { cellWidth: 'auto' } },
+      columnStyles: { 0: { cellWidth: 22, halign: 'center' }, 1: { cellWidth: 68 }, 2: { cellWidth: 26 }, 3: { cellWidth: 34 }, 4: { cellWidth: 'auto' } },
+      didDrawCell: (data) => {
+        if (data.section === 'body' && data.column.index === 4) {
+          const url = lines[data.row.index]?.purchase_url
+          if (url) {
+            doc.setTextColor(30, 90, 170)
+            doc.textWithLink('Abrir enlace', data.cell.x + 2, data.cell.y + data.cell.height / 2 + 1, { url })
+          }
+        }
+      },
       margin: { left: 14, right: 14 },
     })
 
@@ -1113,7 +1115,7 @@ export default function MaterialsInventoryPage() {
             <header className="flex items-center justify-between border-b border-slate-200 px-4 py-4"><div><h2 className="text-base font-bold">{movementForm.type === 'RECEIVE' ? 'Entrada de stock' : movementForm.type === 'ISSUE' ? 'Salida de stock' : 'Ajuste de stock'}</h2><p className="mt-1 text-xs text-slate-500">{movementMaterial.description} · Actual: {formatQuantity(movementMaterial.stock_quantity)} {movementMaterial.unit_of_measure}</p></div><button type="button" onClick={() => setMovementMaterial(null)} className="inline-flex h-9 w-9 items-center justify-center rounded-lg hover:bg-slate-100" aria-label="Cerrar"><X size={16}/></button></header>
             <div className="space-y-3 p-4">
               <label className="block"><span className="mb-1 block text-[10px] font-semibold uppercase text-slate-500">Tipo de movimiento</span><select value={movementForm.type} onChange={(event) => setMovementForm((value) => ({ ...value, type: event.target.value as MovementForm['type'] }))} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm"><option value="RECEIVE">Entrada / recepción</option><option value="ISSUE">Salida / consumo</option><option value="ADJUSTMENT">Ajuste por inventario</option></select></label>
-              <label className="block"><span className="mb-1 block text-[10px] font-semibold uppercase text-slate-500">Cantidad *</span><input required type="number" min="0.01" step="0.01" value={movementForm.quantity} onChange={(event) => setMovementForm((value) => ({ ...value, quantity: event.target.value }))} placeholder="Cantidad" className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"/><span className="mt-1 block text-[10px] text-slate-400">{movementForm.type === 'ADJUSTMENT' ? 'Para ajuste se solicitará la diferencia con signo (+ o −).' : 'El sistema convierte la salida en un movimiento negativo.'}</span></label>
+              <label className="block"><span className="mb-1 block text-[10px] font-semibold uppercase text-slate-500">{movementForm.type === 'ADJUSTMENT' ? 'Diferencia de stock *' : 'Cantidad *'}</span><input required type="number" min={movementForm.type === 'ADJUSTMENT' ? undefined : 0.01} step="0.01" value={movementForm.quantity} onChange={(event) => setMovementForm((value) => ({ ...value, quantity: event.target.value }))} placeholder={movementForm.type === 'ADJUSTMENT' ? 'Ej. -2 para restar o 5 para sumar' : 'Cantidad'} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"/><span className="mt-1 block text-[10px] text-slate-400">{movementForm.type === 'ADJUSTMENT' ? 'Introduce la diferencia: positiva para sumar, negativa para restar.' : 'El sistema convierte la salida en un movimiento negativo.'}</span></label>
               <label className="block"><span className="mb-1 block text-[10px] font-semibold uppercase text-slate-500">Motivo *</span><input required minLength={2} value={movementForm.reason} onChange={(event) => setMovementForm((value) => ({ ...value, reason: event.target.value }))} placeholder="Ej. Recepción pedido nº…" className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"/></label>
               <label className="block"><span className="mb-1 block text-[10px] font-semibold uppercase text-slate-500">Referencia / albarán</span><input value={movementForm.reference} onChange={(event) => setMovementForm((value) => ({ ...value, reference: event.target.value }))} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"/></label>
             </div>

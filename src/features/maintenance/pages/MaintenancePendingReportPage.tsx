@@ -21,6 +21,7 @@ type PendingItem = {
   observation: string | null
   source_date: string | null
   active: boolean
+  source_status: string | null
 }
 
 const statusLabels = { PENDING: 'Pendiente', COMPLETED: 'Terminado' } as const
@@ -48,8 +49,10 @@ export default function MaintenancePendingReportPage() {
   const assigned = getParam(params, 'assigned', 'ALL')
   const status = getParam(params, 'status', 'PENDING')
   const history = getParam(params, 'history') === '1'
+  const blocked = getParam(params, 'blocked', 'ALL') as 'ALL' | 'BLOCKED' | 'UNBLOCKED'
 
   const [records, setRecords] = useState<PendingItem[]>([])
+  const [blockedRooms, setBlockedRooms] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
 
@@ -64,18 +67,27 @@ export default function MaintenancePendingReportPage() {
       }
       setLoading(true)
       setErrorMessage('')
-      const { data, error } = await supabase
-        .from('maintenance_pending_items')
-        .select('id, hotel_id, location, category, pending, status, assigned_to, priority, observation, source_date, active')
-        .eq('hotel_id', hotel.id)
-        .order('source_date', { ascending: true, nullsFirst: false })
-        .order('pending', { ascending: true })
+      const [itemsResult, blockedResult] = await Promise.all([
+        supabase
+          .from('maintenance_pending_items')
+          .select('id, hotel_id, location, category, pending, status, assigned_to, priority, observation, source_date, active, source_status')
+          .eq('hotel_id', hotel.id)
+          .order('source_date', { ascending: true, nullsFirst: false })
+          .order('source_row', { ascending: true }),
+        supabase
+          .from('maintenance_blocked_rooms')
+          .select('room_number')
+          .eq('hotel_id', hotel.id)
+          .order('room_number', { ascending: true }),
+      ])
       if (cancelled) return
-      if (error) {
-        setErrorMessage(`Error cargando el informe: ${error.message}`)
+      if (itemsResult.error || blockedResult.error) {
+        setErrorMessage(`Error cargando el informe: ${itemsResult.error?.message || blockedResult.error?.message}`)
         setRecords([])
+        setBlockedRooms(new Set())
       } else {
-        setRecords((data ?? []) as PendingItem[])
+        setRecords((itemsResult.data ?? []) as PendingItem[])
+        setBlockedRooms(new Set((blockedResult.data ?? []).map((row) => row.room_number.trim())))
       }
       setLoading(false)
     }
@@ -91,11 +103,17 @@ export default function MaintenancePendingReportPage() {
       if (priority === 'HIGH_OR_CRITICAL' && item.priority !== 'HIGH' && item.priority !== 'CRITICAL') return false
       if (priority !== 'ALL' && priority !== 'HIGH_OR_CRITICAL' && item.priority !== priority) return false
       if (assigned !== 'ALL' && (item.assigned_to ?? 'UNASSIGNED') !== assigned) return false
-      if (search && ![item.location, item.category, item.pending, item.assigned_to, item.observation]
+
+      const roomLocation = item.location?.trim() ?? ''
+      const roomIsBlocked = /^[0-9]{3,4}$/.test(roomLocation) && blockedRooms.has(roomLocation)
+      if (blocked === 'BLOCKED' && !roomIsBlocked) return false
+      if (blocked === 'UNBLOCKED' && (!/^[0-9]{3,4}$/.test(roomLocation) || roomIsBlocked)) return false
+
+      if (search && ![item.location, item.category, item.pending, item.assigned_to, item.observation, item.source_status]
         .filter(Boolean).join(' ').toLocaleLowerCase('es').includes(search)) return false
     }
     return true
-  }), [records, history, scope, status, category, priority, assigned, search])
+  }), [records, history, scope, status, category, priority, assigned, search, blocked, blockedRooms])
 
   return (
     <div className="arias-report-page min-h-screen bg-white text-slate-900 print:bg-white">

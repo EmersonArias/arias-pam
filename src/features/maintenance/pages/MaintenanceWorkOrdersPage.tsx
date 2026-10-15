@@ -353,10 +353,10 @@ export default function MaintenanceWorkOrdersPage() {
     if (loading) return
 
     const summaryFilter = searchParams.get('summary')
-    if (summaryFilter === 'PENDING' || summaryFilter === 'URGENT' || summaryFilter === 'UNASSIGNED' || summaryFilter === 'IN_PROGRESS') {
+    if (summaryFilter === 'PENDING' || summaryFilter === 'URGENT' || summaryFilter === 'UNASSIGNED' || summaryFilter === 'IN_PROGRESS' || summaryFilter === 'IN_MANAGEMENT') {
       setTypeFilter('ALL')
       setSearch('')
-      setStatusFilter(summaryFilter === 'PENDING' ? 'PENDING' : summaryFilter === 'IN_PROGRESS' ? 'IN_PROGRESS' : 'ALL')
+      setStatusFilter(summaryFilter === 'PENDING' ? 'PENDING' : summaryFilter === 'IN_PROGRESS' ? 'IN_PROGRESS' : summaryFilter === 'IN_MANAGEMENT' ? 'IN_MANAGEMENT' : 'ALL')
       setPriorityFilter(summaryFilter === 'URGENT' ? 'HIGH_OR_CRITICAL' : 'ALL')
       setAssigneeFilter(summaryFilter === 'UNASSIGNED' ? 'UNASSIGNED' : 'ALL')
       setSearchParams({}, { replace: true })

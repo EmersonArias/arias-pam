@@ -379,7 +379,6 @@ export default function MaterialsInventoryPage() {
       setError('Las cantidades de stock no pueden ser negativas.')
       return
     }
-    const provider = providerById.get(materialForm.provider_id)
     const prompt = editingMaterialId
       ? '¿Confirmas los cambios del artículo «' + materialForm.description.trim() + '»?'
       : '¿Confirmas el alta del artículo «' + materialForm.description.trim() + '»' + (initial > 0 ? ' con stock inicial de ' + formatQuantity(initial) + ' ' + materialForm.unit_of_measure + '?' : '?')
@@ -1057,7 +1056,7 @@ export default function MaterialsInventoryPage() {
                 <div className="rounded-xl bg-slate-50 p-3"><span className="block text-[10px] uppercase text-slate-400">Líneas de material</span><strong className="mt-1 block">{selectedDraftLines.length}</strong></div>
               </div>
               <div className="space-y-2">
-                {selectedDraftLines.map((line, index) => (
+                {selectedDraftLines.map((line) => (
                   <div key={line.key} className="flex items-start justify-between gap-3 rounded-xl border border-slate-200 p-3">
                     <div className="min-w-0"><div className="text-xs font-semibold text-slate-800">{line.material?.description}</div><div className="mt-1 text-[10px] text-slate-500">{line.material?.order_code} · {providerById.get(line.material?.provider_id ?? '')?.label ?? 'Sin proveedor'}</div>{line.material?.purchase_url && <button type="button" onClick={() => openLinePurchaseLink(line.material?.purchase_url ?? null)} className="mt-1 inline-flex items-center gap-1 text-[10px] font-semibold text-blue-700"><ExternalLink size={11}/>Enlace de compra</button>}</div>
                     <strong className="shrink-0 text-sm tabular-nums text-slate-800">{formatQuantity(line.quantity)} {line.material?.unit_of_measure}</strong>

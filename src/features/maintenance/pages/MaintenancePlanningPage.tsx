@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ChevronDown, ChevronUp, RefreshCw, TicketCheck } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import BrandLogo from '../../../shared/components/branding/BrandLogo'
 import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
 import IconButton from '../../../shared/components/buttons/IconButton'
@@ -125,6 +125,11 @@ function deriveState(job: ScheduledJob, workOrder: WorkOrder | null): PlanningSt
   return 'PENDING'
 }
 
+function localTodayISO() {
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+}
+
 function formatDate(value: string | null) {
   if (!value) return '—'
   return new Date(value + 'T12:00:00').toLocaleDateString('es-ES', {
@@ -140,10 +145,12 @@ function weekday(value: string | null) {
 
 export default function MaintenancePlanningPage() {
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { hotel } = useHotelScope()
   const currentYear = new Date().getFullYear()
 
-  const [year, setYear] = useState(currentYear)
+  const [year, setYear] = useState<number | 'ALL'>(currentYear)
+  const [summaryFilter, setSummaryFilter] = useState<'ALL' | 'PENDING' | 'OVERDUE'>('ALL')
   const [month, setMonth] = useState('ALL')
   const [frequency, setFrequency] = useState<FrequencyFilter>('ALL')
   const [state, setState] = useState<'ALL' | PlanningState>('ALL')
@@ -165,11 +172,13 @@ export default function MaintenancePlanningPage() {
     setLoading(true)
     setError('')
 
-    const jobsResult = await supabase
+    let jobsQuery = supabase
       .from('maintenance_scheduled_jobs')
       .select('id, hotel_id, maintenance_plan_id, source_mark_id, plan_year, month_number, week_slot, scheduled_date, status')
       .eq('hotel_id', hotel.id)
-      .eq('plan_year', year)
+    if (year !== 'ALL') jobsQuery = jobsQuery.eq('plan_year', year)
+    if (summaryFilter === 'OVERDUE') jobsQuery = jobsQuery.lt('scheduled_date', localTodayISO())
+    const jobsResult = await jobsQuery
       .order('scheduled_date', { ascending: true, nullsFirst: false })
       .order('month_number', { ascending: true })
       .order('week_slot', { ascending: true })
@@ -227,12 +236,13 @@ export default function MaintenancePlanningPage() {
 
     // The resolved view exposes plan_year through its scheduled-job join. Filtering
     // by hotel/year replaces the oversized 1,900+ UUID URL that caused HTTP 400.
+    let workOrdersQuery = supabase
+      .from('maintenance_work_orders_resolved')
+      .select('id, scheduled_job_id, maintenance_plan_id, status, ot_number, assigned_user_name')
+      .eq('hotel_id', hotel.id)
+    if (year !== 'ALL') workOrdersQuery = workOrdersQuery.eq('plan_year', year)
     const workOrdersResult = jobs.length
-      ? await supabase
-          .from('maintenance_work_orders_resolved')
-          .select('id, scheduled_job_id, maintenance_plan_id, status, ot_number, assigned_user_name')
-          .eq('hotel_id', hotel.id)
-          .eq('plan_year', year)
+      ? await workOrdersQuery
       : { data: [], error: null }
 
     if (workOrdersResult.error) {
@@ -270,8 +280,22 @@ export default function MaintenancePlanningPage() {
   }
 
   useEffect(() => {
+    const requestedSummary = searchParams.get('summary')
+    if (requestedSummary === 'PENDING' || requestedSummary === 'OVERDUE') {
+      setSummaryFilter(requestedSummary)
+      setYear('ALL')
+      setMonth('ALL')
+      setFrequency('ALL')
+      setSearch('')
+      setState(requestedSummary === 'PENDING' ? 'PENDING' : 'ALL')
+    } else {
+      setSummaryFilter('ALL')
+    }
+  }, [searchParams])
+
+  useEffect(() => {
     void loadPlanning()
-  }, [hotel?.id, year])
+  }, [hotel?.id, year, summaryFilter])
 
   const normalizedSearch = search.trim().toLocaleLowerCase('es')
 
@@ -280,6 +304,11 @@ export default function MaintenancePlanningPage() {
       if (month !== 'ALL' && row.month_number !== Number(month)) return false
       if (frequency !== 'ALL' && frequencyFromPlan(row.plan) !== frequency) return false
       if (state !== 'ALL' && row.state !== state) return false
+      if (summaryFilter === 'PENDING' && row.workOrder?.status !== 'PENDING') return false
+      if (summaryFilter === 'OVERDUE') {
+        const openWorkOrder = row.workOrder && ['PENDING', 'IN_MANAGEMENT', 'IN_PROGRESS'].includes(row.workOrder.status)
+        if (!openWorkOrder || !row.scheduled_date || row.scheduled_date >= localTodayISO()) return false
+      }
       if (!normalizedSearch) return true
 
       const haystack = [
@@ -298,7 +327,7 @@ export default function MaintenancePlanningPage() {
 
       return haystack.includes(normalizedSearch)
     })
-  }, [rows, month, frequency, state, normalizedSearch])
+  }, [rows, month, frequency, state, summaryFilter, normalizedSearch])
 
   const selected = filteredRows.find((row) => row.id === selectedId) ?? null
 
@@ -322,6 +351,9 @@ export default function MaintenancePlanningPage() {
     setFrequency('ALL')
     setState('ALL')
     setSearch('')
+    setSummaryFilter('ALL')
+    setYear(currentYear)
+    setSearchParams({}, { replace: true })
   }
 
   return (
@@ -332,8 +364,8 @@ export default function MaintenancePlanningPage() {
             <div className="maintenance-planning-title flex min-w-0 items-center gap-2">
               <BrandLogo onActivate={() => navigate('/')} className="h-9 w-auto shrink-0 object-contain sm:h-11" />
               <div className="min-w-0 flex-1">
-                <h1 className="text-xl font-bold leading-tight sm:text-2xl">Planificación</h1>
-                <p className="text-xs text-slate-500 sm:text-sm">Trabajos programados derivados del PAM</p>
+                <h1 className="text-xl font-bold leading-tight sm:text-2xl">{summaryFilter === 'PENDING' ? 'Preventivos pendientes' : summaryFilter === 'OVERDUE' ? 'Preventivos atrasados' : 'Planificación'}</h1>
+                <p className="text-xs text-slate-500 sm:text-sm">{summaryFilter === 'OVERDUE' ? 'Todos los años · trabajos fuera de fecha todavía sin finalizar' : summaryFilter === 'PENDING' ? 'Todos los años · órdenes preventivas pendientes de atención' : 'Trabajos programados derivados del PAM'}</p>
               </div>
             </div>
             <div className="maintenance-planning-toolbar arias-grid-toolbar flex w-full flex-nowrap items-start justify-start gap-1 overflow-x-auto">
@@ -355,10 +387,11 @@ export default function MaintenancePlanningPage() {
             <label>
               <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Año</span>
               <select
-                value={year}
-                onChange={(event) => setYear(Number(event.target.value))}
+                value={year === 'ALL' ? 'ALL' : String(year)}
+                onChange={(event) => setYear(event.target.value === 'ALL' ? 'ALL' : Number(event.target.value))}
                 className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2"
               >
+                <option value="ALL">Todos los años</option>
                 {[currentYear - 1, currentYear, currentYear + 1].map((item) => (
                   <option key={item} value={item}>{item}</option>
                 ))}
@@ -417,7 +450,7 @@ export default function MaintenancePlanningPage() {
             </label>
           </div>
 
-          {(month !== 'ALL' || frequency !== 'ALL' || state !== 'ALL' || search) && (
+          {(summaryFilter !== 'ALL' || year === 'ALL' || month !== 'ALL' || frequency !== 'ALL' || state !== 'ALL' || search) && (
             <div className="mt-3 flex justify-end">
               <ActionButton label="Limpiar filtros" onClick={clearFilters} className="min-h-9 px-3 py-1.5 text-xs" />
             </div>
@@ -428,8 +461,8 @@ export default function MaintenancePlanningPage() {
           <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
             <div className="flex items-center justify-between border-b px-4 py-3">
               <div>
-                <div className="text-sm font-semibold">Trabajos programados</div>
-                <div className="text-xs text-slate-400">PAM → planificación → ejecución</div>
+                <div className="text-sm font-semibold">{summaryFilter === 'PENDING' ? 'Órdenes preventivas pendientes' : summaryFilter === 'OVERDUE' ? 'Órdenes preventivas atrasadas' : 'Trabajos programados'}</div>
+                <div className="text-xs text-slate-400">PAM → planificación → ejecución · {year === 'ALL' ? 'todos los años' : year}</div>
               </div>
               <span className="text-xs text-slate-500">{filteredRows.length} resultado{filteredRows.length === 1 ? '' : 's'}</span>
             </div>

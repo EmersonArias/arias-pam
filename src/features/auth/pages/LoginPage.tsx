@@ -125,12 +125,18 @@ export default function LoginPage() {
               {busy ? 'Entrando…' : 'Entrar'}
             </button>
 
-            <div className="text-center">
+            <div className="space-y-2 text-center">
               <Link
                 to="/forgot-password"
-                className="text-sm font-medium text-slate-500 transition hover:text-slate-800"
+                className="block text-sm font-medium text-slate-500 transition hover:text-slate-800"
               >
                 ¿Has olvidado tu contraseña?
+              </Link>
+              <Link
+                to="/activate"
+                className="block text-sm font-semibold text-sky-700 transition hover:text-sky-900"
+              >
+                Activar usuario
               </Link>
             </div>
           </form>

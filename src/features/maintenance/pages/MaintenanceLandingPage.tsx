@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { AlertTriangle, CalendarClock, ClipboardList, FileCheck2, ListChecks, Settings2, Wrench, Building2, Lightbulb } from 'lucide-react'
+import { AlertTriangle, CalendarClock, CheckCircle2, ClipboardList, FileCheck2, ListChecks, Settings2, Wrench, Building2, Lightbulb, Plus, Clock3 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import BrandLogo from '../../../shared/components/branding/BrandLogo'
 import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
@@ -238,8 +238,72 @@ export default function MaintenanceLandingPage() {
             </p>
           </section>
 
+          <section className="mb-4 grid gap-3 xl:grid-cols-2">
+            <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+              <div className="mb-4 flex items-start justify-between gap-3">
+                <div className="flex min-w-0 items-start gap-3">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-700"><ClipboardList size={22}/></span>
+                  <div className="min-w-0">
+                    <h2 className="text-base font-bold text-slate-900 sm:text-lg">Correctivos · Tickets</h2>
+                    <p className="mt-1 text-xs leading-5 text-slate-500">Incidencias y averías. Las tareas preventivas no se incluyen en estos contadores.</p>
+                  </div>
+                </div>
+                <button type="button" onClick={() => navigate('/maintenance/tickets?new=1')} className="inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800 sm:text-sm"><Plus size={15}/>Nuevo</button>
+              </div>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {[
+                  { key: 'PENDING', label: 'Pendientes', count: counts.pendingTickets, icon: Clock3, tone: 'bg-amber-50 text-amber-700' },
+                  { key: 'URGENT', label: 'Alta / crítica', count: counts.urgentTickets, icon: AlertTriangle, tone: 'bg-rose-50 text-rose-700' },
+                  { key: 'IN_MANAGEMENT', label: 'En gestión', count: counts.inManagementTickets, icon: ClipboardList, tone: 'bg-violet-50 text-violet-700' },
+                  { key: 'IN_PROGRESS', label: 'En curso', count: counts.inProgressTickets, icon: CheckCircle2, tone: 'bg-blue-50 text-blue-700' },
+                ].map((metric) => {
+                  const MetricIcon = metric.icon
+                  return (
+                    <button key={metric.key} type="button" onClick={() => navigate('/maintenance/tickets?summary=' + metric.key)} className="min-w-0 rounded-xl border border-slate-200 p-3 text-left transition hover:border-slate-300 hover:shadow-sm active:scale-[0.99]">
+                      <span className={'flex h-8 w-8 items-center justify-center rounded-lg ' + metric.tone}><MetricIcon size={16}/></span>
+                      <div className="mt-2 text-2xl font-bold tabular-nums text-slate-900">{metric.count == null ? '—' : metric.count}</div>
+                      <div className="mt-0.5 text-[11px] font-semibold leading-4 text-slate-600 sm:text-xs">{metric.label}</div>
+                    </button>
+                  )
+                })}
+              </div>
+              <button type="button" onClick={() => navigate('/maintenance/tickets')} className="mt-3 inline-flex min-h-10 items-center gap-1 text-xs font-semibold text-slate-700 hover:text-slate-950">Ver todos los tickets <span aria-hidden="true">→</span></button>
+            </div>
+
+            <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+              <div className="mb-4 flex items-start justify-between gap-3">
+                <div className="flex min-w-0 items-start gap-3">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-700"><CalendarClock size={22}/></span>
+                  <div className="min-w-0">
+                    <h2 className="text-base font-bold text-slate-900 sm:text-lg">Preventivos · PAM</h2>
+                    <p className="mt-1 text-xs leading-5 text-slate-500">Seguimiento de trabajos programados, separado del flujo de incidencias correctivas.</p>
+                  </div>
+                </div>
+                <button type="button" onClick={() => navigate('/maintenance/planning')} className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 sm:text-sm">Planificación</button>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { key: 'PENDING', label: 'Pendientes', count: counts.pendingPreventives, icon: Clock3, tone: 'bg-amber-50 text-amber-700', detail: 'OT preventivas por atender' },
+                  { key: 'OVERDUE', label: 'Atrasados', count: counts.overduePreventives, icon: AlertTriangle, tone: 'bg-rose-50 text-rose-700', detail: 'Fuera de fecha y sin finalizar' },
+                ].map((metric) => {
+                  const MetricIcon = metric.icon
+                  return (
+                    <button key={metric.key} type="button" onClick={() => navigate('/maintenance/planning?summary=' + metric.key)} className="min-w-0 rounded-xl border border-slate-200 p-3 text-left transition hover:border-slate-300 hover:shadow-sm active:scale-[0.99] sm:p-4">
+                      <div className="flex items-center gap-2">
+                        <span className={'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ' + metric.tone}><MetricIcon size={16}/></span>
+                        <span className="truncate text-xs font-semibold text-slate-600">{metric.label}</span>
+                      </div>
+                      <div className="mt-2 text-2xl font-bold tabular-nums text-slate-900">{metric.count == null ? '—' : metric.count}</div>
+                      <p className="mt-0.5 text-[10px] leading-4 text-slate-500 sm:text-xs">{metric.detail}</p>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          </section>
+
           <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            {cards.map((card) => {
+            {cards.filter((card) => !['Tickets', 'Alertas correctivas', 'Preventivos'].includes(card.title)).map((card) => {
               const Icon = card.icon
               return (
                 <button

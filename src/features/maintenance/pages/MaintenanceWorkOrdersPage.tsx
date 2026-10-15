@@ -350,7 +350,15 @@ export default function MaintenanceWorkOrdersPage() {
   }, [hotel?.id])
 
   useEffect(() => {
-    if (searchParams.get('new') !== '1' || loading) return
+    if (loading) return
+
+    const summaryFilter = searchParams.get('summary')
+    if (summaryFilter === 'PENDING' || summaryFilter === 'URGENT' || summaryFilter === 'UNASSIGNED' || summaryFilter === 'IN_PROGRESS') {
+      applyTicketSummaryFilter(summaryFilter)
+      setSearchParams({}, { replace: true })
+      return
+    }
+    if (searchParams.get('new') !== '1') return
 
     setTicketTitle('')
     setTicketDescription('')
@@ -445,7 +453,7 @@ export default function MaintenanceWorkOrdersPage() {
   const pendingCount = records.filter((item) => item.status === 'PENDING').length
   const urgentCount = records.filter((item) => item.priority === 'HIGH' || item.priority === 'CRITICAL').length
   const unassignedCount = records.filter((item) => !item.assigned_user_id).length
-  const inProgressCount = records.filter((item) => item.status === 'IN_PROGRESS' || item.status === 'IN_MANAGEMENT').length
+  const inProgressCount = records.filter((item) => item.status === 'IN_PROGRESS').length
 
   function applyTicketSummaryFilter(kind: 'PENDING' | 'URGENT' | 'UNASSIGNED' | 'IN_PROGRESS') {
     setTypeFilter('ALL')
@@ -603,7 +611,7 @@ export default function MaintenanceWorkOrdersPage() {
           {[
             { key: 'PENDING' as const, label: 'Pendientes', count: pendingCount, detail: 'Por atender', icon: Clock3, tone: 'text-amber-700 bg-amber-50' },
             { key: 'URGENT' as const, label: 'Alta / crítica', count: urgentCount, detail: 'Prioridad alta o crítica', icon: AlertTriangle, tone: 'text-rose-700 bg-rose-50' },
-            { key: 'IN_PROGRESS' as const, label: 'En gestión / curso', count: inProgressCount, detail: 'Ya atendidos', icon: CheckCircle2, tone: 'text-blue-700 bg-blue-50' },
+            { key: 'IN_PROGRESS' as const, label: 'En curso', count: inProgressCount, detail: 'Intervenciones en ejecución', icon: CheckCircle2, tone: 'text-blue-700 bg-blue-50' },
             { key: 'UNASSIGNED' as const, label: 'Sin asignar', count: unassignedCount, detail: 'Requieren responsable', icon: UserRound, tone: 'text-slate-700 bg-slate-100' },
           ].map((metric) => {
             const MetricIcon = metric.icon
@@ -657,7 +665,7 @@ export default function MaintenanceWorkOrdersPage() {
               </select>
             </label>
             <label>
-              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Prioridad</span>
+              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Criticidad</span>
               <select
                 value={priorityFilter}
                 onChange={(event) => setPriorityFilter(event.target.value as typeof priorityFilter)}
@@ -1012,7 +1020,7 @@ export default function MaintenanceWorkOrdersPage() {
                 </label>
 
                 <label className="block">
-                  <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Prioridad</span>
+                  <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Criticidad</span>
                   <select
                     value={ticketPriority}
                     onChange={(event) => setTicketPriority(event.target.value as typeof ticketPriority)}

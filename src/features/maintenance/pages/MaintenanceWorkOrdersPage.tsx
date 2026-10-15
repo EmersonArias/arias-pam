@@ -546,7 +546,7 @@ export default function MaintenanceWorkOrdersPage() {
               <BrandLogo onActivate={() => navigate('/')} className="h-9 w-auto shrink-0 object-contain sm:h-11" />
               <div className="min-w-0">
                 <h1 className="text-xl font-bold leading-tight sm:text-2xl">Tickets</h1>
-                <p className="text-xs text-slate-500 sm:text-sm">Tickets preventivos y operativos de {hotel?.name ?? 'hotel actual'}</p>
+                <p className="text-xs text-slate-500 sm:text-sm">Incidencias correctivas y actuaciones · {hotel?.name ?? 'hotel actual'}</p>
               </div>
             </div>
             <div className="flex items-center gap-2">

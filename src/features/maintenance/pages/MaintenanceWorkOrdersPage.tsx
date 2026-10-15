@@ -1005,6 +1005,7 @@ export default function MaintenanceWorkOrdersPage() {
                   <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Título *</span>
                   <input
                     value={ticketTitle}
+                    disabled={ticketSaving}
                     onChange={(event) => setTicketTitle(event.target.value)}
                     placeholder="Ej. Bomba de achique parada"
                     className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-blue-500"
@@ -1015,6 +1016,7 @@ export default function MaintenanceWorkOrdersPage() {
                   <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Tipo</span>
                   <select
                     value={ticketType}
+                    disabled={ticketSaving}
                     onChange={(event) => setTicketType(event.target.value as typeof ticketType)}
                     className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm"
                   >
@@ -1027,6 +1029,7 @@ export default function MaintenanceWorkOrdersPage() {
                   <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Criticidad</span>
                   <select
                     value={ticketPriority}
+                    disabled={ticketSaving}
                     onChange={(event) => setTicketPriority(event.target.value as typeof ticketPriority)}
                     className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm"
                   >
@@ -1041,6 +1044,7 @@ export default function MaintenanceWorkOrdersPage() {
                   <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Equipo / activo</span>
                   <select
                     value={ticketAssetId}
+                    disabled={ticketSaving}
                     onChange={(event) => setTicketAssetId(event.target.value)}
                     className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm"
                   >
@@ -1057,6 +1061,7 @@ export default function MaintenanceWorkOrdersPage() {
                   <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Ubicación comunicada</span>
                   <select
                     value={ticketLocationId}
+                    disabled={ticketSaving}
                     onChange={(event) => setTicketLocationId(event.target.value)}
                     className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm"
                   >
@@ -1075,6 +1080,7 @@ export default function MaintenanceWorkOrdersPage() {
                   <input
                     type="date"
                     value={ticketScheduledDate}
+                    disabled={ticketSaving}
                     onChange={(event) => setTicketScheduledDate(event.target.value)}
                     className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"
                   />
@@ -1085,6 +1091,7 @@ export default function MaintenanceWorkOrdersPage() {
                     <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Asignar a</span>
                     <select
                       value={ticketAssigneeId}
+                      disabled={ticketSaving}
                       onChange={(event) => setTicketAssigneeId(event.target.value)}
                       className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm"
                     >
@@ -1107,10 +1114,10 @@ export default function MaintenanceWorkOrdersPage() {
                       <p className="mt-1 text-xs leading-5 text-slate-500">Haz una foto con la cámara del móvil o adjunta varias imágenes de la galería. Se guardarán asociadas al ticket.</p>
                     </div>
                     <div className="flex shrink-0 gap-2">
-                      <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={(event) => { const files = Array.from(event.target.files ?? []).filter((file) => file.type.startsWith('image/')); if (files.length) setTicketPhotos((current) => [...current, ...files]); event.target.value = '' }} />
-                      <input ref={galleryInputRef} type="file" accept="image/*" multiple className="hidden" onChange={(event) => { const files = Array.from(event.target.files ?? []).filter((file) => file.type.startsWith('image/')); if (files.length) setTicketPhotos((current) => [...current, ...files]); event.target.value = '' }} />
-                      <button type="button" onClick={() => cameraInputRef.current?.click()} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"><Camera size={15}/>Hacer foto</button>
-                      <button type="button" onClick={() => galleryInputRef.current?.click()} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"><Upload size={15}/>Galería</button>
+                      <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" disabled={ticketSaving} className="hidden" onChange={(event) => { const files = Array.from(event.target.files ?? []).filter((file) => file.type.startsWith('image/')); if (files.length) setTicketPhotos((current) => [...current, ...files]); event.target.value = '' }} />
+                      <input ref={galleryInputRef} type="file" accept="image/*" multiple disabled={ticketSaving} className="hidden" onChange={(event) => { const files = Array.from(event.target.files ?? []).filter((file) => file.type.startsWith('image/')); if (files.length) setTicketPhotos((current) => [...current, ...files]); event.target.value = '' }} />
+                      <button type="button" onClick={() => cameraInputRef.current?.click()} disabled={ticketSaving} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"><Camera size={15}/>Hacer foto</button>
+                      <button type="button" onClick={() => galleryInputRef.current?.click()} disabled={ticketSaving} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"><Upload size={15}/>Galería</button>
                     </div>
                   </div>
                   {ticketPhotos.length > 0 && (
@@ -1133,6 +1140,7 @@ export default function MaintenanceWorkOrdersPage() {
                   <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Descripción</span>
                   <textarea
                     value={ticketDescription}
+                    disabled={ticketSaving}
                     onChange={(event) => setTicketDescription(event.target.value)}
                     rows={5}
                     placeholder="Describe qué has visto, dónde está y qué se necesita hacer…"
@@ -1193,11 +1201,6 @@ export default function MaintenanceWorkOrdersPage() {
                         }
                       }
 
-                      setTicketTitle('')
-                      setTicketDescription('')
-                      setTicketAssetId('')
-                      setTicketLocationId('')
-                      setTicketAssigneeId('')
                       let photoWarning = ''
                       for (const file of ticketPhotos) {
                         const safeName = file.name.replace(/[^a-zA-Z0-9._-]+/g, '_')
@@ -1224,6 +1227,11 @@ export default function MaintenanceWorkOrdersPage() {
                       }
                       setTicketPhotos([])
                       setTicketOpen(false)
+                      setTicketTitle('')
+                      setTicketDescription('')
+                      setTicketAssetId('')
+                      setTicketLocationId('')
+                      setTicketAssigneeId('')
                       await loadData()
                       setSelectedId(created.id)
                       navigate('/maintenance/tickets/' + created.id, photoWarning ? { state: { flashMessage: photoWarning } } : undefined)

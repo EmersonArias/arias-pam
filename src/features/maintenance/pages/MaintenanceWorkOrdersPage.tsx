@@ -123,7 +123,7 @@ const typeLabels: Record<WorkOrder['work_type'], string> = {
 }
 
 function isOverdue(item: WorkOrder) {
-  return item.status === 'PENDING'
+  return ['PENDING', 'IN_MANAGEMENT', 'IN_PROGRESS'].includes(item.status)
     && Boolean(item.scheduled_date)
     && item.scheduled_date! < new Date().toISOString().slice(0, 10)
 }
@@ -189,7 +189,7 @@ export default function MaintenanceWorkOrdersPage() {
   const { confirm } = useSystemDialog()
   const [records, setRecords] = useState<WorkOrder[]>([])
   const [selectedId, setSelectedId] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'IN_MANAGEMENT' | 'IN_PROGRESS'>('ALL')
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'IN_MANAGEMENT' | 'IN_PROGRESS' | 'OVERDUE'>('ALL')
   const [typeFilter, setTypeFilter] = useState<'ALL' | WorkOrder['work_type']>('ALL')
   const [priorityFilter, setPriorityFilter] = useState<'ALL' | WorkOrder['priority'] | 'HIGH_OR_CRITICAL'>('ALL')
   const [assigneeFilter, setAssigneeFilter] = useState('ALL')
@@ -358,10 +358,10 @@ export default function MaintenanceWorkOrdersPage() {
     if (loading) return
 
     const summaryFilter = searchParams.get('summary')
-    if (summaryFilter === 'PENDING' || summaryFilter === 'URGENT' || summaryFilter === 'UNASSIGNED' || summaryFilter === 'IN_PROGRESS' || summaryFilter === 'IN_MANAGEMENT') {
+    if (summaryFilter === 'PENDING' || summaryFilter === 'OVERDUE' || summaryFilter === 'URGENT' || summaryFilter === 'UNASSIGNED' || summaryFilter === 'IN_PROGRESS' || summaryFilter === 'IN_MANAGEMENT') {
       setTypeFilter('ALL')
       setSearch('')
-      setStatusFilter(summaryFilter === 'PENDING' ? 'PENDING' : summaryFilter === 'IN_PROGRESS' ? 'IN_PROGRESS' : summaryFilter === 'IN_MANAGEMENT' ? 'IN_MANAGEMENT' : 'ALL')
+      setStatusFilter(summaryFilter === 'PENDING' ? 'PENDING' : summaryFilter === 'OVERDUE' ? 'OVERDUE' : summaryFilter === 'IN_PROGRESS' ? 'IN_PROGRESS' : summaryFilter === 'IN_MANAGEMENT' ? 'IN_MANAGEMENT' : 'ALL')
       setPriorityFilter(summaryFilter === 'URGENT' ? 'HIGH_OR_CRITICAL' : 'ALL')
       setAssigneeFilter(summaryFilter === 'UNASSIGNED' ? 'UNASSIGNED' : 'ALL')
       setSearchParams({}, { replace: true })
@@ -431,7 +431,8 @@ export default function MaintenanceWorkOrdersPage() {
     const query = search.trim().toLocaleLowerCase('es')
 
     return records.filter((item) => {
-      if (statusFilter !== 'ALL' && item.status !== statusFilter) return false
+      if (statusFilter === 'OVERDUE' && !isOverdue(item)) return false
+      if (statusFilter !== 'ALL' && statusFilter !== 'OVERDUE' && item.status !== statusFilter) return false
       if (typeFilter !== 'ALL' && item.work_type !== typeFilter) return false
       if (priorityFilter === 'HIGH_OR_CRITICAL' && item.priority !== 'HIGH' && item.priority !== 'CRITICAL') return false
       if (priorityFilter !== 'ALL' && priorityFilter !== 'HIGH_OR_CRITICAL' && item.priority !== priorityFilter) return false
@@ -459,15 +460,16 @@ export default function MaintenanceWorkOrdersPage() {
   }, [records, search, statusFilter, typeFilter, priorityFilter, assigneeFilter])
 
   const selected = records.find((item) => item.id === selectedId) ?? null
-  const pendingCount = records.filter((item) => item.status === 'PENDING').length
+  const pendingCount = records.filter((item) => item.status === 'PENDING' && !isOverdue(item)).length
+  const overdueCount = records.filter((item) => isOverdue(item)).length
   const urgentCount = records.filter((item) => item.priority === 'HIGH' || item.priority === 'CRITICAL').length
   const unassignedCount = records.filter((item) => !item.assigned_user_id).length
   const inProgressCount = records.filter((item) => item.status === 'IN_PROGRESS').length
 
-  function applyTicketSummaryFilter(kind: 'PENDING' | 'URGENT' | 'UNASSIGNED' | 'IN_PROGRESS') {
+  function applyTicketSummaryFilter(kind: 'PENDING' | 'OVERDUE' | 'URGENT' | 'UNASSIGNED' | 'IN_PROGRESS') {
     setTypeFilter('ALL')
     setSearch('')
-    setStatusFilter(kind === 'PENDING' ? 'PENDING' : kind === 'IN_PROGRESS' ? 'IN_PROGRESS' : 'ALL')
+    setStatusFilter(kind === 'PENDING' ? 'PENDING' : kind === 'OVERDUE' ? 'OVERDUE' : kind === 'IN_PROGRESS' ? 'IN_PROGRESS' : 'ALL')
     setPriorityFilter(kind === 'URGENT' ? 'HIGH_OR_CRITICAL' : 'ALL')
     setAssigneeFilter(kind === 'UNASSIGNED' ? 'UNASSIGNED' : 'ALL')
   }
@@ -616,9 +618,10 @@ export default function MaintenanceWorkOrdersPage() {
         )}
 
 
-        <section className="mb-3 grid grid-cols-2 gap-2 xl:grid-cols-4" aria-label="Resumen de tickets correctivos">
+        <section className="mb-3 grid grid-cols-2 gap-2 xl:grid-cols-5" aria-label="Resumen de tickets correctivos">
           {[
-            { key: 'PENDING' as const, label: 'Pendientes', count: pendingCount, detail: 'Por atender', icon: Clock3, tone: 'text-amber-700 bg-amber-50' },
+            { key: 'PENDING' as const, label: 'Pendientes', count: pendingCount, detail: 'Por atender sin vencer', icon: Clock3, tone: 'text-amber-700 bg-amber-50' },
+            { key: 'OVERDUE' as const, label: 'Atrasados', count: overdueCount, detail: 'Fecha vencida · abiertos', icon: AlertTriangle, tone: 'text-rose-700 bg-rose-50' },
             { key: 'URGENT' as const, label: 'Alta / crítica', count: urgentCount, detail: 'Prioridad alta o crítica', icon: AlertTriangle, tone: 'text-rose-700 bg-rose-50' },
             { key: 'IN_PROGRESS' as const, label: 'En curso', count: inProgressCount, detail: 'Intervenciones en ejecución', icon: CheckCircle2, tone: 'text-blue-700 bg-blue-50' },
             { key: 'UNASSIGNED' as const, label: 'Sin asignar', count: unassignedCount, detail: 'Requieren responsable', icon: UserRound, tone: 'text-slate-700 bg-slate-100' },
@@ -656,7 +659,8 @@ export default function MaintenanceWorkOrdersPage() {
                 className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2"
               >
                 <option value="ALL">Todos</option>
-                <option value="PENDING">Pendiente</option>
+                <option value="PENDING">Pendiente (sin vencer)</option>
+                <option value="OVERDUE">Atrasados</option>
                 <option value="IN_MANAGEMENT">En gestión</option>
                 <option value="IN_PROGRESS">En curso</option>
               </select>

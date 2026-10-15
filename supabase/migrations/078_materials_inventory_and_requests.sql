@@ -98,6 +98,7 @@ CREATE TABLE IF NOT EXISTS public.maintenance_material_request_lines (
   unit_of_measure text NOT NULL DEFAULT 'ud',
   quantity numeric(12,2) NOT NULL CHECK (quantity > 0),
   purchase_url text,
+  delivery_date date,
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
@@ -326,7 +327,8 @@ BEGIN
       request_record.id, material_record.id, material_record.description,
       material_record.reference_code, material_record.order_code,
       material_record.provider_id, provider_label, material_record.unit_of_measure,
-      line_quantity, material_record.purchase_url
+      line_quantity, material_record.purchase_url,
+      NULLIF(line_record->>'delivery_date', '')::date
     );
 
     line_count := line_count + 1;
@@ -349,6 +351,6 @@ COMMENT ON TABLE public.maintenance_stock_movements IS
 COMMENT ON TABLE public.maintenance_material_requests IS
   'Solicitudes de material confirmadas, con estado de correo y trazabilidad.';
 COMMENT ON TABLE public.maintenance_material_request_lines IS
-  'Detalle inmutable de cada solicitud con descripción, proveedor y enlace de compra capturados al confirmar.';
+  'Detalle inmutable de cada solicitud con descripción, proveedor, fecha de entrega por línea y enlace de compra capturados al confirmar.';
 
 COMMIT;

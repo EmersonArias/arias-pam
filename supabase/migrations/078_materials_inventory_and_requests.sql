@@ -40,9 +40,9 @@ CREATE TABLE IF NOT EXISTS public.maintenance_stock_movements (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   hotel_id uuid NOT NULL REFERENCES public.hotels(id) ON DELETE RESTRICT,
   material_id uuid NOT NULL REFERENCES public.maintenance_material_catalog(id) ON DELETE RESTRICT,
-  movement_type text NOT NULL CHECK (movement_type IN ('RECEIVE', 'ISSUE', 'ADJUSTMENT')),
-  quantity_delta numeric(12,2) NOT NULL CHECK (quantity_delta <> 0 OR movement_type = 'ADJUSTMENT'),
-  stock_before numeric(12,2) NOT NULL CHECK (stock_before >= 0),
+  movement_type text NOT NULL CHECK (movement_type IN ('RECEIVE', 'ISSUE', 'ADJUSTMENT', 'COUNT')),
+  quantity_delta numeric(12,2) NOT NULL CHECK (quantity_delta <> 0 OR movement_type IN ('ADJUSTMENT', 'COUNT')),
+  stock_before numeric(12,2) CHECK (stock_before IS NULL OR stock_before >= 0),
   stock_after numeric(12,2) NOT NULL CHECK (stock_after >= 0),
   reason text NOT NULL,
   reference text,
@@ -52,6 +52,10 @@ CREATE TABLE IF NOT EXISTS public.maintenance_stock_movements (
     (movement_type = 'RECEIVE' AND quantity_delta > 0)
     OR (movement_type = 'ISSUE' AND quantity_delta < 0)
     OR movement_type = 'ADJUSTMENT'
+    OR (movement_type = 'COUNT' AND (
+      (stock_before IS NULL AND quantity_delta = 0)
+      OR (stock_before IS NOT NULL AND quantity_delta = stock_after - stock_before)
+    ))
   )
 );
 
@@ -272,9 +276,9 @@ BEGIN
   END IF;
 
   -- Unknown initial stock is not treated as a real zero; the first count establishes the baseline.
-  before_quantity := CASE WHEN material_record.stock_verified THEN material_record.stock_quantity ELSE 0 END;
+  before_quantity := CASE WHEN material_record.stock_verified THEN material_record.stock_quantity ELSE NULL END;
   after_quantity := target_quantity;
-  quantity_delta := after_quantity - before_quantity;
+  quantity_delta := CASE WHEN before_quantity IS NULL THEN 0 ELSE after_quantity - before_quantity END;
 
   UPDATE public.maintenance_material_catalog
   SET stock_quantity = after_quantity, stock_verified = true,
@@ -287,7 +291,7 @@ BEGIN
     stock_before, stock_after, reason, reference, created_by
   )
   VALUES (
-    target_hotel_id, target_material_id, 'ADJUSTMENT', quantity_delta,
+    target_hotel_id, target_material_id, 'COUNT', quantity_delta,
     before_quantity, after_quantity, btrim(target_reason),
     NULLIF(btrim(coalesce(target_reference, '')), ''), auth.uid()
   )

@@ -398,7 +398,7 @@ export default function MaterialsInventoryPage() {
       purchase_url: materialForm.purchase_url.trim() || null,
       storage_location: materialForm.storage_location.trim() || null,
       notes: materialForm.notes.trim() || null,
-      active: true,
+      active: editingMaterialId ? materials.find((item) => item.id === editingMaterialId)?.active ?? true : true,
       updated_at: new Date().toISOString(),
     }
 

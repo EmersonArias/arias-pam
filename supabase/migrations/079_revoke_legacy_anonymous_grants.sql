@@ -63,7 +63,7 @@ BEGIN
   SELECT count(*)
     INTO remaining_sequence_grants
   FROM information_schema.sequence_privileges
-  WHERE object_schema = 'public'
+  WHERE sequence_schema = 'public'
     AND grantee = 'anon';
 
   SELECT count(*)

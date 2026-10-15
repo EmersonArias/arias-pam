@@ -80,7 +80,7 @@ Deno.serve(async (request) => {
     .from('maintenance_material_requests')
     .update({ email_status: 'SENDING', recipient_email: recipientEmail, email_error: null, updated_at: new Date().toISOString() })
     .eq('id', requestId)
-    .neq('email_status', 'SENT')
+    .in('email_status', ['NOT_SENT', 'FAILED'])
     .select('id')
     .maybeSingle()
   if (claimError || !sendingRecord) return json({ error: 'No tienes permiso para enviar la petición o ya se ha procesado.' }, 403)

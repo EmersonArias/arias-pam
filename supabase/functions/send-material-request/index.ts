@@ -18,7 +18,7 @@ function escapeHtml(value: unknown) {
 }
 
 function isValidEmail(value: string | null | undefined) {
-  return /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test((value ?? '').trim())
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((value ?? '').trim())
 }
 
 Deno.serve(async (request) => {

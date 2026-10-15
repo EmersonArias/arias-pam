@@ -67,6 +67,7 @@ type RequestLine = {
   provider_name: string | null
   unit_of_measure: string
   quantity: number
+  delivery_date: string | null
   purchase_url: string | null
 }
 
@@ -75,6 +76,7 @@ type DraftLine = {
   query: string
   material_id: string
   quantity: string
+  delivery_date: string
 }
 
 type MaterialForm = {
@@ -180,9 +182,8 @@ export default function MaterialsInventoryPage() {
 
   const [requesterName, setRequesterName] = useState(session?.user.fullName || session?.user.email || '')
   const [cause, setCause] = useState('Reposición de material')
-  const [deliveryDate, setDeliveryDate] = useState('')
   const [requestNotes, setRequestNotes] = useState('')
-  const [draftLines, setDraftLines] = useState<DraftLine[]>([{ key: makeKey(), query: '', material_id: '', quantity: '1' }])
+  const [draftLines, setDraftLines] = useState<DraftLine[]>([{ key: makeKey(), query: '', material_id: '', quantity: '1', delivery_date: '' }])
   const [openLineKey, setOpenLineKey] = useState<string | null>(null)
   const [reviewOpen, setReviewOpen] = useState(false)
   const [lastRequest, setLastRequest] = useState<{ request: RequestRecord; lines: RequestLine[] } | null>(null)
@@ -320,7 +321,7 @@ export default function MaterialsInventoryPage() {
   }
 
   function addDraftLine() {
-    setDraftLines((current) => [...current, { key: makeKey(), query: '', material_id: '', quantity: '1' }])
+    setDraftLines((current) => [...current, { key: makeKey(), query: '', material_id: '', quantity: '1', delivery_date: '' }])
   }
 
   function removeDraftLine(key: string) {
@@ -331,9 +332,8 @@ export default function MaterialsInventoryPage() {
   function resetRequestForm() {
     setRequesterName(session?.user.fullName || session?.user.email || '')
     setCause('Reposición de material')
-    setDeliveryDate('')
     setRequestNotes('')
-    setDraftLines([{ key: makeKey(), query: '', material_id: '', quantity: '1' }])
+    setDraftLines([{ key: makeKey(), query: '', material_id: '', quantity: '1', delivery_date: '' }])
     setReviewOpen(false)
   }
 
@@ -504,20 +504,21 @@ export default function MaterialsInventoryPage() {
 
     autoTable(doc, {
       startY: 82,
-      head: [['UNIDADES', 'DESCRIPCIÓN', 'CÓDIGO', 'PROVEEDOR', 'ENLACE']],
+      head: [['UNIDADES', 'DESCRIPCIÓN', 'CÓDIGO', 'PROVEEDOR', 'FECHA ENTREGA', 'ENLACE']],
       body: lines.map((line) => [
         formatQuantity(line.quantity) + ' ' + line.unit_of_measure,
         line.description,
         line.order_code || line.reference_code || '—',
         line.provider_name || '—',
+        formatDate(line.delivery_date),
         line.purchase_url ? ' ' : '—',
       ]),
       theme: 'grid',
       styles: { font: 'helvetica', fontSize: 8, cellPadding: 2.2, overflow: 'linebreak', textColor: [45, 55, 65] },
       headStyles: { fillColor: [238, 241, 244], textColor: [35, 45, 55], fontStyle: 'bold', halign: 'center' },
-      columnStyles: { 0: { cellWidth: 22, halign: 'center' }, 1: { cellWidth: 68 }, 2: { cellWidth: 26 }, 3: { cellWidth: 34 }, 4: { cellWidth: 'auto' } },
+      columnStyles: { 0: { cellWidth: 20, halign: 'center' }, 1: { cellWidth: 58 }, 2: { cellWidth: 24 }, 3: { cellWidth: 31 }, 4: { cellWidth: 28 }, 5: { cellWidth: 'auto' } },
       didDrawCell: (data) => {
-        if (data.section === 'body' && data.column.index === 4) {
+        if (data.section === 'body' && data.column.index === 5) {
           const url = lines[data.row.index]?.purchase_url
           if (url) {
             doc.setTextColor(30, 90, 170)
@@ -567,14 +568,18 @@ export default function MaterialsInventoryPage() {
     setSaving(true)
     setError('')
     setSuccess('')
+    const uniqueDeliveryDates = Array.from(new Set(selectedDraftLines.map((line) => line.delivery_date).filter(Boolean)))
+    const commonDeliveryDate = uniqueDeliveryDates.length === 1 && selectedDraftLines.every((line) => line.delivery_date === uniqueDeliveryDates[0])
+      ? uniqueDeliveryDates[0]
+      : null
     const result = await supabase.rpc('create_maintenance_material_request', {
       target_hotel_id: hotel.id,
       target_requester_name: requesterName.trim(),
       target_department: 'MANTENIMIENTO',
       target_cause: cause,
-      target_delivery_date: deliveryDate || null,
+      target_delivery_date: commonDeliveryDate,
       target_notes: requestNotes.trim() || null,
-      target_lines: selectedDraftLines.map((line) => ({ material_id: line.material?.id, quantity: Number(line.quantity) })),
+      target_lines: selectedDraftLines.map((line) => ({ material_id: line.material?.id, quantity: Number(line.quantity), delivery_date: line.delivery_date || null })),
     })
 
     if (result.error) {
@@ -591,7 +596,7 @@ export default function MaterialsInventoryPage() {
       requester_name: requesterName.trim(),
       department: 'MANTENIMIENTO',
       cause,
-      delivery_date: deliveryDate || null,
+      delivery_date: commonDeliveryDate,
       notes: requestNotes.trim() || null,
       status: 'CONFIRMED',
       email_status: 'NOT_SENT',
@@ -613,6 +618,7 @@ export default function MaterialsInventoryPage() {
         provider_name: providerById.get(material.provider_id)?.label ?? null,
         unit_of_measure: material.unit_of_measure,
         quantity: Number(line.quantity),
+        delivery_date: line.delivery_date || null,
         purchase_url: material.purchase_url,
       }
     })
@@ -808,10 +814,6 @@ export default function MaterialsInventoryPage() {
                     <option>Otro</option>
                   </select>
                 </label>
-                <label className="block">
-                  <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-slate-500">Fecha de entrega</span>
-                  <input type="date" value={deliveryDate} onChange={(event) => setDeliveryDate(event.target.value)} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm"/>
-                </label>
                 <label className="block sm:col-span-2 lg:col-span-4">
                   <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-slate-500">Persona solicitante *</span>
                   <input value={requesterName} onChange={(event) => setRequesterName(event.target.value)} placeholder="Nombre y apellidos" className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"/>
@@ -829,7 +831,7 @@ export default function MaterialsInventoryPage() {
                     const suggestions = getSuggestions(line.query)
                     const provider = material ? providerById.get(material.provider_id) : null
                     return (
-                      <div key={line.key} className="grid gap-2 rounded-xl border border-slate-200 p-3 sm:grid-cols-[minmax(0,1fr)_110px_42px] sm:items-start">
+                      <div key={line.key} className="grid gap-2 rounded-xl border border-slate-200 p-3 sm:grid-cols-[minmax(0,1fr)_100px_145px_42px] sm:items-start">
                         <div className="min-w-0">
                           <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-500">Artículo {index + 1} *</label>
                           <div className="relative">
@@ -866,6 +868,10 @@ export default function MaterialsInventoryPage() {
                           <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-500">Unidades *</span>
                           <input type="number" min="0.01" step="0.01" value={line.quantity} onChange={(event) => updateDraftLine(line.key, { quantity: event.target.value })} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"/>
                           {material && <span className="mt-1 block text-[10px] text-slate-400">{material.unit_of_measure}</span>}
+                        </label>
+                        <label className="block">
+                          <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-500">Fecha entrega</span>
+                          <input type="date" value={line.delivery_date} onChange={(event) => updateDraftLine(line.key, { delivery_date: event.target.value })} className="w-full rounded-xl border border-slate-300 bg-white px-2.5 py-2.5 text-xs"/>
                         </label>
                         <button type="button" onClick={() => removeDraftLine(line.key)} disabled={draftLines.length === 1} title="Quitar línea" aria-label="Quitar línea" className="mt-5 inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-500 hover:bg-rose-50 hover:text-rose-700 disabled:opacity-30 sm:mt-0"><X size={15}/></button>
                       </div>
@@ -1052,13 +1058,12 @@ export default function MaterialsInventoryPage() {
                 <div className="rounded-xl bg-slate-50 p-3"><span className="block text-[10px] uppercase text-slate-400">Establecimiento</span><strong className="mt-1 block">{hotel?.name}</strong></div>
                 <div className="rounded-xl bg-slate-50 p-3"><span className="block text-[10px] uppercase text-slate-400">Solicitante</span><strong className="mt-1 block">{requesterName}</strong></div>
                 <div className="rounded-xl bg-slate-50 p-3"><span className="block text-[10px] uppercase text-slate-400">Causa</span><strong className="mt-1 block">{cause}</strong></div>
-                <div className="rounded-xl bg-slate-50 p-3"><span className="block text-[10px] uppercase text-slate-400">Entrega prevista</span><strong className="mt-1 block">{formatDate(deliveryDate)}</strong></div>
                 <div className="rounded-xl bg-slate-50 p-3"><span className="block text-[10px] uppercase text-slate-400">Líneas de material</span><strong className="mt-1 block">{selectedDraftLines.length}</strong></div>
               </div>
               <div className="space-y-2">
                 {selectedDraftLines.map((line) => (
                   <div key={line.key} className="flex items-start justify-between gap-3 rounded-xl border border-slate-200 p-3">
-                    <div className="min-w-0"><div className="text-xs font-semibold text-slate-800">{line.material?.description}</div><div className="mt-1 text-[10px] text-slate-500">{line.material?.order_code} · {providerById.get(line.material?.provider_id ?? '')?.label ?? 'Sin proveedor'}</div>{line.material?.purchase_url && <button type="button" onClick={() => openLinePurchaseLink(line.material?.purchase_url ?? null)} className="mt-1 inline-flex items-center gap-1 text-[10px] font-semibold text-blue-700"><ExternalLink size={11}/>Enlace de compra</button>}</div>
+                    <div className="min-w-0"><div className="text-xs font-semibold text-slate-800">{line.material?.description}</div><div className="mt-1 text-[10px] text-slate-500">{line.material?.order_code} · {providerById.get(line.material?.provider_id ?? '')?.label ?? 'Sin proveedor'}</div><div className="mt-1 text-[10px] text-slate-500">Fecha entrega: {formatDate(line.delivery_date)}</div>{line.material?.purchase_url && <button type="button" onClick={() => openLinePurchaseLink(line.material?.purchase_url ?? null)} className="mt-1 inline-flex items-center gap-1 text-[10px] font-semibold text-blue-700"><ExternalLink size={11}/>Enlace de compra</button>}</div>
                     <strong className="shrink-0 text-sm tabular-nums text-slate-800">{formatQuantity(line.quantity)} {line.material?.unit_of_measure}</strong>
                   </div>
                 ))}

@@ -44,6 +44,7 @@ REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA public FROM anon;
 DO $$
 DECLARE
   remaining_table_grants integer;
+  remaining_relation_acl_grants integer;
   remaining_column_grants integer;
   remaining_sequence_grants integer;
   remaining_function_grants integer;
@@ -53,6 +54,17 @@ BEGIN
   FROM information_schema.role_table_grants
   WHERE table_schema = 'public'
     AND grantee = 'anon';
+
+  -- Include materialized views/foreign tables and verify the actual relation ACL,
+  -- not just the information_schema subset.
+  SELECT count(*)
+    INTO remaining_relation_acl_grants
+  FROM pg_class c
+  JOIN pg_namespace n ON n.oid = c.relnamespace
+  CROSS JOIN LATERAL aclexplode(coalesce(c.relacl, acldefault('r', c.relowner))) granted
+  WHERE n.nspname = 'public'
+    AND c.relkind IN ('r', 'p', 'v', 'm', 'f')
+    AND granted.grantee = 'anon'::regrole;
 
   SELECT count(*)
     INTO remaining_column_grants
@@ -76,12 +88,14 @@ BEGIN
     AND has_function_privilege('anon', p.oid, 'EXECUTE');
 
   IF remaining_table_grants > 0
+     OR remaining_relation_acl_grants > 0
      OR remaining_column_grants > 0
      OR remaining_sequence_grants > 0
      OR remaining_function_grants > 0 THEN
     RAISE EXCEPTION
-      'Persisten grants para anon en public: tablas/vistas=%, columnas=%, secuencias=%, funciones=%',
+      'Persisten grants para anon en public: tablas/vistas=%, ACL de relaciones=%, columnas=%, secuencias=%, funciones=%',
       remaining_table_grants,
+      remaining_relation_acl_grants,
       remaining_column_grants,
       remaining_sequence_grants,
       remaining_function_grants;

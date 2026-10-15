@@ -137,7 +137,7 @@ export default function MaintenanceWorkOrderDetailPage(){
     const options = (catalogResult.data ?? []) as WorkOrderMaterialOption[]
     setWorkOrderMaterials(options)
     setMaterialConsumptions((consumptionResult.data ?? []) as WorkOrderMaterialConsumption[])
-    setConsumptionMaterialId((current) => current && options.some((item) => item.id === current) ? current : (options.find((item) => item.stock_verified)?.id ?? options[0]?.id ?? ''))
+    setConsumptionMaterialId((current) => current && options.some((item) => item.id === current && item.stock_verified) ? current : (options.find((item) => item.stock_verified)?.id ?? ''))
     setMaterialsFeatureReady(true); setMaterialsFeatureMessage('')
   }
 
@@ -149,7 +149,7 @@ export default function MaintenanceWorkOrderDetailPage(){
     const item=q.data as WorkOrder
     setOrder(item); setBaseline(item)
     setExecutionLocationId(item.execution_location_id ?? '')
-    await loadMaterialFeature(item.id, item.hotel_id)
+    void loadMaterialFeature(item.id, item.hotel_id)
 
     const assignmentsResult = session?.user.id && hotel?.id
       ? await supabase

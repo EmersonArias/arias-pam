@@ -414,7 +414,7 @@ export default function MaterialsInventoryPage() {
       provider_id: material.provider_id,
       unit_of_measure: material.unit_of_measure || 'ud',
       minimum_stock: String(material.minimum_stock ?? 0),
-      initial_stock: '0',
+      initial_stock: '',
       purchase_url: material.purchase_url ?? '',
       storage_location: material.storage_location ?? '',
       notes: material.notes ?? '',

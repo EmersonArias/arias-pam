@@ -137,7 +137,7 @@ CREATE POLICY maintenance_material_request_lines_select
 
 REVOKE ALL ON TABLE public.maintenance_material_catalog FROM PUBLIC, anon;
 -- Remove legacy column-level grants from anon as well as table-level grants.
-DO $
+DO $revoke_anon_columns$
 DECLARE
   column_grant record;
 BEGIN
@@ -153,7 +153,7 @@ BEGIN
     );
   END LOOP;
 END;
-$;
+$revoke_anon_columns$;
 REVOKE INSERT, UPDATE, DELETE ON public.maintenance_material_catalog FROM authenticated;
 GRANT SELECT ON public.maintenance_material_catalog TO authenticated;
 GRANT INSERT (

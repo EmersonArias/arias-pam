@@ -339,7 +339,8 @@ export default function MaintenancePlanningPage() {
     onOpen: (id) => {
       const row = filteredRows.find((item) => item.id === id)
       if (row?.workOrder?.id) {
-        navigate('/maintenance/tickets/' + row.workOrder.id)
+        const returnTo = `/maintenance/planning${searchParams.toString() ? `?${searchParams.toString()}` : ''}`
+        navigate('/maintenance/tickets/' + row.workOrder.id, { state: { returnTo } })
       }
     },
     autoFocusFirst: true,
@@ -468,7 +469,7 @@ export default function MaintenancePlanningPage() {
 
             <GridViewport className="max-h-[calc(100vh-390px)]">
               <div {...getGridProps()} className="outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-200">
-              <table className="min-w-[1080px] w-full border-collapse text-sm">
+              <table className="min-w-[1080px] w-full border-collapse text-xs">
                 <thead className="sticky top-0 z-10 bg-slate-50">
                   <tr className="border-b text-left text-[11px] uppercase tracking-wide text-slate-500">
                     <th className="px-3 py-2.5">Día</th>
@@ -492,20 +493,23 @@ export default function MaintenancePlanningPage() {
                         className={`border-b last:border-b-0 ${isSelected ? 'bg-blue-50' : 'hover:bg-slate-50'}`}
                         onClick={() => setSelectedId(row.id)}
                         onDoubleClick={() => {
-                          if (row.workOrder?.id) navigate('/maintenance/tickets/' + row.workOrder.id)
+                          if (row.workOrder?.id) {
+                            const returnTo = `/maintenance/planning${searchParams.toString() ? `?${searchParams.toString()}` : ''}`
+                            navigate('/maintenance/tickets/' + row.workOrder.id, { state: { returnTo } })
+                          }
                         }}
                       >
-                        <td className="px-3 py-3 font-semibold text-slate-800">
+                        <td className="px-2 py-1.5 font-semibold text-slate-800">
                           <div>{weekday(row.scheduled_date)}</div>
                           <div className="text-xs font-normal text-slate-400">{formatDate(row.scheduled_date)}</div>
                         </td>
-                        <td className="px-3 py-3 text-slate-600">S{row.week_slot || '—'}</td>
-                        <td className="px-3 py-3 text-slate-600">{monthLabels[row.month_number - 1] ?? '—'}</td>
-                        <td className="px-3 py-3">
+                        <td className="px-2 py-1.5 text-slate-600">S{row.week_slot || '—'}</td>
+                        <td className="px-2 py-1.5 text-slate-600">{monthLabels[row.month_number - 1] ?? '—'}</td>
+                        <td className="px-2 py-1.5">
                           <div className="font-semibold text-slate-800">{row.apparatus?.code ?? '—'}</div>
                           <div className="text-xs text-slate-500">{row.apparatus?.name ?? 'Equipo sin resolver'}</div>
                         </td>
-                        <td className="px-3 py-3">
+                        <td className="px-2 py-1.5">
                           <div className="max-w-[320px] font-semibold text-slate-800">{row.plan?.name ?? '—'}</div>
                           {row.plan?.maintenance_type && (
                             <div className="text-xs text-slate-400">
@@ -513,19 +517,20 @@ export default function MaintenancePlanningPage() {
                             </div>
                           )}
                         </td>
-                        <td className="px-3 py-3 text-slate-600">{frequencyLabel(row.plan)}</td>
-                        <td className="px-3 py-3">
-                          <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${stateClass(row.state)}`}>
+                        <td className="px-2 py-1.5 text-slate-600">{frequencyLabel(row.plan)}</td>
+                        <td className="px-2 py-1.5">
+                          <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${stateClass(row.state)}`}>
                             {stateLabel(row.state)}
                           </span>
                         </td>
-                        <td className="px-3 py-3">
+                        <td className="px-2 py-1.5">
                           {row.workOrder ? (
                             <button
                               type="button"
                               onClick={(event) => {
                                 event.stopPropagation()
-                                navigate('/maintenance/tickets/' + row.workOrder!.id)
+                                const returnTo = `/maintenance/planning${searchParams.toString() ? `?${searchParams.toString()}` : ''}`
+                                navigate('/maintenance/tickets/' + row.workOrder!.id, { state: { returnTo } })
                               }}
                               className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-[11px] font-semibold text-blue-700 hover:bg-blue-100"
                             >
@@ -541,7 +546,7 @@ export default function MaintenancePlanningPage() {
                   })}
                   {!loading && filteredRows.length === 0 && (
                     <tr>
-                      <td colSpan={8} className="px-3 py-10 text-center text-sm text-slate-500">No hay trabajos programados para estos filtros.</td>
+                      <td colSpan={8} className="px-3 py-8 text-center text-xs text-slate-500">No hay trabajos programados para estos filtros.</td>
                     </tr>
                   )}
                 </tbody>
@@ -583,7 +588,7 @@ export default function MaintenancePlanningPage() {
                   <div className="mt-1 text-sm text-slate-500">
                     {selected.apparatus?.code ?? '—'} · {selected.apparatus?.name ?? 'Equipo sin resolver'}
                   </div>
-                  <span className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${stateClass(selected.state)}`}>
+                  <span className={`mt-2 inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${stateClass(selected.state)}`}>
                     {stateLabel(selected.state)}
                   </span>
                 </div>

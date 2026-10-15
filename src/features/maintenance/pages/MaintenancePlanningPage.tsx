@@ -303,7 +303,7 @@ export default function MaintenancePlanningPage() {
       if (month !== 'ALL' && row.month_number !== Number(month)) return false
       if (frequency !== 'ALL' && frequencyFromPlan(row.plan) !== frequency) return false
       if (state !== 'ALL' && row.state !== state) return false
-      if (summaryFilter === 'PENDING' && row.workOrder?.status !== 'PENDING') return false
+      if (summaryFilter === 'PENDING' && (row.workOrder?.status !== 'PENDING' || (row.scheduled_date !== null && row.scheduled_date < localTodayISO()))) return false
       if (summaryFilter === 'OVERDUE') {
         const openWorkOrder = row.workOrder && ['PENDING', 'IN_MANAGEMENT', 'IN_PROGRESS'].includes(row.workOrder.status)
         if (!openWorkOrder || !row.scheduled_date || row.scheduled_date >= localTodayISO()) return false

@@ -334,7 +334,10 @@ BEGIN
   IF length(btrim(coalesce(target_cause, ''))) < 2 THEN
     RAISE EXCEPTION 'Indica la causa de la petición.';
   END IF;
-  IF jsonb_typeof(target_lines) <> 'array' OR jsonb_array_length(target_lines) = 0 THEN
+  IF jsonb_typeof(target_lines) IS DISTINCT FROM 'array' THEN
+    RAISE EXCEPTION 'La lista de materiales debe tener formato de lista.';
+  END IF;
+  IF jsonb_array_length(target_lines) = 0 THEN
     RAISE EXCEPTION 'Añade al menos un material a la petición.';
   END IF;
 

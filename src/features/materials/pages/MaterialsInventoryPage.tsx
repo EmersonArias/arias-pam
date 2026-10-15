@@ -145,6 +145,10 @@ function isValidUrl(value: string) {
   }
 }
 
+function isValidEmail(value: string | null | undefined) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((value ?? '').trim())
+}
+
 function makeKey() {
   return typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : String(Date.now() + Math.random())
 }
@@ -201,6 +205,8 @@ export default function MaterialsInventoryPage() {
   const [historyLoading, setHistoryLoading] = useState(false)
   const [emailTarget, setEmailTarget] = useState<{ request: RequestRecord; lines: RequestLine[] } | null>(null)
   const [emailAddress, setEmailAddress] = useState('')
+  const [emailRecipientChoice, setEmailRecipientChoice] = useState('__manual__')
+  const [senderEmail, setSenderEmail] = useState(session?.user.email ?? '')
 
   async function loadData() {
     if (!hotel?.id) {
@@ -266,6 +272,22 @@ export default function MaterialsInventoryPage() {
   }, [hotel?.id])
 
   const providerById = useMemo(() => new Map(providers.map((provider) => [provider.id, provider])), [providers])
+  const emailRecipientOptions = useMemo(() => {
+    if (!emailTarget) return []
+    const options = new Map<string, { email: string; label: string }>()
+    for (const line of emailTarget.lines) {
+      const provider = line.provider_id ? providerById.get(line.provider_id) : undefined
+      const email = provider?.email_main?.trim().toLowerCase() ?? ''
+      if (!isValidEmail(email)) continue
+      const existing = options.get(email)
+      const label = provider?.label || line.provider_name || 'Proveedor'
+      options.set(email, {
+        email,
+        label: existing && !existing.label.includes(label) ? existing.label + ', ' + label : (existing?.label ?? label),
+      })
+    }
+    return Array.from(options.values())
+  }, [emailTarget, providerById])
   const activeMaterials = useMemo(() => materials.filter((material) => material.active), [materials])
   const lowStockMaterials = useMemo(
     () => activeMaterials.filter((material) => Number(material.stock_quantity) <= Number(material.minimum_stock)),
@@ -656,9 +678,23 @@ export default function MaterialsInventoryPage() {
   }
 
   async function openEmail(request: RequestRecord, lines: RequestLine[]) {
-    const providerIds = Array.from(new Set(lines.map((line) => line.provider_id).filter(Boolean))) as string[]
-    const suggestedEmail = providerIds.length === 1 ? providerById.get(providerIds[0])?.email_main ?? '' : ''
-    setEmailAddress(request.recipient_email || suggestedEmail)
+    const providerEmails = Array.from(new Set(lines
+      .map((line) => line.provider_id ? providerById.get(line.provider_id)?.email_main?.trim().toLowerCase() ?? '' : '')
+      .filter((email) => isValidEmail(email))))
+    const previousEmail = request.recipient_email?.trim().toLowerCase() ?? ''
+    const choice = isValidEmail(previousEmail) && providerEmails.includes(previousEmail)
+      ? previousEmail
+      : providerEmails.length === 1 ? providerEmails[0] : '__manual__'
+
+    setEmailRecipientChoice(choice)
+    setEmailAddress(choice === '__manual__' ? previousEmail : choice)
+
+    let activeEmail = session?.user.email?.trim().toLowerCase() ?? ''
+    if (!isValidEmail(activeEmail) && session?.user.id) {
+      const profileResult = await supabase.from('profiles').select('email').eq('id', session.user.id).maybeSingle()
+      if (!profileResult.error) activeEmail = profileResult.data?.email?.trim().toLowerCase() ?? ''
+    }
+    setSenderEmail(activeEmail)
     setEmailTarget({ request, lines })
     setError('')
   }
@@ -666,14 +702,16 @@ export default function MaterialsInventoryPage() {
   async function sendRequestEmail(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!emailTarget || sending) return
-    const recipient = emailAddress.trim()
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient)) {
-      setError('Introduce un correo electrónico válido.')
+    const recipient = emailRecipientChoice === '__manual__' ? emailAddress.trim() : emailRecipientChoice
+    if (!isValidEmail(recipient)) {
+      setError('Selecciona una dirección válida o introduce el correo manualmente.')
       return
     }
-    const sameProviderIds = Array.from(new Set(emailTarget.lines.map((line) => line.provider_id).filter(Boolean)))
-    const sameProviderEmail = sameProviderIds.length === 1 ? providerById.get(sameProviderIds[0] as string)?.email_main : null
-    if (!window.confirm('Confirma el envío del PDF ' + emailTarget.request.request_number + '.pdf a ' + recipient + (sameProviderEmail ? '?' : '. Revisa que este destinatario pueda gestionar todos los materiales.'))) return
+    if (!isValidEmail(senderEmail)) {
+      setError('La cuenta activa no tiene un correo de contacto válido. Revisa el correo de tu perfil antes de enviar.')
+      return
+    }
+    if (!window.confirm('Confirma el envío del PDF ' + emailTarget.request.request_number + '.pdf a ' + recipient + '. Las respuestas se dirigirán al correo del usuario activo: ' + senderEmail + '.')) return
 
     setSending(true)
     setError('')
@@ -686,8 +724,8 @@ export default function MaterialsInventoryPage() {
           pdf_base64: base64Pdf(emailTarget.request, emailTarget.lines),
         },
       })
-      if (response.error) throw new Error(response.error.message)
       if (response.data?.error) throw new Error(String(response.data.error))
+      if (response.error) throw new Error(response.error.message)
       const deliveryStateWarning = response.data?.warning ? String(response.data.warning) : ''
       const updatedRequest = { ...emailTarget.request, email_status: 'SENT' as const, recipient_email: recipient, email_sent_at: new Date().toISOString(), email_error: null }
       setRequests((current) => current.map((request) => request.id === updatedRequest.id ? updatedRequest : request))
@@ -1134,11 +1172,21 @@ export default function MaterialsInventoryPage() {
           <form onSubmit={(event) => void sendRequestEmail(event)} className="w-full max-w-xl rounded-2xl border border-slate-200 bg-white shadow-2xl">
             <header className="flex items-center justify-between border-b border-slate-200 px-4 py-4"><div><h2 className="text-base font-bold">Confirmar envío por correo</h2><p className="mt-1 text-xs text-slate-500">Se enviará el PDF adjunto de {emailTarget.request.request_number}.</p></div><button type="button" onClick={() => setEmailTarget(null)} disabled={sending} className="inline-flex h-9 w-9 items-center justify-center rounded-lg hover:bg-slate-100" aria-label="Cerrar"><X size={16}/></button></header>
             <div className="space-y-3 p-4">
-              <label className="block"><span className="mb-1 block text-[10px] font-semibold uppercase text-slate-500">Destinatario *</span><input required type="email" value={emailAddress} onChange={(event) => setEmailAddress(event.target.value)} placeholder="compras@empresa.com" className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"/></label>
-              <div className="rounded-xl bg-slate-50 p-3 text-xs leading-5 text-slate-600"><div><strong>Asunto:</strong> {emailTarget.request.request_number} · Petición de material · {hotel?.name}</div><div><strong>Adjunto:</strong> {emailTarget.request.request_number}.pdf</div><div><strong>Artículos:</strong> {emailTarget.lines.map((line) => line.description).join(', ')}</div></div>
-              <p className="text-[11px] leading-5 text-slate-500">No se enviará nada hasta pulsar «Confirmar y enviar». El correo requiere que el servicio de envío esté configurado en Supabase.</p>
+              <label className="block"><span className="mb-1 block text-[10px] font-semibold uppercase text-slate-500">Destinatario *</span>
+                <select required value={emailRecipientChoice} onChange={(event) => { const value = event.target.value; setEmailRecipientChoice(value); if (value !== '__manual__') setEmailAddress(value) }} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm">
+                  {emailRecipientOptions.map((option) => <option key={option.email} value={option.email}>{option.label} · {option.email}</option>)}
+                  <option value="__manual__">Introducir correo manualmente</option>
+                </select>
+              </label>
+              {emailRecipientChoice === '__manual__' && <label className="block"><span className="mb-1 block text-[10px] font-semibold uppercase text-slate-500">Correo del destinatario *</span><input required type="email" value={emailAddress} onChange={(event) => setEmailAddress(event.target.value)} placeholder="compras@empresa.com" className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"/></label>}
+              <div className="rounded-xl bg-slate-50 p-3 text-xs leading-5 text-slate-600">
+                <div><strong>Responder a:</strong> {senderEmail || 'La cuenta activa no tiene un correo de contacto disponible.'}</div>
+                <div className="mt-1 text-[11px]">El servicio enviará desde una dirección autorizada y verificada; las respuestas se dirigirán al correo del usuario activo.</div>
+                <div className="mt-2"><strong>Asunto:</strong> {emailTarget.request.request_number} · Petición de material · {hotel?.name}</div><div><strong>Adjunto:</strong> {emailTarget.request.request_number}.pdf</div><div><strong>Artículos:</strong> {emailTarget.lines.map((line) => line.description).join(', ')}</div>
+              </div>
+              <p className="text-[11px] leading-5 text-slate-500">No se enviará nada hasta pulsar «Confirmar y enviar». El correo requiere que el servicio esté configurado y que el usuario activo tenga un correo de contacto válido.</p>
             </div>
-            <footer className="flex flex-col-reverse gap-2 border-t border-slate-200 p-4 sm:flex-row sm:justify-end"><button type="button" onClick={() => setEmailTarget(null)} disabled={sending} className="min-h-10 rounded-xl border border-slate-200 px-4 text-xs font-semibold text-slate-600">Cancelar</button><button type="submit" disabled={sending || !emailAddress.trim()} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 text-xs font-semibold text-white disabled:opacity-50"><Mail size={14}/>{sending ? 'Enviando correo…' : 'Confirmar y enviar'}</button></footer>
+            <footer className="flex flex-col-reverse gap-2 border-t border-slate-200 p-4 sm:flex-row sm:justify-end"><button type="button" onClick={() => setEmailTarget(null)} disabled={sending} className="min-h-10 rounded-xl border border-slate-200 px-4 text-xs font-semibold text-slate-600">Cancelar</button><button type="submit" disabled={sending || !isValidEmail(emailRecipientChoice === '__manual__' ? emailAddress : emailRecipientChoice) || !isValidEmail(senderEmail)} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 text-xs font-semibold text-white disabled:opacity-50"><Mail size={14}/>{sending ? 'Enviando correo…' : 'Confirmar y enviar'}</button></footer>
           </form>
         </div>
       )}

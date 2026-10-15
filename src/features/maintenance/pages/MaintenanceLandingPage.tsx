@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { AlertTriangle, CalendarClock, CheckCircle2, ClipboardList, FileCheck2, ListChecks, Settings2, Wrench, Building2, Lightbulb, Plus, Clock3 } from 'lucide-react'
+import { AlertTriangle, CalendarClock, CheckCircle2, ClipboardList, FileCheck2, ListChecks, Settings2, Wrench, Building2, Lightbulb, Plus, Clock3, Package } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import BrandLogo from '../../../shared/components/branding/BrandLogo'
 import { BackButton, HomeButton } from '../../../shared/components/navigation/NavigationButtons'
@@ -179,6 +179,12 @@ export default function MaintenanceLandingPage() {
       icon: AlertTriangle,
       href: '/maintenance/tickets?summary=URGENT',
       metric: counts.urgentTickets == null ? undefined : `${counts.urgentTickets} graves`,
+    },
+    {
+      title: 'Materiales y stock',
+      description: 'Catálogo de materiales, existencias, proveedores, enlaces de compra y peticiones.',
+      icon: Package,
+      href: '/materials',
     },
     {
       title: 'LED de armario',

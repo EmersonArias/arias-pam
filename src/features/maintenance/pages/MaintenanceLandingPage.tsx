@@ -17,6 +17,7 @@ type Card = {
 type Counts = {
   assets: number | null
   pendingTickets: number | null
+  overdueTickets: number | null
   urgentTickets: number | null
   pendingPreventives: number | null
   overduePreventives: number | null
@@ -30,6 +31,7 @@ type Counts = {
 const EMPTY_COUNTS: Counts = {
   assets: null,
   pendingTickets: null,
+  overdueTickets: null,
   urgentTickets: null,
   pendingPreventives: null,
   overduePreventives: null,
@@ -59,7 +61,7 @@ export default function MaintenanceLandingPage() {
         return
       }
 
-      const [assets, pending, urgentTickets, inProgress, inManagement, scheduledJobs, pendingPreventives, overduePreventives, interventions, pam] = await Promise.all([
+      const [assets, pending, overdueTickets, urgentTickets, inProgress, inManagement, scheduledJobs, pendingPreventives, overduePreventives, interventions, pam] = await Promise.all([
         supabase
           .from('apparatus_registry')
           .select('id', { count: 'exact', head: true })
@@ -70,7 +72,15 @@ export default function MaintenanceLandingPage() {
           .select('id', { count: 'exact', head: true })
           .eq('hotel_id', hotel.id)
           .eq('status', 'PENDING')
-          .neq('work_type', 'PREVENTIVE'),
+          .neq('work_type', 'PREVENTIVE')
+          .or(`scheduled_date.is.null,scheduled_date.gte.${localTodayISO()}`),
+        supabase
+          .from('maintenance_work_orders')
+          .select('id', { count: 'exact', head: true })
+          .eq('hotel_id', hotel.id)
+          .neq('work_type', 'PREVENTIVE')
+          .in('status', ['PENDING', 'IN_MANAGEMENT', 'IN_PROGRESS'])
+          .lt('scheduled_date', localTodayISO()),
         supabase
           .from('maintenance_work_orders')
           .select('id', { count: 'exact', head: true })
@@ -100,7 +110,8 @@ export default function MaintenanceLandingPage() {
           .select('id', { count: 'exact', head: true })
           .eq('hotel_id', hotel.id)
           .eq('work_type', 'PREVENTIVE')
-          .eq('status', 'PENDING'),
+          .eq('status', 'PENDING')
+          .or(`scheduled_date.is.null,scheduled_date.gte.${localTodayISO()}`),
         supabase
           .from('maintenance_work_orders')
           .select('id', { count: 'exact', head: true })
@@ -125,6 +136,7 @@ export default function MaintenanceLandingPage() {
       setCounts({
         assets: assets.error ? null : assets.count ?? 0,
         pendingTickets: pending.error ? null : pending.count ?? 0,
+        overdueTickets: overdueTickets.error ? null : overdueTickets.count ?? 0,
         urgentTickets: urgentTickets.error ? null : urgentTickets.count ?? 0,
         pendingPreventives: pendingPreventives.error ? null : pendingPreventives.count ?? 0,
         overduePreventives: overduePreventives.error ? null : overduePreventives.count ?? 0,
@@ -250,9 +262,10 @@ export default function MaintenanceLandingPage() {
                 </div>
                 <button type="button" onClick={() => navigate('/maintenance/tickets?new=1')} className="inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800 sm:text-sm"><Plus size={15}/>Nuevo</button>
               </div>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5">
                 {[
                   { key: 'PENDING', label: 'Pendientes', count: counts.pendingTickets, icon: Clock3, tone: 'bg-amber-50 text-amber-700' },
+                  { key: 'OVERDUE', label: 'Atrasados', count: counts.overdueTickets, icon: AlertTriangle, tone: 'bg-rose-50 text-rose-700' },
                   { key: 'URGENT', label: 'Alta / crítica', count: counts.urgentTickets, icon: AlertTriangle, tone: 'bg-rose-50 text-rose-700' },
                   { key: 'IN_MANAGEMENT', label: 'En gestión', count: counts.inManagementTickets, icon: ClipboardList, tone: 'bg-violet-50 text-violet-700' },
                   { key: 'IN_PROGRESS', label: 'En curso', count: counts.inProgressTickets, icon: CheckCircle2, tone: 'bg-blue-50 text-blue-700' },

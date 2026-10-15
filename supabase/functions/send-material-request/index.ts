@@ -70,7 +70,7 @@ Deno.serve(async (request) => {
 
   const { data: lines, error: linesError } = await supabase
     .from('maintenance_material_request_lines')
-    .select('description, order_code, reference_code, provider_name, unit_of_measure, quantity, purchase_url')
+    .select('description, order_code, reference_code, provider_name, unit_of_measure, quantity, purchase_url, delivery_date')
     .eq('request_id', requestId)
     .order('created_at', { ascending: true })
   if (linesError || !lines?.length) return json({ error: 'No se han podido cargar las líneas de la petición.' }, 400)
@@ -92,7 +92,8 @@ Deno.serve(async (request) => {
     return '<tr><td style="border:1px solid #dbe1e7;padding:8px">' + escapeHtml(line.quantity) + ' ' + escapeHtml(line.unit_of_measure) +
       '</td><td style="border:1px solid #dbe1e7;padding:8px">' + escapeHtml(line.description) +
       '<div style="color:#64748b;font-size:12px">' + escapeHtml(line.order_code || line.reference_code || '') + '</div>' + link +
-      '</td><td style="border:1px solid #dbe1e7;padding:8px">' + escapeHtml(line.provider_name || '—') + '</td></tr>'
+      '</td><td style="border:1px solid #dbe1e7;padding:8px">' + escapeHtml(line.delivery_date || '—') + '</td>' +
+      '<td style="border:1px solid #dbe1e7;padding:8px">' + escapeHtml(line.provider_name || '—') + '</td></tr>'
   }).join('')
 
   const html = '<div style="font-family:Arial,Helvetica,sans-serif;color:#1e293b;max-width:760px;margin:0 auto">' +
@@ -105,7 +106,7 @@ Deno.serve(async (request) => {
     '<tr><td style="padding:6px 0;color:#64748b">Causa</td><td style="padding:6px 0">' + escapeHtml(materialRequest.cause) + '</td></tr>' +
     '<tr><td style="padding:6px 0;color:#64748b">Entrega prevista</td><td style="padding:6px 0">' + escapeHtml(materialRequest.delivery_date || 'Sin fecha indicada') + '</td></tr>' +
     '</table><table style="border-collapse:collapse;width:100%;margin-top:18px;font-size:13px">' +
-    '<thead><tr style="background:#f1f5f9"><th style="border:1px solid #dbe1e7;padding:8px;text-align:left">Unidades</th><th style="border:1px solid #dbe1e7;padding:8px;text-align:left">Descripción</th><th style="border:1px solid #dbe1e7;padding:8px;text-align:left">Proveedor</th></tr></thead>' +
+    '<thead><tr style="background:#f1f5f9"><th style="border:1px solid #dbe1e7;padding:8px;text-align:left">Unidades</th><th style="border:1px solid #dbe1e7;padding:8px;text-align:left">Descripción</th><th style="border:1px solid #dbe1e7;padding:8px;text-align:left">Fecha entrega</th><th style="border:1px solid #dbe1e7;padding:8px;text-align:left">Proveedor</th></tr></thead>' +
     '<tbody>' + lineHtml + '</tbody></table>' +
     (materialRequest.notes ? '<p style="margin-top:18px"><strong>Observaciones:</strong> ' + escapeHtml(materialRequest.notes) + '</p>' : '') +
     '<p style="margin-top:24px;color:#64748b;font-size:11px">Mensaje generado por Arias Suite. El PDF adjunto corresponde a la petición confirmada ' + escapeHtml(materialRequest.request_number) + '.</p></div>'

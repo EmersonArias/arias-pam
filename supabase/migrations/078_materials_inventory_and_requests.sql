@@ -321,14 +321,14 @@ BEGIN
 
     INSERT INTO public.maintenance_material_request_lines (
       request_id, material_id, description, reference_code, order_code,
-      provider_id, provider_name, unit_of_measure, quantity, purchase_url
+      provider_id, provider_name, unit_of_measure, quantity, purchase_url, delivery_date
     )
     VALUES (
       request_record.id, material_record.id, material_record.description,
       material_record.reference_code, material_record.order_code,
       material_record.provider_id, provider_label, material_record.unit_of_measure,
       line_quantity, material_record.purchase_url,
-      NULLIF(line_record->>'delivery_date', '')::date
+    NULLIF(line_record->>'delivery_date', '')::date
     );
 
     line_count := line_count + 1;

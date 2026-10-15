@@ -35,6 +35,10 @@ $$;
 -- Las secuencias son independientes de los grants de tabla.
 REVOKE ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public FROM anon;
 
+-- Elimina también el EXECUTE directo de funciones/RPC para anon.
+-- Los permisos explícitos de authenticated y service_role se conservan.
+REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA public FROM anon;
+
 -- Fallar y hacer rollback si queda cualquier grant directo de anon en los objetos
 -- que cubre esta migración. Los permisos de authenticated/service_role no se tocan.
 DO $$
@@ -42,6 +46,7 @@ DECLARE
   remaining_table_grants integer;
   remaining_column_grants integer;
   remaining_sequence_grants integer;
+  remaining_function_grants integer;
 BEGIN
   SELECT count(*)
     INTO remaining_table_grants
@@ -57,19 +62,28 @@ BEGIN
 
   SELECT count(*)
     INTO remaining_sequence_grants
-  FROM information_schema.role_usage_grants
+  FROM information_schema.sequence_privileges
   WHERE object_schema = 'public'
-    AND object_type = 'SEQUENCE'
     AND grantee = 'anon';
+
+  SELECT count(*)
+    INTO remaining_function_grants
+  FROM pg_proc p
+  JOIN pg_namespace n ON n.oid = p.pronamespace
+  WHERE n.nspname = 'public'
+    AND p.prokind IN ('f', 'p')
+    AND has_function_privilege('anon', p.oid, 'EXECUTE');
 
   IF remaining_table_grants > 0
      OR remaining_column_grants > 0
-     OR remaining_sequence_grants > 0 THEN
+     OR remaining_sequence_grants > 0
+     OR remaining_function_grants > 0 THEN
     RAISE EXCEPTION
-      'Persisten grants para anon en public: tablas/vistas=%, columnas=%, secuencias=%',
+      'Persisten grants para anon en public: tablas/vistas=%, columnas=%, secuencias=%, funciones=%',
       remaining_table_grants,
       remaining_column_grants,
-      remaining_sequence_grants;
+      remaining_sequence_grants,
+      remaining_function_grants;
   END IF;
 END;
 $$;

@@ -122,10 +122,15 @@ const typeLabels: Record<WorkOrder['work_type'], string> = {
   ACTUATION: 'Actuación',
 }
 
+function localTodayISO() {
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+}
+
 function isOverdue(item: WorkOrder) {
   return ['PENDING', 'IN_MANAGEMENT', 'IN_PROGRESS'].includes(item.status)
     && Boolean(item.scheduled_date)
-    && item.scheduled_date! < new Date().toISOString().slice(0, 10)
+    && item.scheduled_date! < localTodayISO()
 }
 
 function displayStatusLabel(item: WorkOrder) {
@@ -432,7 +437,8 @@ export default function MaintenanceWorkOrdersPage() {
 
     return records.filter((item) => {
       if (statusFilter === 'OVERDUE' && !isOverdue(item)) return false
-      if (statusFilter !== 'ALL' && statusFilter !== 'OVERDUE' && item.status !== statusFilter) return false
+      if (statusFilter === 'PENDING' && (item.status !== 'PENDING' || isOverdue(item))) return false
+      if (statusFilter !== 'ALL' && statusFilter !== 'OVERDUE' && statusFilter !== 'PENDING' && item.status !== statusFilter) return false
       if (typeFilter !== 'ALL' && item.work_type !== typeFilter) return false
       if (priorityFilter === 'HIGH_OR_CRITICAL' && item.priority !== 'HIGH' && item.priority !== 'CRITICAL') return false
       if (priorityFilter !== 'ALL' && priorityFilter !== 'HIGH_OR_CRITICAL' && item.priority !== priorityFilter) return false

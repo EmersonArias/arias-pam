@@ -195,13 +195,12 @@ export default function MaintenancePlanningPage() {
 
     // Load the hotel's active plans by hotel scope instead of a long .in(id, ...)
     // list: large query strings can trigger HTTP 400 / "Bad Request" in PostgREST.
-    const plansResult = jobs.length
-      ? await supabase
-          .from('maintenance_plans')
-          .select('id, name, description, maintenance_type, apparatus_registry_id, periodicity_value, periodicity_unit')
-          .eq('hotel_id', hotel.id)
-          .eq('active', true)
-      : { data: [], error: null }
+    let plansQuery = supabase
+      .from('maintenance_plans')
+      .select('id, name, description, maintenance_type, apparatus_registry_id, periodicity_value, periodicity_unit')
+      .eq('hotel_id', hotel.id)
+    if (summaryFilter === 'ALL') plansQuery = plansQuery.eq('active', true)
+    const plansResult = jobs.length ? await plansQuery : { data: [], error: null }
 
     if (plansResult.error) {
       setRows([])
@@ -365,7 +364,7 @@ export default function MaintenancePlanningPage() {
               <BrandLogo onActivate={() => navigate('/')} className="h-9 w-auto shrink-0 object-contain sm:h-11" />
               <div className="min-w-0 flex-1">
                 <h1 className="text-xl font-bold leading-tight sm:text-2xl">{summaryFilter === 'PENDING' ? 'Preventivos pendientes' : summaryFilter === 'OVERDUE' ? 'Preventivos atrasados' : 'Planificación'}</h1>
-                <p className="text-xs text-slate-500 sm:text-sm">{summaryFilter === 'OVERDUE' ? 'Todos los años · trabajos fuera de fecha todavía sin finalizar' : summaryFilter === 'PENDING' ? 'Todos los años · órdenes preventivas pendientes de atención' : 'Trabajos programados derivados del PAM'}</p>
+                <p className="text-xs text-slate-500 sm:text-sm">{summaryFilter === 'OVERDUE' ? `${year === 'ALL' ? 'Todos los años' : year} · trabajos fuera de fecha todavía sin finalizar` : summaryFilter === 'PENDING' ? `${year === 'ALL' ? 'Todos los años' : year} · órdenes preventivas pendientes de atención` : 'Trabajos programados derivados del PAM'}</p>
               </div>
             </div>
             <div className="maintenance-planning-toolbar arias-grid-toolbar flex w-full flex-nowrap items-start justify-start gap-1 overflow-x-auto">

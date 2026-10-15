@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronDown, ChevronUp, RefreshCw, TicketCheck } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import BrandLogo from '../../../shared/components/branding/BrandLogo'
@@ -159,8 +159,10 @@ export default function MaintenancePlanningPage() {
   const [selectedId, setSelectedId] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const loadRequestRef = useRef(0)
 
   async function loadPlanning() {
+    const requestId = ++loadRequestRef.current
     if (!hotel?.id) {
       setRows([])
       setSelectedId('')
@@ -178,11 +180,13 @@ export default function MaintenancePlanningPage() {
       .eq('hotel_id', hotel.id)
     if (year !== 'ALL') jobsQuery = jobsQuery.eq('plan_year', year)
     if (summaryFilter === 'OVERDUE') jobsQuery = jobsQuery.lt('scheduled_date', localTodayISO())
+    if (summaryFilter === 'PENDING') jobsQuery = jobsQuery.or(`scheduled_date.is.null,scheduled_date.gte.${localTodayISO()}`)
     const jobsResult = await jobsQuery
       .order('scheduled_date', { ascending: true, nullsFirst: false })
       .order('month_number', { ascending: true })
       .order('week_slot', { ascending: true })
 
+    if (requestId !== loadRequestRef.current) return
     if (jobsResult.error) {
       setRows([])
       setSelectedId('')
@@ -202,6 +206,7 @@ export default function MaintenancePlanningPage() {
     if (summaryFilter === 'ALL') plansQuery = plansQuery.eq('active', true)
     const plansResult = jobs.length ? await plansQuery : { data: [], error: null }
 
+    if (requestId !== loadRequestRef.current) return
     if (plansResult.error) {
       setRows([])
       setSelectedId('')
@@ -221,6 +226,7 @@ export default function MaintenancePlanningPage() {
           .eq('hotel_id', hotel.id)
       : { data: [], error: null }
 
+    if (requestId !== loadRequestRef.current) return
     if (apparatusResult.error) {
       setRows([])
       setSelectedId('')
@@ -244,6 +250,7 @@ export default function MaintenancePlanningPage() {
       ? await workOrdersQuery
       : { data: [], error: null }
 
+    if (requestId !== loadRequestRef.current) return
     if (workOrdersResult.error) {
       setRows([])
       setSelectedId('')

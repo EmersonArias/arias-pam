@@ -328,7 +328,7 @@ BEGIN
       material_record.reference_code, material_record.order_code,
       material_record.provider_id, provider_label, material_record.unit_of_measure,
       line_quantity, material_record.purchase_url,
-    NULLIF(line_record->>'delivery_date', '')::date
+      NULLIF(line_record->>'delivery_date', '')::date
     );
 
     line_count := line_count + 1;

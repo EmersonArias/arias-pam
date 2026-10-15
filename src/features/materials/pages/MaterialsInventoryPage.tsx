@@ -178,6 +178,8 @@ export default function MaterialsInventoryPage() {
   const [requests, setRequests] = useState<RequestRecord[]>([])
   const [movements, setMovements] = useState<Array<Record<string, unknown>>>([])
   const [loading, setLoading] = useState(true)
+  const [moduleReady, setModuleReady] = useState(false)
+  const [migrationNotice, setMigrationNotice] = useState('')
   const [saving, setSaving] = useState(false)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
@@ -214,6 +216,8 @@ export default function MaterialsInventoryPage() {
       setProviders([])
       setRequests([])
       setMovements([])
+      setModuleReady(false)
+      setMigrationNotice('')
       setLoading(false)
       setError('Selecciona un hotel antes de gestionar materiales.')
       return
@@ -227,12 +231,13 @@ export default function MaterialsInventoryPage() {
       supabase.from('maintenance_stock_movements').select('id, hotel_id, material_id, movement_type, quantity_delta, stock_before, stock_after, reason, reference, created_by, created_at').eq('hotel_id', hotel.id).order('created_at', { ascending: false }).limit(50),
     ])
 
-    if (materialResult.error || requestResult.error || movementResult.error) {
+    if (materialResult.error) {
       setMaterials([])
       setRequests([])
       setMovements([])
+      setModuleReady(false)
+      setMigrationNotice('No se pudo cargar el catálogo de materiales. Detalle técnico: ' + materialResult.error.message)
       setLoading(false)
-      setError('El módulo necesita que se aplique y verifique la migración 078 en Supabase. No se han modificado datos.')
       return
     }
 
@@ -256,10 +261,31 @@ export default function MaterialsInventoryPage() {
       }
     }
 
-    setMaterials((materialResult.data ?? []) as Material[])
+    const loadedMaterials = ((materialResult.data ?? []) as Array<Record<string, unknown>>).map((item) => ({
+      ...item,
+      reference_code: (item.reference_code as string | null | undefined) ?? null,
+      unit_of_measure: (item.unit_of_measure as string | null | undefined) ?? 'ud',
+      stock_quantity: Number(item.stock_quantity ?? 0),
+      minimum_stock: Number(item.minimum_stock ?? 0),
+      purchase_url: (item.purchase_url as string | null | undefined) ?? null,
+      storage_location: (item.storage_location as string | null | undefined) ?? null,
+      notes: (item.notes as string | null | undefined) ?? null,
+    })) as unknown as Material[]
+
+    setMaterials(loadedMaterials)
     setProviders(loadedProviders)
-    setRequests((requestResult.data ?? []) as RequestRecord[])
-    setMovements((movementResult.data ?? []) as Array<Record<string, unknown>>)
+    setRequests(requestResult.error ? [] : (requestResult.data ?? []) as RequestRecord[])
+    setMovements(movementResult.error ? [] : (movementResult.data ?? []) as Array<Record<string, unknown>>)
+
+    const missingParts = [
+      requestResult.error ? 'solicitudes/pedidos' : '',
+      movementResult.error ? 'movimientos de stock' : '',
+    ].filter(Boolean)
+    const schemaReady = missingParts.length === 0
+    setModuleReady(schemaReady)
+    setMigrationNotice(schemaReady ? '' :
+      'La migración 078 no aparece aplicada o completa en Supabase. El catálogo se conserva y se muestra en modo de consulta, pero no se pueden confirmar pedidos ni registrar movimientos de stock hasta corregir la base de datos. No se ha creado ni modificado ningún pedido. Detalle técnico: ' +
+      [requestResult.error?.message, movementResult.error?.message].filter(Boolean).join(' · '))
     setLoading(false)
   }
 
@@ -318,7 +344,7 @@ export default function MaterialsInventoryPage() {
     return { ...line, material, validQuantity: Number.isFinite(quantity) && quantity > 0 }
   }), [draftLines, activeMaterials])
 
-  const canReviewRequest = selectedDraftLines.length > 0
+  const canReviewRequest = moduleReady && selectedDraftLines.length > 0
     && selectedDraftLines.every((line) => line.material && line.validQuantity)
     && requesterName.trim().length >= 2
     && cause.trim().length >= 2
@@ -387,6 +413,7 @@ export default function MaterialsInventoryPage() {
   async function saveMaterial(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!hotel?.id || savingMaterial) return
+    if (!moduleReady) { setError('La migración 078 no está disponible. No se ha guardado el artículo.'); return }
     if (materialForm.description.trim().length < 2 || !materialForm.order_code.trim() || !materialForm.provider_id) {
       setError('Indica artículo, código del proveedor y proveedor.')
       return
@@ -469,6 +496,7 @@ export default function MaterialsInventoryPage() {
   async function saveMovement(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!hotel?.id || !movementMaterial || savingMovement) return
+    if (!moduleReady) { setError('La migración 078 no está disponible. No se ha registrado el movimiento.'); return }
     const quantity = Number(movementForm.quantity)
     if (!Number.isFinite(quantity) || (movementForm.type === 'ADJUSTMENT' ? quantity === 0 : quantity <= 0)) {
       setError(movementForm.type === 'ADJUSTMENT' ? 'Introduce una diferencia distinta de cero (positiva o negativa).' : 'Introduce una cantidad mayor que cero.')
@@ -586,6 +614,7 @@ export default function MaterialsInventoryPage() {
 
   async function confirmRequest() {
     if (!hotel?.id || saving || !canReviewRequest) return
+    if (!moduleReady) { setError('La migración 078 no está disponible. No se ha guardado la petición.'); return }
     if (!window.confirm('Confirmas y guardas la petición ' + hotel.name + ' con ' + selectedDraftLines.length + ' línea(s) de material? Esta acción creará un registro definitivo.')) return
     setSaving(true)
     setError('')
@@ -780,6 +809,12 @@ export default function MaterialsInventoryPage() {
           </div>
         </header>
 
+        {migrationNotice && (
+          <div role="status" className="mb-3 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs leading-5 text-amber-900">
+            <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+            <div>{migrationNotice}</div>
+          </div>
+        )}
         {errorBanner}
         {success && (
           <div className="mb-3 flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-xs text-emerald-800">
@@ -927,7 +962,7 @@ export default function MaterialsInventoryPage() {
 
               <div className="flex flex-col justify-between gap-3 border-t border-slate-200 pt-4 sm:flex-row sm:items-center">
                 <p className="text-[11px] leading-5 text-slate-500">Guardar no envía ningún correo ni descuenta unidades del stock. La petición se registra solo tras la confirmación final.</p>
-                <button type="button" disabled={!canReviewRequest || saving} onClick={() => { setError(''); setReviewOpen(true) }} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"><ClipboardList size={16}/>Revisar y confirmar</button>
+                <button type="button" disabled={!moduleReady || !canReviewRequest || saving} onClick={() => { setError(''); setReviewOpen(true) }} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"><ClipboardList size={16}/>Revisar y confirmar</button>
               </div>
             </div>
           </section>
@@ -959,9 +994,9 @@ export default function MaterialsInventoryPage() {
                       <td className="px-3 py-3 text-slate-600">{formatQuantity(material.minimum_stock)} {material.unit_of_measure}</td>
                       <td className="px-3 py-3">{material.purchase_url ? <button type="button" onClick={() => openLinePurchaseLink(material.purchase_url)} className="inline-flex items-center gap-1 font-semibold text-blue-700 hover:underline"><ExternalLink size={13}/>Abrir</button> : '—'}</td>
                       <td className="px-3 py-3"><div className="flex gap-1.5">
-                        <button type="button" title="Registrar entrada" onClick={() => openMovement(material, 'RECEIVE')} className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-200 text-emerald-700 hover:bg-emerald-50"><ArrowDownToLine size={14}/></button>
-                        <button type="button" title="Registrar salida" onClick={() => openMovement(material, 'ISSUE')} className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-amber-200 text-amber-700 hover:bg-amber-50"><ArrowUpFromLine size={14}/></button>
-                        <button type="button" title="Ajustar stock" onClick={() => openMovement(material, 'ADJUSTMENT')} className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100"><SlidersHorizontal size={14}/></button>
+                        <button type="button" title="Registrar entrada" onClick={() => openMovement(material, 'RECEIVE')} disabled={!moduleReady} className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-200 text-emerald-700 hover:bg-emerald-50"><ArrowDownToLine size={14}/></button>
+                        <button type="button" title="Registrar salida" onClick={() => openMovement(material, 'ISSUE')} disabled={!moduleReady} className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-amber-200 text-amber-700 hover:bg-amber-50"><ArrowUpFromLine size={14}/></button>
+                        <button type="button" title="Ajustar stock" onClick={() => openMovement(material, 'ADJUSTMENT')} disabled={!moduleReady} className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100"><SlidersHorizontal size={14}/></button>
                       </div></td>
                     </tr>
                   })}
@@ -976,8 +1011,8 @@ export default function MaterialsInventoryPage() {
                   <div className="flex items-start justify-between gap-3"><div className="min-w-0"><div className="text-sm font-semibold text-slate-800">{material.description}</div><div className="mt-1 text-[10px] text-slate-500">{material.order_code} · {provider?.label ?? 'Sin proveedor'}</div></div><div className={'shrink-0 text-right text-sm font-bold ' + (low ? 'text-rose-700' : 'text-slate-800')}>{formatQuantity(material.stock_quantity)}<div className="text-[9px] font-medium text-slate-400">{material.unit_of_measure}</div></div></div>
                   <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-2">
                     <div className="flex gap-1.5">
-                      <button type="button" onClick={() => openMovement(material, 'RECEIVE')} className="inline-flex min-h-9 items-center gap-1 rounded-lg border border-emerald-200 px-2.5 text-[10px] font-semibold text-emerald-700"><ArrowDownToLine size={13}/>Entrada</button>
-                      <button type="button" onClick={() => openMovement(material, 'ISSUE')} className="inline-flex min-h-9 items-center gap-1 rounded-lg border border-amber-200 px-2.5 text-[10px] font-semibold text-amber-700"><ArrowUpFromLine size={13}/>Salida</button>
+                      <button type="button" onClick={() => openMovement(material, 'RECEIVE')} disabled={!moduleReady} className="inline-flex min-h-9 items-center gap-1 rounded-lg border border-emerald-200 px-2.5 text-[10px] font-semibold text-emerald-700"><ArrowDownToLine size={13}/>Entrada</button>
+                      <button type="button" onClick={() => openMovement(material, 'ISSUE')} disabled={!moduleReady} className="inline-flex min-h-9 items-center gap-1 rounded-lg border border-amber-200 px-2.5 text-[10px] font-semibold text-amber-700"><ArrowUpFromLine size={13}/>Salida</button>
                       <button type="button" onClick={() => openMovement(material, 'ADJUSTMENT')} className="inline-flex min-h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600" aria-label="Ajustar"><SlidersHorizontal size={13}/></button>
                     </div>
                     {material.purchase_url && <button type="button" onClick={() => openLinePurchaseLink(material.purchase_url)} className="inline-flex items-center gap-1 text-[10px] font-semibold text-blue-700"><ExternalLink size={12}/>Comprar</button>}
@@ -995,7 +1030,7 @@ export default function MaterialsInventoryPage() {
               <div><h2 className="text-base font-bold">Catálogo maestro de materiales</h2><p className="mt-1 text-xs text-slate-500">Cada artículo se vincula al proveedor maestro existente. Los artículos se desactivan, no se borran físicamente.</p></div>
               <div className="flex w-full gap-2 sm:w-auto">
                 <label className="relative min-w-0 flex-1 sm:w-64"><Search size={15} className="absolute left-3 top-3 text-slate-400"/><input value={globalSearch} onChange={(event) => setGlobalSearch(event.target.value)} placeholder="Buscar catálogo…" className="w-full rounded-xl border border-slate-300 py-2.5 pl-9 pr-3 text-xs"/></label>
-                <button type="button" onClick={openNewMaterial} className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800"><Plus size={15}/>Nuevo</button>
+                <button type="button" onClick={openNewMaterial} disabled={!moduleReady} className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800"><Plus size={15}/>Nuevo</button>
               </div>
             </div>
             <div className="grid gap-2 p-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -1015,14 +1050,14 @@ export default function MaterialsInventoryPage() {
                   <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2">
                     <span className="text-[10px] text-slate-400">Mínimo {formatQuantity(material.minimum_stock)} {material.unit_of_measure}</span>
                     <div className="flex gap-1.5">
-                      <button type="button" onClick={() => openEditMaterial(material)} className="inline-flex min-h-8 items-center gap-1 rounded-lg border border-slate-200 px-2 text-[10px] font-semibold text-slate-600 hover:bg-slate-50"><Pencil size={12}/>Editar</button>
+                      <button type="button" onClick={() => openEditMaterial(material)} disabled={!moduleReady} className="inline-flex min-h-8 items-center gap-1 rounded-lg border border-slate-200 px-2 text-[10px] font-semibold text-slate-600 hover:bg-slate-50"><Pencil size={12}/>Editar</button>
                       <button type="button" onClick={async () => {
                         const nextActive = !material.active
                         if (!window.confirm('¿Confirmas ' + (nextActive ? 'reactivar' : 'desactivar') + ' el artículo «' + material.description + '»?')) return
                         const result = await supabase.from('maintenance_material_catalog').update({ active: nextActive, updated_at: new Date().toISOString() }).eq('hotel_id', material.hotel_id).eq('id', material.id)
                         if (result.error) setError('No se pudo cambiar el estado: ' + result.error.message)
                         else { setSuccess(nextActive ? 'Artículo reactivado.' : 'Artículo desactivado. Se conserva su histórico.'); await loadData() }
-                      }} className="inline-flex min-h-8 items-center gap-1 rounded-lg border border-slate-200 px-2 text-[10px] font-semibold text-slate-600 hover:bg-slate-50"><Archive size={12}/>{material.active ? 'Desactivar' : 'Reactivar'}</button>
+                      }} disabled={!moduleReady} className="inline-flex min-h-8 items-center gap-1 rounded-lg border border-slate-200 px-2 text-[10px] font-semibold text-slate-600 hover:bg-slate-50"><Archive size={12}/>{material.active ? 'Desactivar' : 'Reactivar'}</button>
                     </div>
                   </div>
                 </article>
@@ -1147,7 +1182,7 @@ export default function MaterialsInventoryPage() {
               <label className="block sm:col-span-2"><span className="mb-1 block text-[10px] font-semibold uppercase text-slate-500">Ubicación del almacén</span><input value={materialForm.storage_location} onChange={(event) => setMaterialForm((value) => ({ ...value, storage_location: event.target.value }))} placeholder="Ej. Almacén SSTT · Estantería B2" className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"/></label>
               <label className="block sm:col-span-2"><span className="mb-1 block text-[10px] font-semibold uppercase text-slate-500">Notas</span><textarea rows={2} value={materialForm.notes} onChange={(event) => setMaterialForm((value) => ({ ...value, notes: event.target.value }))} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"/></label>
             </div>
-            <footer className="flex flex-col-reverse gap-2 border-t border-slate-200 p-4 sm:flex-row sm:justify-end"><button type="button" onClick={() => setMaterialEditorOpen(false)} disabled={savingMaterial} className="min-h-10 rounded-xl border border-slate-200 px-4 text-xs font-semibold text-slate-600">Cancelar</button><button type="submit" disabled={savingMaterial || providers.length === 0} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 text-xs font-semibold text-white disabled:opacity-50"><CheckCircle2 size={14}/>{savingMaterial ? 'Guardando…' : 'Guardar artículo'}</button></footer>
+            <footer className="flex flex-col-reverse gap-2 border-t border-slate-200 p-4 sm:flex-row sm:justify-end"><button type="button" onClick={() => setMaterialEditorOpen(false)} disabled={savingMaterial} className="min-h-10 rounded-xl border border-slate-200 px-4 text-xs font-semibold text-slate-600">Cancelar</button><button type="submit" disabled={!moduleReady || savingMaterial || providers.length === 0} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 text-xs font-semibold text-white disabled:opacity-50"><CheckCircle2 size={14}/>{savingMaterial ? 'Guardando…' : 'Guardar artículo'}</button></footer>
           </form>
         </div>
       )}
@@ -1162,7 +1197,7 @@ export default function MaterialsInventoryPage() {
               <label className="block"><span className="mb-1 block text-[10px] font-semibold uppercase text-slate-500">Motivo *</span><input required minLength={2} value={movementForm.reason} onChange={(event) => setMovementForm((value) => ({ ...value, reason: event.target.value }))} placeholder="Ej. Recepción pedido nº…" className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"/></label>
               <label className="block"><span className="mb-1 block text-[10px] font-semibold uppercase text-slate-500">Referencia / albarán</span><input value={movementForm.reference} onChange={(event) => setMovementForm((value) => ({ ...value, reference: event.target.value }))} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"/></label>
             </div>
-            <footer className="flex justify-end gap-2 border-t border-slate-200 p-4"><button type="button" onClick={() => setMovementMaterial(null)} disabled={savingMovement} className="min-h-10 rounded-xl border border-slate-200 px-4 text-xs font-semibold">Cancelar</button><button type="submit" disabled={savingMovement} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-slate-900 px-4 text-xs font-semibold text-white disabled:opacity-50"><CheckCircle2 size={14}/>{savingMovement ? 'Registrando…' : 'Revisar y registrar'}</button></footer>
+            <footer className="flex justify-end gap-2 border-t border-slate-200 p-4"><button type="button" onClick={() => setMovementMaterial(null)} disabled={savingMovement} className="min-h-10 rounded-xl border border-slate-200 px-4 text-xs font-semibold">Cancelar</button><button type="submit" disabled={!moduleReady || savingMovement} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-slate-900 px-4 text-xs font-semibold text-white disabled:opacity-50"><CheckCircle2 size={14}/>{savingMovement ? 'Registrando…' : 'Revisar y registrar'}</button></footer>
           </form>
         </div>
       )}

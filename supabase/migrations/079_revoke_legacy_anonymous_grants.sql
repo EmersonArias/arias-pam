@@ -79,13 +79,17 @@ BEGIN
     AND object_type = 'SEQUENCE'
     AND grantee = 'anon';
 
+  -- Check only grants assigned directly to anon. has_function_privilege() also
+  -- returns true for EXECUTE inherited via PUBLIC, which this migration preserves.
   SELECT count(*)
     INTO remaining_function_grants
   FROM pg_proc p
   JOIN pg_namespace n ON n.oid = p.pronamespace
+  CROSS JOIN LATERAL aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) granted
   WHERE n.nspname = 'public'
     AND p.prokind IN ('f', 'p')
-    AND has_function_privilege('anon', p.oid, 'EXECUTE');
+    AND granted.grantee = 'anon'::regrole
+    AND granted.privilege_type = 'EXECUTE';
 
   IF remaining_table_grants > 0
      OR remaining_relation_acl_grants > 0
